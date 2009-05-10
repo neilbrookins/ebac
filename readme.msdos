@@ -1,0 +1,66 @@
+(MS-DOS version)
+Installation instructions for EBaC. (Electronic Bible and Concordance)
+Type the following commands (shown indented below) from the C> prompt. 
+If you are in Microsoft Windows, you can get a C> prompt by double
+clicking on the MS-DOS icon in the Main group of Program Manager.
+	c:
+	dir
+Check to see if you have at least 9,000,000 bytes free.
+You must have this much space before you continue the installation.
+	cd\
+	md bible
+	cd bible
+	md av
+	cd av
+Insert one of the disks into your A: drive.
+(If your disk drive is called B: then use b: in place of a: below)
+	copy a:. .
+Insert another disk into your drive.
+	copy a:. .
+Insert the last disk into your drive.
+	copy a:. .
+Put the disks away in a safe place.
+	copy /b p1 + p2 + p3 bigfile.lzh
+	dir bigfile.lzh
+Check to see if the size is 2891891. If its not... well it should be.
+	del p1
+	del p2
+	del p3
+	lha211
+When the program says, "Continue the self-extraction? [Y/N]" press, "y"
+These next two commands take a while, so be patient.
+	lha e bigfile
+	crtolf
+	copy trans ..
+	del trans
+	PATH
+Pick a directory from the list shown to put the BIBLE.EXE file into.
+Use that location in place of "c:\dos" shown below.
+	copy bible.exe c:\dos
+	del bible.exe
+Now you need to edit your AUTOEXEC.BAT file to insert a few lines.
+This next command assumes you have a command called "edit" which
+is included with MS-DOS 5.0 and newer. If you need to use a different
+editor, that is fine with me.
+	edit c:\autoexec.bat
+Insert these three lines into the file, and double check your spelling:
+   set BIBLEDRIVE=C:
+   set BIBLEROOT=\BIBLE
+   set TEMPFILE=C:\
+If you have installed a RAM disk on your computer which can be accessed
+via another drive letter such as E:\ then you can make EBaC
+run about twice as fast by setting TEMPFILE to that drive:
+   set TEMPFILE=E:\
+Don't worry if you don't use a RAM disk. EBaC does not require one.
+Now you need to check your CONFIG.SYS file to make sure it
+loads the ANSI.SYS driver. It probably does; we just have to make sure.
+	type c:\config.sys
+Look for a line that says:   DEVICE=C:\DOS\ANSI.SYS
+                       or:   DEVICE=C:\ANSI.SYS
+If one of these is not there, edit the file and insert the line.
+The line must refer to a file that really exists, so use the dir command
+to locate where ANSI.SYS really is.
+Now, you must reboot the computer before running the program.
+To run the program, just type this command: bible
+
+

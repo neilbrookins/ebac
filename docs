@@ -1,0 +1,66 @@
+PRODUCT OVERVIEW
+
+The Electronic Bible and Concordance, EBaC, has two main functions.
+First, as a Bible, it displays a reference when you supply the book
+name, chapter, and verse. Second, as a concordance, it displays the
+list of verses in which the word you supply is found.
+But, its really more powerful than that. Unlike a paper concordance,
+you can easily view a verse in full context. Also, you can search by
+common words such as, "I AM who I AM", which are not indexed in most
+paper concordances.
+----------------------------------------------------------------------
+ADDITIONAL TRANSLATIONS (other than KJV)
+
+To order additional translations, you need to place orders to
+two places. From me, Neil Brookins, you get the index and a
+conversion utility. From another source you buy the text itself.
+Here is that source for the ASCII text files:
+
+Rev. Phil Lindner, Online Bible U.S.A.
+P.O. Box 21
+Bronson, MI 49028
+Tel (517) 369-6035, or (800) 243-7124
+
+Most ASCII texts are $15. The NIV translation is $20.
+----------------------------------------------------------------------
+EXAMPLE SEARCH COMMANDS
+
+To perform these examples, shown indented below, simply hit <S>
+(as in Search) at the Main Menu. The Main Menu is the first thing
+displayed when you run the program. Or, if the program is already
+running, you can return to the Main Menu by pressing <X> or <ESC>
+
+The simplest search consists of a single word. You type the word, press
+the Enter, or Return key and the list of verses where that word occurs
+is displayed.
+	amen
+
+If you want to find where "love" and "hate" occur within the same
+verse, we use a proximity of zero:
+	love hate 0
+
+If that last search didn't show enough verses we may want to widen
+the search so that each word must occur within plus or minus 2 verses
+of each other.
+	love hate 2
+
+You can restrict searches by book by using the @bookname
+syntax. For example, to find all the occurances of "amen" in the book
+of Revelation, search for:
+	amen @rev 0
+
+To search for the word "blessed" in the gospels:
+	@mat @mar @lu @joh blessed , , , 0
+or, this does the same thing:
+	@mat @mar , @lu , @joh , blessed 0
+
+The latter form uses slightly less computer memory space.
+Here's a search where we don't want to look in a particular book.
+It will look for all occurances of the word "food" without looking in
+Genesis.
+	food @gen -
+
+Please note that there is a strict syntax that has to be followed if you
+expect to get predictable results. There must be exactly one more operand
+(word/book) in the search than there is operator (-/,/0).
+---------------------------------------------------------------------
