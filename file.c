@@ -406,7 +406,7 @@ FILE *trans_file;
 	if(BIBLEROOT == NULL)
 	{
 		printf("Error: getenv(BIBLEROOT) failed.\n");
-                printf("Please set BIBLEROOT environment to the directory where EBaC in located.\n");
+                printf("Please set BIBLEROOT environment to the directory where EBaC is located.\n");
 		exit(1);
 	}
         VMS_read_raw = TRUE;
@@ -419,7 +419,7 @@ FILE *trans_file;
 	if(BIBLEROOT == NULL)
 	{
 		printf("Error: getenv(BIBLEROOT) failed.\n");
-                printf("Please set BIBLEROOT environment to the directory where EBaC in located.\n");
+                printf("Please set BIBLEROOT environment to the directory where EBaC is located.\n");
 		exit(1);
 	}
 
@@ -465,7 +465,7 @@ FILE *trans_file;
         if (chdir(BIBLEROOT) != 0)
         {
         	printf("Can't chdir to %s\n", BIBLEROOT);
-                printf("Please set BIBLEROOT environment to the directory where EBaC in located.\n");
+                printf("Please set BIBLEROOT environment to the directory where EBaC is located.\n");
         	exit_program(0);
         }
 #endif
