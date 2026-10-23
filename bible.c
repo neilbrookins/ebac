@@ -56,13 +56,13 @@ int new_verse(char *word)
             disable_newverse = 0;
             return(FALSE);
     }
-    for(i = 0; i < strlen(word); i++)
+    for(i = 0; i < (int) strlen(word); i++)
     {
             c = word[i];
             if (!(isdigit(c) || c == ':'))
                     return(FALSE);
     } /* word contains digit(s), colon(s), or both. */
-    for(i = 1; i < strlen(word) - 1; i++)
+    for(i = 1; i < (int) strlen(word) - 1; i++)
     {
       if (word[i] == ':' && isdigit(word[i - 1]) && isdigit(word[i + 1]))
         return(TRUE);  /* word contains both digits and ':' */
@@ -80,7 +80,7 @@ int new_chapter(char *word)
 {
         int i;
 
-        for(i=1;i < (strlen(word) - 1); i++)
+        for(i=1;i < ((int) strlen(word) - 1); i++)
         {
                 if (word[i] == ':')
                 {
@@ -98,7 +98,7 @@ int wordtochapt(char *word)
 {
         int chapt = 0;
         int i;
-        for(i = 0; i < strlen(word); i++)
+        for(i = 0; i < (int) strlen(word); i++)
         {
                 if (word[i] == ':')
                         break;
@@ -112,10 +112,10 @@ int wordtoverse(char *word)
 {
         int verse = 0;
         int i;
-        for(i = 0; i < strlen(word); i++)
+        for(i = 0; i < (int) strlen(word); i++)
                 if (word[i] == ':')
                         break;
-        for(i++; i < strlen(word); i++)
+        for(i++; i < (int) strlen(word); i++)
         {
                 verse *= 10;
                 verse += word[i] - '0';

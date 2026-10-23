@@ -168,7 +168,7 @@ static void remove_head_punctuation(void)
           return;
   else
   {
-  for(i = 0; i < strlen(word); i++)
+  for(i = 0; i < (int) strlen(word); i++)
           word[i] = word[i + 1];
   remove_head_punctuation();            /* Oooh! Neat! A recursive call! */
   }
@@ -305,13 +305,13 @@ static int new_verse(void)
                 disable_newverse = 0;
                 return(FALSE);
         }
-        for(i = 0; i < strlen(word); i++)
+        for(i = 0; i < (int) strlen(word); i++)
         {
                 c = word[i];
                 if (!(isdigit(c) || (c == ':')))
                         return(FALSE);
         } /* word contains digit(s), colon(s), or both. */
-        for(i = 1; i < strlen(word) - 1; i++)
+        for(i = 1; i < (int) strlen(word) - 1; i++)
         {
            if (word[i] == ':' && isdigit(word[i - 1]) && isdigit(word[i + 1]))
                 return(TRUE);  /* word contains both digits and ':' */
@@ -329,7 +329,7 @@ static int new_chapter(void)
 {
         int i;
 
-        for(i=1;i < (strlen(word) - 1); i++)
+        for(i=1;i < ((int) strlen(word) - 1); i++)
         {
                 if (word[i] == ':')
                 {

@@ -307,7 +307,7 @@ static int count_lines(char tag, char *bookname, char *strg, int indent, char to
            }
         }
         strcpy(previous_book, bookname);
-        if (strlen(strg) <= indentWidth)
+        if ((int) strlen(strg) <= indentWidth)
                 return(1 + a_lines);
  for (i = indentWidth; i > 0; i--)
   if (strg[i] == ' ')
@@ -379,7 +379,7 @@ static void dis_verse(char *strg, int indent, char firstTime)
         int i, indentWidth = WIDTH - indent;
         char *outstr;
 
-        if (strlen(strg) <= indentWidth)
+        if ((int) strlen(strg) <= indentWidth)
         {
                 if ((strg[0] == '\0') && (firstTime == FALSE))
                         return;
