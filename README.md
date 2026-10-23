@@ -9,25 +9,91 @@ EBaC is a fast, text-mode Bible reader and concordance. It has two main jobs:
 
 Unlike a printed concordance, EBaC shows complete verses. It indexes every word, even common ones like *I* and *am*. Searches can combine words and books with AND, OR, AND NOT and proximity ("within 2 verses"). The King James (Authorized) Version is included.
 
-## Building and running on Linux
+## Installing on Linux
 
-You need a C compiler, `make`, and the ncurses development files.
+Not sure which steps you need? Open a terminal and type `ls ~/ebac`:
+
+- If it says **No such file or directory**, you don't have EBaC yet: follow **First-time install**.
+- If it lists files (`bible`, `README`, `AV`, ...), you already have it: follow **Updating to the latest version**.
+
+Type each command exactly as shown, pressing Enter after each line. Lines starting with `#` are comments; you don't need to type them.
+
+### First-time install (do this only once)
+
+**1. Install the tools EBaC needs to build.** This asks for your password.
 
 ```sh
-# Debian, Ubuntu, Raspberry Pi OS:
-sudo apt install build-essential libncurses-dev
-# Fedora:  sudo dnf install gcc make ncurses-devel
-
-git clone https://github.com/neilbrookins/ebac.git
-cd ebac
-make
-export BIBLEROOT=$PWD      # where the 'trans' file and the AV folder are
-./bible
+# On Raspberry Pi OS, Debian or Ubuntu:
+sudo apt install git build-essential libncurses-dev
+# On Fedora instead:  sudo dnf install git gcc make ncurses-devel
 ```
 
-Add the `export BIBLEROOT=...` line to your `~/.bashrc` to make it permanent.
+**2. Download EBaC into your home folder.** This creates a folder called `ebac`.
+
+```sh
+cd ~
+git clone https://github.com/neilbrookins/ebac.git
+```
+
+**3. Build the program.**
+
+```sh
+cd ~/ebac
+make
+```
+
+**4. Tell EBaC where its files are.** This only needs to be done once; it's remembered for every new terminal window.
+
+```sh
+echo 'export BIBLEROOT=$HOME/ebac' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**5. Run EBaC.**
+
+```sh
+~/ebac/bible
+```
+
+### Running EBaC
+
+Any time after installing, just type:
+
+```sh
+~/ebac/bible
+```
 
 At the main menu press **V** to view a passage, **S** to search, **C** to change translation, **I** for information, or **E** to exit. In any list or passage, press **?** for the keys available there. The arrow keys and **Page Up**/**Page Down** work too: in a passage, Down and Up step one verse at a time.
+
+### Updating to the latest version
+
+**Don't run `git clone` again.** You already have EBaC; `git clone` only works the first time, and will just say `destination path 'ebac' already exists`. Instead, download only what changed, then rebuild:
+
+```sh
+cd ~/ebac
+git pull
+make
+```
+
+That's all. Your settings and your search history are kept.
+
+- If `git pull` says `Already up to date.`, you already have the latest version.
+- If `make` says `Nothing to be done for 'all'`, that's fine too: the update didn't change the program itself, only things like the documentation.
+
+### If something goes wrong
+
+- **`destination path 'ebac' already exists`:** you already have EBaC. Use **Updating to the latest version** instead.
+- **`fatal: not a git repository`:** you weren't in the EBaC folder. Type `cd ~/ebac` first, then try again.
+- **`You are not currently on a branch`:** the folder was switched to an old version. Type `git checkout main`, then `git pull` and `make`.
+- **`Your local changes ... would be overwritten`:** you changed a file that the update also changes, such as `trans`. To keep your change and still update, type:
+  ```sh
+  git stash
+  git pull
+  git stash pop
+  make
+  ```
+- **`term.h: No such file or directory`** while building: step 1 wasn't done. Install the tools, then type `make` again.
+- **`Error: getenv(BIBLEROOT) failed`** when starting: step 4 wasn't done, or the terminal window was open before it was. Do step 4, or open a new terminal window.
 
 ## Searching
 
