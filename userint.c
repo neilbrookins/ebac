@@ -755,7 +755,7 @@ static void view_match_list(struct TEMPFILE *verse_list)
 static void view_match_list(short int *verse_list)
 #endif
 {
-        int i = 0, first_i, num_lines, tag, n;
+        int i = 0, first_i, num_lines, tag, n, j;
 	int ui; /* User Input */
         short int cur_verse;
         char exit_now = FALSE, top_of_screen;
@@ -852,16 +852,30 @@ static void view_match_list(short int *verse_list)
                         exit_now = TRUE;
                         break;
 		default:
-		    /* tag is one more than the number of entries shown */
-		    if ((n = key_to_tag(ui)) > 0 && n < tag)
+/*
+** A label picks the entry that far down the list from the first one shown,
+** even if it is past the bottom of the screen: on a phone, entries shown
+** while the keyboard was hidden disappear when it reappears, but their
+** labels can still be typed. The entry must exist in the list.
+*/
+		    cur_verse = 0;
+		    if ((n = key_to_tag(ui)) > 0)
 		    {
+			for (j = first_i; j < first_i + n; j++)
+			{
 #ifdef RAMDISK
-			cur_verse = vlist(verse_list, first_i + n - 1);
+			    cur_verse = vlist(verse_list, j);
 #else
-                        cur_verse = verse_list[first_i + n - 1];
+			    cur_verse = verse_list[j];
 #endif
+			    if (cur_verse == 0) /* the list ends before it */
+				break;
+			}
+		    }
+		    if (cur_verse != 0)
+		    {
                         view_in_context(cur_verse - NUM_SHOW_BEFORE);
-                        i = first_i;
+                        i = first_i;   /* back to this page afterwards */
 		    }
 		    else
 		    {

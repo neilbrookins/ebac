@@ -94,7 +94,7 @@ SCENARIOS = [
     # q w e r t y u i o pick list entries 1-9, like the digits above them;
     # entries 10 and up are labelled a b c d f g h j k l m s v z
     ("letters for 1-9 in list", ["s", "jesus wept ,\r", "q", "x", "w", "x", "E", "x", "o", "x",
-                                 "1", "x", "z", " ", "x", "e"]),  # no entry z here: help screen
+                                 "1", "x", "z", "x", "x", "e"]),  # z: entry 23, below the screen
     ("letters past 9 in list",  ["s", "the\r", " ", "a", "x", "d", "x", "f", "x", "p", "x", "e"]),
     # chapter and verse prompts: q w e r t y u i o p are 1 2 3 4 5 6 7 8 9 0
     # Resizing the window redraws the passage and result screens at once,
@@ -110,6 +110,11 @@ SCENARIOS = [
     ("resize while typing",     ["s", "lo", "<resize 30x80>", "ve\r", "x", "<resize 24x80>", "e"]),
     ("ctrl-l redraws",          ["v", "gen\r", "\r", "\r", "\x0c", ".", "\x0c", "x",
                                  "s", "light\r", "\x0c", "x", "e"]),
+    # Labels past the bottom of the screen pick entries further down the
+    # list (as if the window were taller), up to the end of the list.
+    ("labels past the screen",  ["<resize 12x80>", "s", "faith @gal 0\r", "3", "x", "e", "x", "m", "x",
+                                 "s", " ", "x", " ", "3", "x", "x", "e"]),
+    ("labels past list end",    ["<resize 12x80>", "s", "jesus wept 0\r", "3", "x", "4", " ", "w", "x", "x", "e"]),
     ("letters as digits in view", ["v", "gen\r", "r\r", "r\r", "x", "v", "psa\r", "qqo\r", "Qpt\r", "x",
                                    "v", "joh\r", "e1\r", "q", "p\r", "x", "e"]),
 ]
