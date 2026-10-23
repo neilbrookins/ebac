@@ -325,12 +325,16 @@ char *get_line(int mode)
                         /*
                         ** When only a number can be typed (chapter and verse),
                         ** the letters under the digits on a keyboard stand for
-                        ** them, q for 1 ... o for 9 and p for 0, so a phone's
-                        ** on-screen keyboard needn't be switched to numbers.
+                        ** them, q for 1 ... o for 9 and p for 0, and m stands
+                        ** for the minus sign, so a phone's on-screen keyboard
+                        ** needn't be switched to numbers. The digit or minus
+                        ** sign is what appears on the screen.
                         */
                         if (mode == DIGITS_MODE && c > 0 && c < 256 &&
                             (digit = strchr(digit_letters, tolower(c))) != NULL)
                                 c = "1234567890"[digit - digit_letters];
+                        if (mode == DIGITS_MODE && (c == 'm' || c == 'M'))
+                                c = '-';
                         /* a number may start with a minus sign */
                         numeric = isdigit(c) || (c == '-' && line[0] == '\0');
                         if ((mode == DIGITS_MODE) &&

@@ -119,7 +119,8 @@ SCENARIOS = [
     # Enter alone means 1, and past either end of the Bible shows "doesn't exist".
     ("zero and negative refs",  ["v", "joh\r", "3\r", "0\r", "x", "v", "exo\r", "0\r", "\r", "x",
                                  "v", "joh\r", "-2\r", "-3\r", "x", "v", "gen\r", "0\r", "\r", "x",
-                                 "v", "rev\r", "99\r", "\r", "x", "v", "rut\r", "p\r", "p\r", "x", "e"]),
+                                 "v", "rev\r", "99\r", "\r", "x", "v", "rut\r", "p\r", "p\r", "x",
+                                 "v", "joh\r", "e\r", "Me\r", "x", "v", "joh\r", "mw\r", "\r", "x", "e"]),
     ("letters as digits in view", ["v", "gen\r", "r\r", "r\r", "x", "v", "psa\r", "qqo\r", "Qpt\r", "x",
                                    "v", "joh\r", "e1\r", "q", "p\r", "x", "e"]),
 ]
