@@ -472,17 +472,32 @@ FILE *trans_file;
         initscreen();
 	initlogname();
 /*
-** This file, trans, must use SPACES, not TABS to separate fields!
+** Each line of trans is a translation's folder name, then a description.
+** Blank lines, and lines starting with '#' (comments, for example to note
+** a folder that is not a translation), are skipped.
 */
         trans_file = mfopen("trans", "r");
         i = 0;
         while ((fgets(trans[i], 80, trans_file) != NULL) && (i + 2 < MAXTRANS))
-        	++i;
+        {
+        	char *p = trans[i];
+
+        	while (*p == ' ' || *p == '\t')
+        		++p;
+        	if (*p != '#' && *p != '\n' && *p != '\r' && *p != '\0')
+        		++i;    /* keep this line; otherwise read over it */
+        }
         trans[i][0] = '\0';
         mfclose(trans_file, "trans");
+        if (trans[0][0] == '\0')
+        {
+        	printf("The file 'trans' lists no translations.\n");
+        	exit_program(1);
+        }
 
         i = 0;
-        while ((trans[0][i] != ' ') && (i < MAX_ETLA))
+        while (!isspace((unsigned char) trans[0][i]) && trans[0][i] != '\0' &&
+               (i < MAX_ETLA - 1))
         {
         	etla[i] = trans[0][i]; /* default to first trans in list */
         	++i;
@@ -608,7 +623,8 @@ void change_translations(void)
 		return;
         --n;
         i = 0;
-        while ((trans[n][i] != ' ') && (i < MAX_ETLA))
+        while (!isspace((unsigned char) trans[n][i]) && trans[n][i] != '\0' &&
+               (i < MAX_ETLA - 1))
         {
         	etla[i] = trans[n][i]; /* default to first trans in list */
         	++i;

@@ -424,7 +424,7 @@ static void print_list(struct list *listptr)
                 print_list(listptr->next); /* resursive */
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 #ifdef COCO
 	pflinit(); /* needed to link libraries to print _long_ integers */
@@ -432,12 +432,16 @@ int main(void)
 #ifdef OSK
 	_mallocmin(262144);
 #endif
-printf("Are you sure you want to re-generate the Bible index?\n");
-printf("This will overwite the six files, *.dat, in your current\n");
-printf("working directory.\n\n");
-printf("Press \"y\" to continue, or \"n\" to abort\n");
-if (getchar() != (int) 'y')
-        exit(0);
+/* "index -y" skips the question; the makefile uses it */
+if (argc < 2 || strcmp(argv[1], "-y") != 0)
+{
+    printf("Are you sure you want to re-generate the Bible index?\n");
+    printf("This will overwite the six files, *.dat, in your current\n");
+    printf("working directory.\n\n");
+    printf("Press \"y\" to continue, or \"n\" to abort\n");
+    if (getchar() != (int) 'y')
+            exit(0);
+}
 chapter_file = mfopen("chapter.dat", WRITEMODE);/* all *.dat files are binary */
 cvarray_file = mfopen("cvarray.dat", WRITEMODE);
 bvarray_file = mfopen("bvarray.dat", WRITEMODE);
