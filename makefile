@@ -74,9 +74,25 @@ llength: llength.c
 verses: verses.c
 	$(CC) $(CFLAGS) $(OD)verses verses.c
 
+# Test: build the program twice, once with NORAMDISK (results kept in
+# memory) and once with RAMDISK (results kept in temporary files), and
+# check that both produce byte-for-byte identical screens for a set of
+# scripted sessions. Any change to the code must keep them identical.
+# Needs Python 3. For memory checking as well, run:
+#   make test TESTSAN="-fsanitize=address,undefined"
+TESTCFLAGS= -O1 -g -Wall -Wextra -DUNIXV $(TESTSAN)
+TESTSRC= bible.c file.c userint.c process.c curses.c
+test: $(TESTSRC) bible.h both.h screen.h tests/sidebyside.py
+	rm -rf testbuild
+	mkdir -p testbuild/noramdisk testbuild/ramdisk
+	$(CC) $(TESTCFLAGS) -DNORAMDISK -o testbuild/noramdisk/bible $(TESTSRC) $(LIBS)
+	$(CC) $(TESTCFLAGS) -DRAMDISK -o testbuild/ramdisk/bible $(TESTSRC) $(LIBS)
+	python3 tests/sidebyside.py testbuild/noramdisk/bible testbuild/ramdisk/bible
+
 #remove binaries and object files.
 clean:
 	rm -f index bible split splitmsdos splitmm1 lab llength verses *.o
+	rm -rf testbuild
 
 file.o: bible.h screen.h both.h
 userint.o: bible.h screen.h both.h

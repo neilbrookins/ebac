@@ -81,6 +81,16 @@ Modern compilers (GCC 14 and later, Clang 16 and later, and the C23 standard) re
 
 The concordance index built on 64-bit Linux is byte-for-byte identical to the one shipped in 1.3.0.
 
+## Testing
+
+EBaC compiles two ways. `-DNORAMDISK` keeps search results in memory. `-DRAMDISK` keeps them in temporary files instead, for machines with little memory, such as the CoCo. The two are different code, but a user must never be able to tell them apart.
+
+```sh
+make test
+```
+
+This builds both versions and runs them side by side through a set of scripted sessions: viewing, every kind of search, paging, and invalid input. It checks that the screens they produce are byte-for-byte identical. Every change to the code should keep this test passing, so the two versions never drift apart. To add memory-error checking as well, run `make test TESTSAN="-fsanitize=address,undefined"`. The test needs Python 3; to add a scenario, add a line to `SCENARIOS` in [`tests/sidebyside.py`](tests/sidebyside.py).
+
 ## License
 
 GNU General Public License, version 2 — the license the project has on SourceForge. See [`COPYING`](COPYING).
