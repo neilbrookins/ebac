@@ -47,7 +47,21 @@ OD= -o ./
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
-all: bible index
+# The translations: the folder names listed in the 'trans' file (see
+# translations.sh). Nothing about them is written in this makefile.
+TRANS := $(shell sh translations.sh list)
+
+all: bible index indexes
+
+# Bring every translation's concordance index (its .dat files) up to date.
+# translation.mk, run inside each translation's folder, reads its booklist
+# and runs index there if any .dat file is missing or older than a book.
+indexes: index
+	@sh translations.sh check
+	@for t in $(TRANS); do \
+	    $(MAKE) --no-print-directory -C "$$t" -f "$(CURDIR)/translation.mk" \
+	        INDEX="$(CURDIR)/index" || exit 1; \
+	done
 
 bible: $(RFILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OD)bible $(RFILES) $(LIBS)
@@ -82,17 +96,21 @@ verses: verses.c
 #   make test TESTSAN="-fsanitize=address,undefined"
 TESTCFLAGS= -O1 -g -Wall -Wextra -DUNIXV $(TESTSAN)
 TESTSRC= bible.c file.c userint.c process.c curses.c
-test: $(TESTSRC) bible.h both.h screen.h tests/sidebyside.py
-	rm -rf testbuild
-	mkdir -p testbuild/noramdisk testbuild/ramdisk
-	$(CC) $(TESTCFLAGS) -DNORAMDISK -o testbuild/noramdisk/bible $(TESTSRC) $(LIBS)
-	$(CC) $(TESTCFLAGS) -DRAMDISK -o testbuild/ramdisk/bible $(TESTSRC) $(LIBS)
-	python3 tests/sidebyside.py testbuild/noramdisk/bible testbuild/ramdisk/bible
+# The test also checks that every folder is mentioned in 'trans'.
+test: $(TESTSRC) bible.h both.h screen.h tests/sidebyside.py indexes
+	sh translations.sh check --strict
+	rm -rf tests/build
+	mkdir -p tests/build/noramdisk tests/build/ramdisk
+	$(CC) $(TESTCFLAGS) -DNORAMDISK -o tests/build/noramdisk/bible $(TESTSRC) $(LIBS)
+	$(CC) $(TESTCFLAGS) -DRAMDISK -o tests/build/ramdisk/bible $(TESTSRC) $(LIBS)
+	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/ramdisk/bible
 
-#remove binaries and object files.
+#remove binaries and object files. (The .dat index files are kept.)
 clean:
 	rm -f index bible split splitmsdos splitmm1 lab llength verses *.o
-	rm -rf testbuild
+	rm -rf tests/build
+
+.PHONY: all indexes test clean
 
 file.o: bible.h screen.h both.h
 userint.o: bible.h screen.h both.h

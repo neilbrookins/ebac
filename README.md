@@ -140,13 +140,26 @@ See [`docs`](docs) for more examples.
 
 ## Adding other translations
 
-Put the text files for a translation in a new folder under `$BIBLEROOT`. Add a line for it to the `trans` file, then build its index:
+Each translation is a folder (`AV` is the King James Version) holding one text file per book, plus a `booklist` file naming those books in order, one per line. A translation can cover only some books, such as just the New Testament: its `booklist` lists only those.
 
-```sh
-cd $BIBLEROOT/NIV && ../index
-```
+To add one, for example the NIV:
 
-The original [`README`](README) describes the file layout.
+1. Make a folder `NIV` next to `AV`, and put its book files and its `booklist` in it.
+2. Add a line for it to the `trans` file: the folder name, then a description:
+   ```
+   NIV  New International Version
+   ```
+3. Type `make`. It builds the NIV's concordance index (the `.dat` files).
+
+The **C** key at the main menu now offers the new translation.
+
+### How `make` keeps the indexes up to date
+
+`make` reads the list of translations from `trans`, and each translation's books from its `booklist`; neither is written into the makefile. For each translation, it runs `index` again if any of its `.dat` files is missing, or older than its `booklist`, any of its books, or the `index` program. So after correcting a book's text, `make` re-indexes that translation, and when nothing has changed it does nothing.
+
+In `trans`, blank lines and lines starting with `#` are comments. Every folder should be mentioned there: a folder that isn't a translation gets a comment line starting with its name, such as `# tests` for the test scripts. `make` warns about a folder `trans` doesn't mention, so a new translation isn't forgotten, and `make test` treats that as an error. Folder names starting with `.` are ignored.
+
+The original [`README`](README) describes the file layout in more detail.
 
 ## History, and building on vintage computers
 
