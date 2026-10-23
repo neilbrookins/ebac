@@ -37,6 +37,28 @@ extern char	*ND;		/* :nd=: non-destructive space */
 extern void     scr_put(char *s);
 /* clear the screen, first picking up any change in the window size */
 extern void     scr_clear(void);
+/* undo terminal settings made by initscreen(), before exiting */
+extern void     scr_end(void);
+
+/*
+** Keys that send several characters are translated to the single control
+** character the MM/1 keyboard sent for the same key, which is what the
+** rest of the program understands. scr_key_lookup() matches the
+** characters read after an ESC against this terminal's key sequences.
+*/
+#define KEY_LEFT        0x02    /* CTRL-B */
+#define KEY_DEL         0x04    /* CTRL-D */
+#define KEY_RIGHT       0x06    /* CTRL-F */
+#define KEY_DOWN        0x0e    /* CTRL-N, MM/1 down arrow */
+#define KEY_UP          0x10    /* CTRL-P, MM/1 up arrow */
+#define KEY_END         0x12    /* CTRL-R */
+#define KEY_PGDN        0x16    /* CTRL-V, MM/1 page down */
+#define KEY_HOME        0x18    /* CTRL-X */
+#define KEY_PGUP        0x1a    /* CTRL-Z, MM/1 page up */
+#define KEYSEQ_NONE     0
+#define KEYSEQ_PREFIX   1
+#define KEYSEQ_MATCH    2
+extern int      scr_key_lookup(char *seq, int len, int *code);
 
 #define standout()      scr_put(SO)
 #define standend()      scr_put(SE)

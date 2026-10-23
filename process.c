@@ -184,6 +184,25 @@ char *get_line(int mode)
 
                         }
                         break;
+                case 0x4:  /* Ctrl-D, or Delete key: erase char under cursor */
+                        if (line[place] == '\0')
+                        {
+                            putchar('\7'); /* Beep at the end of the line */
+                            fflush(stdout);
+                        }
+                        else
+                        {
+                                printf("%s ", &line[place + 1]);
+                                i = 1 + strlen(&line[place + 1]);
+                                while(i--)
+                                        putchar('\b');
+                                fflush(stdout);
+                                i = place;
+                                do{
+                                        line[i] = line[i + 1];
+                                }while(line[i++] != '\0');
+                        }
+                        break;
                 case 0x2:  /* left arrow-key */
                         if (place == 0)
                         {
@@ -197,7 +216,8 @@ char *get_line(int mode)
                             --place;
                         }
                         break;
-                case 0x18: /* Ctrl-X jump to begining of line */
+                case 0x18: /* Ctrl-X, or Home key: jump to begining of line */
+                case 0x1:  /* Ctrl-A, as in most Linux programs */
                         if (place == 0)
                             putchar('\7'); /* Beep */
                         while (place > 0)
@@ -220,7 +240,8 @@ char *get_line(int mode)
                             ++place;
                         }
                         break;
-                case 0x12: /* Ctrl-R jump to end of line */
+                case 0x12: /* Ctrl-R, or End key: jump to end of line */
+                case 0x5:  /* Ctrl-E, as in most Linux programs */
                         if (line[place] == '\0')
                                 putchar('\7');
                         while (line[place] != '\0')

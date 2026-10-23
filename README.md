@@ -27,7 +27,7 @@ export BIBLEROOT=$PWD      # where the 'trans' file and the AV folder are
 
 Add the `export BIBLEROOT=...` line to your `~/.bashrc` to make it permanent.
 
-At the main menu press **V** to view a passage, **S** to search, **C** to change translation, **I** for information, or **E** to exit. In any list or passage, press **?** for the keys available there.
+At the main menu press **V** to view a passage, **S** to search, **C** to change translation, **I** for information, or **E** to exit. In any list or passage, press **?** for the keys available there. The arrow keys and **Page Up**/**Page Down** work too: in a passage, Down and Up step one verse at a time.
 
 ## Searching
 
@@ -42,7 +42,7 @@ Searches use postfix (reverse Polish) notation. Put the operator after the two t
 | `food @gen -` | "food" anywhere except Genesis |
 | `@mat @mar , @lu , @joh , blessed 0` | "blessed" in the four Gospels |
 
-Operators: a number for AND (`0` = same verse; `2` = within two verses), `,` for OR, `-` for AND NOT. Books are written `@` plus enough of the name to be unique. If a search is malformed, EBaC tells you what is wrong. **CTRL-G** recalls earlier searches; they are kept in `~/.ebac_log`.
+Operators: a number for AND (`0` = same verse; `2` = within two verses), `,` for OR, `-` for AND NOT. Books are written `@` plus enough of the name to be unique. If a search is malformed, EBaC tells you what is wrong. While typing a search, **Up** and **Down** (or CTRL-G and CTRL-V) recall earlier searches, which are kept in `~/.ebac_log`. **Left**, **Right**, **Home**, **End** and **Delete** edit the line. CTRL-B, CTRL-F, CTRL-A or CTRL-X, CTRL-E or CTRL-R, and CTRL-D do the same.
 
 See [`docs`](docs) for more examples.
 

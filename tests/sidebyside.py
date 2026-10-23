@@ -77,6 +77,19 @@ SCENARIOS = [
     ("invalid: no operator",    ["s", "love hate\r", " ", "s", "love\r", "x", "e"]),
     ("invalid: unknown book",   ["s", "amen @zzz 0\r", " ", "e"]),
     ("change translation",      ["c", "1", "s", "amen\r", "x", "e"]),
+    # Keys that send ESC sequences (TERM=xterm, so terminfo gives ESC O x),
+    # plus the Linux-console forms (ESC [ x), which are accepted too.
+    ("arrow keys edit line",    ["s", "lovx\x7f", "e\x1bOD\x1bOD\x1b[C", "Z", "\x1bOH", "\x1b[3~",
+                                 "\x1bOF", " hate 0", "\x1bOH", "\x1bOC", "\x1b[3~", "\r", "x", "e"]),
+    ("history with arrows",     ["s", "peace\r", "x", "s", "joy\r", "x", "s", "\x1bOA", "\x1bOA",
+                                 "\x1bOB", "\x1b[A", "\r", "x", "e"]),
+    ("ctrl-a ctrl-e ctrl-d",    ["s", "hate", "\x01", "love ", "\x05", " 0", "\x01\x04", "l", "\r", "x", "e"]),
+    ("view arrows, page keys",  ["v", "gen\r", "1\r", "1\r", "\x1bOB", "\x1bOB", "\x1b[A", "\x1b[6~",
+                                 "\x1b[6~", "\x1b[5~", "\x1bOA", "x", "e"]),
+    ("list page keys",          ["s", "amen\r", "\x1b[6~", "\x1b[6~", "\x1b[5~", "x", "e"]),
+    ("unused keys ignored",     ["s", "\x1bOP", "\x1b[2~", "\x1b[15~", "amen\r", "x", "e"]),
+    ("ESC key leaves view",     ["v", "joh\r", "1\r", "1\r", "\x1b", "s", "amen\r", "\x1b", "e"]),
+    ("ESC then key at once",    ["v", "joh\r", "1\r", "1\r", "\x1bx", "e"]),
 ]
 
 

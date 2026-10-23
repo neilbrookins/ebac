@@ -15,6 +15,16 @@ char spaces[]="                          ";  /* MAXINDENT spaces */
 ** in inverse video. */
 #define MAXWORDLEN 40
 
+/*
+** KEYHELP(text) adds text to a help line on keyboards that have arrow and
+** page keys: the MM/1, and UNIX terminals (read through ncurses).
+*/
+#if defined(USE_NCURSES) || defined(OSK)
+#       define KEYHELP(text) text
+#else
+#       define KEYHELP(text)
+#endif
+
 static int last_len = 0;
 struct bcv_type bcv;
 
@@ -640,17 +650,17 @@ get_command:    switch (tolower(ugetchar()))
                         rev_printf("space bar");
                         printf(" or ");
                         rev_printf("n");
-                        printf(" next screen\n");
+                        printf(" next screen" KEYHELP(", or Page Down") "\n");
                         rev_printf("p");
-                        printf("              previous screen\n");
+                        printf("              previous screen" KEYHELP(", or Page Up") "\n");
                         rev_printf(".");
                         printf("         or ");
                         rev_printf(">");
-                        printf(" next verse\n");
+                        printf(" next verse" KEYHELP(", or Down arrow") "\n");
                         rev_printf(",");
                         printf("         or ");
                         rev_printf("<");
-                        printf(" previous verse\n");
+                        printf(" previous verse" KEYHELP(", or Up arrow") "\n");
                         rev_printf("f");
                         printf("              forward one book\n");
                         rev_printf("b");
@@ -807,9 +817,9 @@ static void view_match_list(short int *verse_list)
                         rev_printf("space bar");
                         printf(" or ");
                         rev_printf("n");
-                        printf(" next screen\n");
+                        printf(" next screen" KEYHELP(", or Page Down") "\n");
                         rev_printf("p");
-                        printf(" previous screen\n");
+                        printf(" previous screen" KEYHELP(", or Page Up") "\n");
                         rev_printf("x");
                         printf(" exits to Main Menu\n");
 			printf("\n(Press any Key) ");
@@ -894,10 +904,20 @@ int main(void)
                 case 's':
 cls();
 printf("\n\nSearch line editing keys:\n");
-printf("CTRL-g  get previous search      CTRL-f  forward\n");
-printf("CTRL-v  view next search         CTRL-b  back\n");
-printf("                                 CTRL-x  beginning\n");
-printf("CTRL-u  undo line                CTRL-r  end\n");
+#if defined(USE_NCURSES) || defined(OSK) /* keyboards with arrow keys */
+printf("Up    or CTRL-g  get previous search   Left  or CTRL-b  back\n");
+printf("Down  or CTRL-v  view next search      Right or CTRL-f  forward\n");
+#else
+printf("CTRL-g  get previous search            CTRL-b  back\n");
+printf("CTRL-v  view next search               CTRL-f  forward\n");
+#endif
+#ifdef USE_NCURSES /* Home, End and Delete are read from terminfo */
+printf("Home, CTRL-a or CTRL-x  beginning      End, CTRL-e or CTRL-r  end\n");
+printf("CTRL-u  undo line                      Delete or CTRL-d  delete\n");
+#else
+printf("CTRL-a or CTRL-x  beginning            CTRL-e or CTRL-r  end\n");
+printf("CTRL-u  undo line                      CTRL-d  delete\n");
+#endif
 printf("\nPrefix bookname with \"@\", as in: @Genesis\n");
 printf("Use postfix, (reverse polish) notation to combine\n");
 printf("multiple words with the following logical operators:\n");

@@ -43,6 +43,7 @@
 */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <signal.h>
 #include <sys/ioctl.h>          /* TIOCGWINSZ */
 #include <term.h>
@@ -61,6 +62,109 @@ void exit_program(int errnum);    /* in file.c */
 
 static char *termtype;  /* name of terminal entry */
 static volatile sig_atomic_t resized = 0; /* set when the window changes */
+static char *mayhave(char *name);
+static char *KS = NULL; /* smkx: keypad transmit mode on */
+static char *KE = NULL; /* rmkx: keypad transmit mode off */
+
+/*
+** Keys that send a sequence of characters (arrows, Home, End, ...).
+** EBaC was written on the MM/1, whose keyboard sent a single control
+** character for each of these keys, and the rest of the program still
+** works in those characters. ugetchar() reads the sequence a key sends
+** on this terminal and hands the program the MM/1 character instead,
+** so every key behaves the same on every terminal.
+*/
+#define MAXKEYS 48
+static struct
+{
+	char    *seq;   /* what the terminal sends */
+	int     code;   /* what EBaC sees */
+} keys[MAXKEYS];
+static int nkeys = 0;
+
+/* Remember one key. Only sequences that begin with ESC are translated;
+** a key that sends a single character is already in the program's terms. */
+static void add_key(char *seq, int code)
+{
+	if (seq == NULL || seq[0] != '\033' || seq[1] == '\0' || nkeys >= MAXKEYS)
+		return;
+	keys[nkeys].seq = seq;
+	keys[nkeys].code = code;
+	nkeys++;
+}
+
+/*
+** Read the key sequences for this terminal from terminfo, then add the
+** common ANSI/VT100 sequences, in both cursor-key modes, as a fallback
+** for terminals whose terminfo entry is incomplete or TERM is set wrong.
+** Entries found first win, so the terminal's own description comes first.
+*/
+static void init_keys(void)
+{
+	static char *fallback[] = {
+		"\033[A", "\033OA", "\033[B", "\033OB",     /* up, down */
+		"\033[C", "\033OC", "\033[D", "\033OD",     /* right, left */
+		"\033[H", "\033OH", "\033[1~", "\033[7~",   /* home */
+		"\033[F", "\033OF", "\033[4~", "\033[8~",   /* end */
+		"\033[5~", "\033[6~", "\033[3~"             /* page up/down, delete */
+	};
+	static int fallback_code[] = {
+		KEY_UP, KEY_UP, KEY_DOWN, KEY_DOWN,
+		KEY_RIGHT, KEY_RIGHT, KEY_LEFT, KEY_LEFT,
+		KEY_HOME, KEY_HOME, KEY_HOME, KEY_HOME,
+		KEY_END, KEY_END, KEY_END, KEY_END,
+		KEY_PGUP, KEY_PGDN, KEY_DEL
+	};
+	int     i;
+
+	add_key(mayhave("kcuu1"), KEY_UP);     /* up arrow */
+	add_key(mayhave("kcud1"), KEY_DOWN);   /* down arrow */
+	add_key(mayhave("kcuf1"), KEY_RIGHT);  /* right arrow */
+	add_key(mayhave("kcub1"), KEY_LEFT);   /* left arrow */
+	add_key(mayhave("khome"), KEY_HOME);   /* Home */
+	add_key(mayhave("kend"),  KEY_END);    /* End */
+	add_key(mayhave("kpp"),   KEY_PGUP);   /* Page Up */
+	add_key(mayhave("knp"),   KEY_PGDN);   /* Page Down */
+	add_key(mayhave("kdch1"), KEY_DEL);    /* Delete */
+	for (i = 0; i < (int) (sizeof(fallback_code) / sizeof(fallback_code[0])); i++)
+		add_key(fallback[i], fallback_code[i]);
+}
+
+/*
+** Purpose: look up the characters read so far after an ESC.
+** Returns: KEYSEQ_MATCH (and the key's code in *code) if they are a whole
+**          key sequence, KEYSEQ_PREFIX if they are the start of one, or
+**          KEYSEQ_NONE if no key sends them.
+*/
+int scr_key_lookup(char *seq, int len, int *code)
+{
+	int     i, prefix = FALSE;
+
+	for (i = 0; i < nkeys; i++)
+	{
+		int keylen = (int) strlen(keys[i].seq);
+
+		if (keylen < len || memcmp(keys[i].seq, seq, len) != 0)
+			continue;
+		if (keylen == len)
+		{
+			*code = keys[i].code;
+			return KEYSEQ_MATCH;
+		}
+		prefix = TRUE;
+	}
+	return prefix ? KEYSEQ_PREFIX : KEYSEQ_NONE;
+}
+
+/* Undo what initscreen() did to the terminal, before the program exits. */
+void scr_end(void)
+{
+	if (KE != NULL)
+	{
+		scr_put(KE);
+		fflush(stdout);
+	}
+}
 static char *default_TERM = "vt100";
 
 /* Used by tputs() to send each character to the screen */
@@ -203,6 +307,20 @@ void initscreen(void)
 #ifdef SIGWINCH
 	signal(SIGWINCH, winch);
 #endif
+
+	/*
+	** Many terminals send different sequences for the arrow keys unless
+	** they are told to "transmit" the keypad; the key sequences in
+	** terminfo are the ones sent in that mode, so switch it on.
+	*/
+	KS = mayhave("smkx");
+	KE = mayhave("rmkx");
+	if (KS != NULL)
+	{
+		scr_put(KS);
+		fflush(stdout);
+	}
+	init_keys();
 }
 
 #else /* !USE_NCURSES: the original termcap version */

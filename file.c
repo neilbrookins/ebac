@@ -23,6 +23,9 @@
 #       include <errno.h>
 #       include <termios.h>             /* POSIX replacement for termio */
 #       include <signal.h>
+#       include <sys/types.h>
+#       include <sys/time.h>            /* struct timeval for select() */
+#       include <sys/select.h>          /* select() */
         static struct termios oldtermio; /* original tty mode */
         static struct termios newtermio; /* cbreak/noecho tty mode */
         static int tty_saved = FALSE;    /* TRUE once oldtermio is valid */
@@ -77,6 +80,9 @@ void exit_program(int errnum)
 	_ss_opt(1, &oldbuffer);
 #endif
 #ifdef UNIXV
+#       ifdef USE_NCURSES
+        scr_end();      /* e.g. turn off keypad transmit mode */
+#       endif
         if (tty_saved)
                 tcsetattr(0, TCSADRAIN, &oldtermio);
 #endif
@@ -93,17 +99,134 @@ int ugetchar(void)
 #endif
 
 #ifdef UNIXV
-int ugetchar(void)
+/*
+** Purpose: read one character from the keyboard, waiting at most
+**          "timeout" milliseconds, or for ever if timeout is negative.
+** Returns: the character, 0..255, or -1 if none arrived in time.
+*/
+static int read_key_byte(int timeout)
 {
-        char c;
+        unsigned char c;
         int n;
+        fd_set fds;
+        struct timeval tv;
 
+        if (timeout >= 0)
+        {
+                do{
+                        FD_ZERO(&fds);
+                        FD_SET(0, &fds);
+                        tv.tv_sec = timeout / 1000;
+                        tv.tv_usec = (timeout % 1000) * 1000L;
+                        n = select(1, &fds, NULL, NULL, &tv);
+                }while (n < 0 && errno == EINTR);
+                if (n <= 0)
+                        return -1;
+        }
         do{
                 n = read(0, &c, (unsigned)1);
         }while (n < 0 && errno == EINTR); /* interrupted by a signal */
         if (n != 1) /* end of input, or the terminal went away */
                 exit_program(0);
-        return (unsigned char) c; /* 0..255, like getchar() */
+        return c;
+}
+
+#ifdef USE_NCURSES
+/*
+** Keys such as the arrows send several characters, starting with ESC.
+** The rest of a sequence arrives at once, so if nothing follows an ESC
+** within ESC_WAIT milliseconds, the user pressed the ESC key itself.
+*/
+#define ESC_WAIT 100
+#define MAXSEQ   16
+
+/* Characters read while checking for a key sequence, but not part of one */
+static int pending[MAXSEQ];
+static int npending = 0;
+
+/*
+** Purpose: an ESC has just been read. Read what follows and work out
+**          which key was pressed.
+** Returns: the MM/1 control character for a known key (an arrow becomes
+**          CTRL-B, CTRL-F, ...), ESC for the ESC key by itself, or -1 for
+**          a key EBaC has no use for (F1, Insert, ...), which is ignored.
+*/
+static int read_escape(void)
+{
+        char seq[MAXSEQ];
+        int len = 1, c, code = 0, found, i;
+
+        seq[0] = '\033';
+        while ((found = scr_key_lookup(seq, len, &code)) == KEYSEQ_PREFIX &&
+               len < MAXSEQ)
+        {
+                if ((c = read_key_byte(ESC_WAIT)) < 0)
+                        break;           /* nothing more came */
+                seq[len++] = (char) c;
+        }
+        if (found == KEYSEQ_MATCH)
+                return code;
+        if (len == 1)
+                return '\033';          /* the ESC key by itself */
+
+        if (seq[1] == '[' || seq[1] == 'O')
+        {
+                /*
+                ** An ANSI key sequence we don't use. Skip the rest of it so
+                ** its characters aren't taken as typing: "ESC O x" is
+                ** complete at three characters, "ESC [ ..." ends with a
+                ** character from '@' to '~'.
+                */
+                if (seq[1] == 'O')
+                {
+                        if (len == 2)
+                                read_key_byte(ESC_WAIT);
+                }
+                else
+                {
+                        c = (unsigned char) seq[len - 1];
+                        while (len < MAXSEQ && (len == 2 || c < '@' || c > '~'))
+                        {
+                                if ((c = read_key_byte(ESC_WAIT)) < 0)
+                                        break;
+                                len++;
+                        }
+                }
+                return -1;
+        }
+
+        /* ESC, then an ordinary key typed quickly: deliver both */
+        for (i = 1; i < len; i++)
+                pending[npending++] = (unsigned char) seq[i];
+        return '\033';
+}
+#endif /* USE_NCURSES */
+
+int ugetchar(void)
+{
+        int c;
+
+#ifdef USE_NCURSES
+        for (;;)
+        {
+                if (npending > 0)
+                {
+                        c = pending[0];
+                        npending--;
+                        memmove(pending, pending + 1, npending * sizeof(pending[0]));
+                        return c;
+                }
+                c = read_key_byte(-1);
+                if (c != '\033')
+                        return c;
+                if ((c = read_escape()) >= 0)
+                        return c;
+                /* else: a key we don't use; wait for the next one */
+        }
+#else
+        c = read_key_byte(-1);
+        return c;
+#endif
 }
 #endif
 
