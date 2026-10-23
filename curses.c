@@ -1,5 +1,11 @@
 /* curses.c */
 
+/* A compiler asked for strict ISO C hides POSIX functions such as
+** sigaction(); ask for them. (Must come before any #include.) */
+#if defined(UNIXV) && defined(__STRICT_ANSI__) && !defined(_POSIX_C_SOURCE)
+#	define _POSIX_C_SOURCE 200809L
+#endif
+
 /* Author:
  *      Steve Kirkendall
  *      14407 SW Teal Blvd. #C
@@ -45,6 +51,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>          /* TIOCGWINSZ */
 #include <term.h>
 
@@ -62,6 +71,12 @@ void exit_program(int errnum);    /* in file.c */
 
 static char *termtype;  /* name of terminal entry */
 static volatile sig_atomic_t resized = 0; /* set when the window changes */
+
+/*
+** A pipe the resize signal writes a byte to, so that a program waiting
+** for a key can also be woken by a resize (see scr_resize_fd()).
+*/
+static int resize_pipe[2] = { -1, -1 };
 static char *mayhave(char *name);
 static char *KS = NULL; /* smkx: keypad transmit mode on */
 static char *KE = NULL; /* rmkx: keypad transmit mode off */
@@ -228,14 +243,32 @@ static void pair(char **T,               /* where to store the first pointer */
 }
 
 #ifdef SIGWINCH
-/* The window was resized. Just note it; the new size is read at the
-** next screen clear, which is when the program lays out a new page. */
+/* The window was resized. Note it; the new size is read at the next screen
+** clear, which is when the program lays out a new page. Also wake anyone
+** waiting for a key, through the pipe, so the page can be redrawn now. */
 static void winch(int signo)
 {
+	int saved_errno = errno;
+
 	(void) signo;
 	resized = 1;
+	if (resize_pipe[1] >= 0 && write(resize_pipe[1], "r", 1) < 0)
+	{
+		/* pipe full: a wake-up is already waiting */
+	}
+	errno = saved_errno;
 }
 #endif
+
+/*
+** Purpose: the file descriptor that becomes readable when the window is
+**          resized, for the keyboard reader to watch; -1 if there is none.
+**          Reading from it (it never blocks) clears the wake-up.
+*/
+int scr_resize_fd(void)
+{
+	return resize_pipe[0];
+}
 
 /* Clear the screen, using the new window size if it has changed. */
 void scr_clear(void)
@@ -305,7 +338,26 @@ void initscreen(void)
 
 	getsize();
 #ifdef SIGWINCH
-	signal(SIGWINCH, winch);
+	{
+		struct sigaction sa;
+
+		/* Neither end of the pipe may block, nor pass to other programs. */
+		if (pipe(resize_pipe) == 0)
+		{
+			fcntl(resize_pipe[0], F_SETFL, O_NONBLOCK);
+			fcntl(resize_pipe[1], F_SETFL, O_NONBLOCK);
+			fcntl(resize_pipe[0], F_SETFD, FD_CLOEXEC);
+			fcntl(resize_pipe[1], F_SETFD, FD_CLOEXEC);
+		}
+		else
+			resize_pipe[0] = resize_pipe[1] = -1;
+
+		memset(&sa, 0, sizeof(sa));
+		sa.sa_handler = winch;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = SA_RESTART; /* other system calls just carry on */
+		sigaction(SIGWINCH, &sa, NULL);
+	}
 #endif
 
 	/*

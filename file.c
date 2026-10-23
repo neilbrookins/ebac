@@ -98,11 +98,19 @@ int ugetchar(void)
 }
 #endif
 
+/* TRUE while a screen that should be redrawn on a resize waits for a key */
+int redraw_on_resize = FALSE;
+
 #ifdef UNIXV
+/* read_key_byte() returns this when the window was resized meanwhile */
+#define RESIZED (-2)
+
 /*
 ** Purpose: read one character from the keyboard, waiting at most
 **          "timeout" milliseconds, or for ever if timeout is negative.
 ** Returns: the character, 0..255, or -1 if none arrived in time.
+**          While waiting for ever, it also returns RESIZED as soon as the
+**          window is resized, if redraw_on_resize is set.
 */
 static int read_key_byte(int timeout)
 {
@@ -110,6 +118,39 @@ static int read_key_byte(int timeout)
         int n;
         fd_set fds;
         struct timeval tv;
+#ifdef USE_NCURSES
+        int rfd = scr_resize_fd(); /* readable after a resize */
+        char junk[16];
+
+        /*
+        ** Wait for a key or a resize, whichever comes first. A resize is
+        ** only reported to screens that redraw for it; otherwise it is just
+        ** noted (the new size is used at the next screen clear) and the
+        ** wait goes on.
+        */
+        while (timeout < 0 && rfd >= 0)
+        {
+                FD_ZERO(&fds);
+                FD_SET(0, &fds);
+                FD_SET(rfd, &fds);
+                n = select(rfd + 1, &fds, NULL, NULL, NULL);
+                if (n < 0)
+                {
+                        if (errno == EINTR)
+                                continue;
+                        break;          /* fall back to a plain read */
+                }
+                if (FD_ISSET(rfd, &fds))
+                {
+                        while (read(rfd, junk, sizeof(junk)) > 0)
+                                ;       /* clear the wake-up(s) */
+                        if (redraw_on_resize)
+                                return RESIZED;
+                }
+                if (FD_ISSET(0, &fds))
+                        break;          /* a key is waiting */
+        }
+#endif
 
         if (timeout >= 0)
         {
@@ -217,6 +258,8 @@ int ugetchar(void)
                         return c;
                 }
                 c = read_key_byte(-1);
+                if (c == RESIZED)
+                        return KEY_REDRAW;
                 if (c != '\033')
                         return c;
                 if ((c = read_escape()) >= 0)

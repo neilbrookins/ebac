@@ -53,6 +53,7 @@ static void dis_verse(char *strg, int indent, int firstTime);
 static void display_verse(int tag, struct bcv_array_type *bcv_arrays,
                           int verIndent, int top_of_screen);
 static int calculate_fv(int last_verse);
+static int scrolled_top(int last_shown);
 static void rev_printf(char *string);
 static int check_limits(int cur_verse);
 static void view_in_context(int cur_verse);
@@ -65,6 +66,7 @@ static void view_match_list(short int *verse_list);
 static void prog_info(void);
 static int tag_label(int tag);
 static int key_to_tag(int key);
+static int screen_key(void);
 
 static int main_menu(void)
 {
@@ -527,6 +529,38 @@ static int calculate_fv(int last_verse)
         return (last_verse + 1);
 }
 
+/*
+** Purpose: after stepping forward with '.', the passage screen has scrolled
+**          and no longer starts with a heading. Find the first verse still
+**          wholly on the screen, given the last verse shown: the earliest
+**          verse from which the verses through last_shown fit above the
+**          bottom line.
+*/
+static int scrolled_top(int last_shown)
+{
+        int num_lines = s_lines - 1;  /* the bottom line holds the cursor */
+        int verse = last_shown;
+        struct bcv_array_type *bcv_arrays;
+
+        /* count_lines() compares each verse's book with the previous one
+        ** it was given; start it on this verse's book */
+        bcv_arrays = get_verse(last_shown);
+        count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array, 8, FALSE);
+        for(;;)
+        {
+            if (!check_limits(verse))
+                return verse + 1;
+            bcv_arrays = get_verse(verse);
+            num_lines -= count_lines(-1, bcv_arrays->book_array,
+               bcv_arrays->data_array, 8, FALSE);
+            if (num_lines < 0)          /* this verse is partly off the top */
+                return verse + 1;
+            if (verse == 1)
+                return 1;
+            verse--;
+        }
+}
+
 /* maybe this should be in a macro for speed? */
 static void rev_printf(char *string)
 {
@@ -593,7 +627,7 @@ static void view_in_context(int cur_verse)
 */
                 printf(" for menu.\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
                 fflush(stdout);
-get_command:    switch (tolower(ugetchar()))
+get_command:    switch (tolower(screen_key()))
                 {
 					 case 'f':
 								cur_verse--;
@@ -653,6 +687,19 @@ get_command:    switch (tolower(ugetchar()))
                 case 'x':
                 case 0x1b: /* ESC */
                         exit_now = TRUE;
+                        break;
+                case KEY_REDRAW: /* CTRL-L, or the window was resized */
+/*
+** Draw this screen again from the same first verse, for the window's new
+** size. After stepping with '.' the screen has scrolled, so find the first
+** verse still wholly on it from the last verse shown, using the size the
+** screen was drawn for: the new size is only picked up by the cls() that
+** redraws it. (cur_verse is then two past the last verse shown: drawing the
+** page stopped one past the verse that didn't fit, and '.' showed that one.)
+*/
+                        if (first_verse == -1)
+                                first_verse = scrolled_top(cur_verse - 2);
+                        cur_verse = first_verse;
                         break;
                 default:
                         cls();
@@ -764,8 +811,11 @@ static void view_match_list(short int *verse_list)
                 rev_printf("?");
                 printf(" for menu.)");
                 fflush(stdout);
-                switch (ui = tolower(ugetchar()))
+                switch (ui = tolower(screen_key()))
                 {
+                case KEY_REDRAW: /* CTRL-L, or the window was resized */
+                        i = first_i;  /* same first entry, new size */
+                        break;
                 case 'n':
                 case ' ':
 		case 0x16: /* Page Down on MM/1 */
@@ -842,6 +892,21 @@ static void view_match_list(short int *verse_list)
 		    }
                 }
         }while (!(exit_now));
+}
+
+/*
+** Purpose: read a key for the passage and search-result screens. If the
+**          window is resized while waiting, return KEY_REDRAW at once, so
+**          the screen is drawn again for the new size.
+*/
+static int screen_key(void)
+{
+        int c;
+
+        redraw_on_resize = TRUE;
+        c = ugetchar();
+        redraw_on_resize = FALSE;
+        return c;
 }
 
 /* Purpose: the label shown beside entry number "tag" in a list */

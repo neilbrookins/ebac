@@ -63,6 +63,14 @@ extern int num_verses;
 #define NORMAL_MODE 0
 #define DIGITS_MODE 1
 
+/*
+** CTRL-L redraws the passage and search-result screens. ugetchar() also
+** returns it when the window is resized while one of those screens is
+** waiting for a key: they set redraw_on_resize while they wait.
+*/
+#define KEY_REDRAW 0x0c
+extern int redraw_on_resize;
+
 struct bcv_type
 {
         int book_number;

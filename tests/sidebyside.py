@@ -25,6 +25,7 @@ is 0 if every scenario is identical, 1 otherwise.
 To add a test, add a line to SCENARIOS. Keys are written as Python
 strings, so "\\r" is Enter, "\\x07" is CTRL-G, and so on. Each string is
 typed, then the script waits for the screen to settle before the next.
+A step "<resize ROWSxCOLS>" resizes the window instead of typing.
 """
 import glob
 import os
@@ -96,6 +97,19 @@ SCENARIOS = [
                                  "1", "x", "z", " ", "x", "e"]),  # no entry z here: help screen
     ("letters past 9 in list",  ["s", "the\r", " ", "a", "x", "d", "x", "f", "x", "p", "x", "e"]),
     # chapter and verse prompts: q w e r t y u i o p are 1 2 3 4 5 6 7 8 9 0
+    # Resizing the window redraws the passage and result screens at once,
+    # with no key pressed, from the same first verse or entry.
+    ("resize passage",          ["v", "joh\r", "3\r", "16\r", "<resize 40x80>", "<resize 14x80>",
+                                 "<resize 24x50>", "<resize 24x80>", "x", "e"]),
+    ("resize after stepping",   ["v", "mat\r", "28\r", "15\r", ".", ".", ".", ".", ".", ".",
+                                 "<resize 40x80>", "<resize 12x80>", ".", "<resize 30x80>", "x", "e"]),
+    ("resize result list",      ["s", "amen\r", "<resize 40x80>", "<resize 14x80>", " ",
+                                 "<resize 40x80>", "<resize 12x60>", "p", "<resize 24x80>", "x", "e"]),
+    ("rapid resizes",           ["s", "love\r"] + ["<resize 40x80>", "<resize 16x80>"] * 8 +
+                                ["<resize 30x80>", "q", "<resize 18x80>", "x", "x", "e"]),
+    ("resize while typing",     ["s", "lo", "<resize 30x80>", "ve\r", "x", "<resize 24x80>", "e"]),
+    ("ctrl-l redraws",          ["v", "gen\r", "\r", "\r", "\x0c", ".", "\x0c", "x",
+                                 "s", "light\r", "\x0c", "x", "e"]),
     ("letters as digits in view", ["v", "gen\r", "r\r", "r\r", "x", "v", "psa\r", "qqo\r", "Qpt\r", "x",
                                    "v", "joh\r", "e1\r", "q", "p\r", "x", "e"]),
 ]
@@ -131,6 +145,11 @@ def run(binary, keys, home, bibleroot):
 
     drain(1.0, 10)
     for k in keys:
+        if k.startswith("<resize "):        # resize the window, as a user would
+            rows, cols = map(int, k[8:-1].split("x"))
+            fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+            drain(0.4, 20)
+            continue
         for b in k.encode("latin1"):
             os.write(fd, bytes([b]))
         drain(0.4, 20)

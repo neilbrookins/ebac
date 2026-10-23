@@ -39,6 +39,8 @@ extern void     scr_put(char *s);
 extern void     scr_clear(void);
 /* undo terminal settings made by initscreen(), before exiting */
 extern void     scr_end(void);
+/* readable when the window has been resized (see ugetchar() in file.c) */
+extern int      scr_resize_fd(void);
 
 /*
 ** Keys that send several characters are translated to the single control
