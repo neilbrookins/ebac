@@ -1,13 +1,24 @@
 # makefile for Electronic Bible and Concordance
 # Copyright (c) 1993 by Neil Brookins
 
-#change this to the name of your C compiler:
+#change this to the name of your C compiler (gcc and clang both work):
 CC=gcc
 
-#If you are using UNIX, Solaris, HP-UX, Linux, BSD, or Cygwin:
-CFLAGS= -O3 -DNORAMDISK -DUNIXV
+#If you are using Linux, BSD, macOS, Cygwin, or another modern UNIX:
+#This needs the ncurses development files, which provide <term.h>:
+#  Debian, Ubuntu, Raspberry Pi OS:  sudo apt install libncurses-dev
+#  Fedora, RHEL:                     sudo dnf install ncurses-devel
+#  Arch:                             sudo pacman -S ncurses
+#  macOS:                            included with the Xcode tools
+CFLAGS= -O2 -Wall -Wextra -DNORAMDISK -DUNIXV
 RFILES= bible.o file.o userint.o process.o curses.o
 LIBS= -lncurses
+
+#If you are using an older UNIX that still has termcap instead of ncurses,
+#(Solaris, HP-UX, and other System V from the 1990s):
+#CFLAGS= -O -DNORAMDISK -DUNIXV -DUSE_TERMCAP
+#RFILES= bible.o file.o userint.o process.o curses.o
+#LIBS= -ltermcap
 
 #if you are using Microsoft MS-DOS, DOS, with about 512KB RAM:
 #Intel 8086 CPU, using Watcom C compiler
@@ -34,20 +45,16 @@ LIBS= -lncurses
 
 OD= -o ./
 .c.o:
-	$(CC) $(CFLAGS) -c $<
-	@echo ' '
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 all: bible index
 
 bible: $(RFILES)
-#	quantify $(CC) $(CFLAGS) $(OD)bible $(RFILES) $(LIBS)
-#	purify $(CC) $(CFLAGS) $(OD)bible $(RFILES) $(LIBS)
-	$(CC) $(CFLAGS) $(OD)bible $(RFILES) $(LIBS)
-	@echo done.
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OD)bible $(RFILES) $(LIBS)
 
 # this program needs over 7.5 meg RAM to run.
 index: index.c both.h
-	$(CC) $(CFLAGS) $(OD)index index.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(OD)index index.c
 
 # splits an archive across multiple floppy disks
 split: split.c
@@ -69,11 +76,12 @@ verses: verses.c
 
 #remove binaries and object files.
 clean:
-	rm -f index bible *.o
+	rm -f index bible split splitmsdos splitmm1 lab llength verses *.o
 
 file.o: bible.h screen.h both.h
 userint.o: bible.h screen.h both.h
 curses.o: screen.h
+cure.o: screen.h
 bible.o: bible.h both.h
 process.o: bible.h screen.h both.h
 
