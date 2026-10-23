@@ -9,6 +9,30 @@ EBaC is a fast, text-mode Bible reader and concordance. It has two main jobs:
 
 Unlike a printed concordance, EBaC shows complete verses. It indexes every word, even common ones like *I* and *am*. Searches can combine words and books with AND, OR, AND NOT and proximity ("within 2 verses"). The King James (Authorized) Version is included.
 
+## Two ways to install
+
+- **If you use Home Assistant**, install the EBaC app. It's the easiest way: there is nothing to type or compile, Home Assistant builds EBaC for you and keeps it updated, and EBaC appears as a button in the Home Assistant sidebar. See **Installing in Home Assistant** below.
+- **On any Linux computer**, such as a Raspberry Pi, you build EBaC yourself with a few commands. See **Installing on Linux** below.
+
+Both are the same program and work the same way.
+
+## Installing in Home Assistant
+
+[![Open your Home Assistant instance and show the add app repository dialog with this repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fneilbrookins%2Febac-ha)
+
+Click the button above to add the EBaC repository to your Home Assistant, or add it by hand:
+
+1. In Home Assistant, go to **Settings → Apps** and select **Install app**.
+2. Open the menu (⋮) in the top-right corner and select **Repositories**.
+3. Paste `https://github.com/neilbrookins/ebac-ha` and select **Add**, then close the dialog.
+4. Find **EBaC (Electronic Bible and Concordance)** in the list (you may need to refresh the page) and select it.
+5. Select **Install**. Home Assistant builds EBaC on your machine, which takes a few minutes, longer on a Raspberry Pi.
+6. Select **Start**, then turn on **Show in sidebar**.
+
+Click **EBaC** in the sidebar to use it; it's available to every user. Each user keeps their own search history. **Updating:** when a new version comes out, Home Assistant offers it under **Settings → Updates**; select **Update**.
+
+The app needs Home Assistant OS or a Supervised install (the kinds that have **Settings → Apps**) on a 64-bit system. Its packaging lives at [neilbrookins/ebac-ha](https://github.com/neilbrookins/ebac-ha).
+
 ## Installing on Linux
 
 Not sure which steps you need? Open a terminal and type `ls ~/ebac`:
