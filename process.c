@@ -133,6 +133,8 @@ static char *fgets_cr(char *s, int n, FILE *iop)
 char *get_line(int mode)
 {
         int c, i;
+        static char digit_letters[] = "qwertyuiop"; /* stand for 1-9, 0 */
+        char *digit; /* letter standing for a digit, in DIGITS_MODE */
         static char line[MAXSEARCHLEN];
         int place = 0; /* location of cursor within, or after, line of text */
         FILE *fp = NULL; /* log file for the line of text */
@@ -319,6 +321,15 @@ char *get_line(int mode)
                         fflush(stdout);
                         break;
                 default:
+                        /*
+                        ** When only a number can be typed (chapter and verse),
+                        ** the letters under the digits on a keyboard stand for
+                        ** them, q for 1 ... o for 9 and p for 0, so a phone's
+                        ** on-screen keyboard needn't be switched to numbers.
+                        */
+                        if (mode == DIGITS_MODE && c > 0 && c < 256 &&
+                            (digit = strchr(digit_letters, tolower(c))) != NULL)
+                                c = "1234567890"[digit - digit_letters];
                         if ((mode == DIGITS_MODE) &&
                             (!isdigit(c)) && (line[0] != '\0'))
                                 c = '\r';

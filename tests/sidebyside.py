@@ -95,6 +95,9 @@ SCENARIOS = [
     ("letters for 1-9 in list", ["s", "jesus wept ,\r", "q", "x", "w", "x", "E", "x", "o", "x",
                                  "1", "x", "z", " ", "x", "e"]),  # no entry z here: help screen
     ("letters past 9 in list",  ["s", "the\r", " ", "a", "x", "d", "x", "f", "x", "p", "x", "e"]),
+    # chapter and verse prompts: q w e r t y u i o p are 1 2 3 4 5 6 7 8 9 0
+    ("letters as digits in view", ["v", "gen\r", "r\r", "r\r", "x", "v", "psa\r", "qqo\r", "Qpt\r", "x",
+                                   "v", "joh\r", "e1\r", "q", "p\r", "x", "e"]),
 ]
 
 

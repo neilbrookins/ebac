@@ -87,7 +87,7 @@ Any time after installing, just type:
 ~/ebac/bible
 ```
 
-At the main menu press **V** to view a passage, **S** to search, **C** to change translation, **I** for information, or **E** to exit. In any list or passage, press **?** for the keys available there. The arrow keys and **Page Up**/**Page Down** work too: in a passage, Down and Up step one verse at a time.
+At the main menu press **V** to view a passage (type the start of the book's name, then the chapter and verse numbers; the letters **q w e r t y u i o p** can be typed for **1 2 3 4 5 6 7 8 9 0**, so a phone's on-screen keyboard can stay on letters), **S** to search, **C** to change translation, **I** for information, or **E** to exit. In any list or passage, press **?** for the keys available there. The arrow keys and **Page Up**/**Page Down** work too: in a passage, Down and Up step one verse at a time.
 
 ### Updating to the latest version
 
