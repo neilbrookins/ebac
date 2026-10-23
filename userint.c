@@ -811,18 +811,32 @@ static void view_match_list(short int *verse_list)
                     display_verse(tag++, bcv_arrays, MAXINDENT, top_of_screen);
                     top_of_screen = FALSE;
                 }
+/*
+** The prompt line. In a window too narrow for all of it (a phone, say),
+** the middle part is left out, so the line doesn't wrap. The lengths are
+** of the text as printed; sizeof counts the '\0' too, hence the - 1s.
+*/
+#define END_TEXT        "--End of list--"
+#define END_HOW         "   Press <x> to exit."
+#define MORE_TEXT       "--More--"
+#define MORE_HOW        "   Press <space> to advance one screen."
+#define MENU_TEXT       " (Press ? for menu.)"
+#define FITS(t, how)    ((int) (sizeof(t) - 1 + sizeof(how) - 1 + \
+                                sizeof(MENU_TEXT) - 1) <= WIDTH)
                 standout();
                 if (cur_verse == 0)
                 {
-                        printf("--End of list--");
+                        printf(END_TEXT);
                         standend();
-                        printf("   Press <x> to exit.");
+                        if (FITS(END_TEXT, END_HOW))
+                                printf(END_HOW);
                 }
                 else
                 {
-                        printf("--More--");
+                        printf(MORE_TEXT);
                         standend();
-                        printf("   Press <space> to advance one screen.");
+                        if (FITS(MORE_TEXT, MORE_HOW))
+                                printf(MORE_HOW);
                 }
                 printf(" (Press ");
                 rev_printf("?");
