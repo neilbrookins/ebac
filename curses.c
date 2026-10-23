@@ -55,26 +55,25 @@ char    *UE = "";       /* rmul: underline end */
 char    *CL;            /* clear: clear screen */
 char	*ND;		/* cuf1: non-destructive space */
 
+void exit_program(int errnum);    /* in file.c */
+
 static char *termtype;  /* name of terminal entry */
 static char *default_TERM = "vt100";
 
 /* Used by tputs() to send each character to the screen */
-static int fputchar(c)
-int c;
+static int fputchar(int c)
 {
 	return putchar(c);
 }
 
 /* Send one terminal control string, with any padding it needs. */
-void scr_put(s)
-char *s;
+void scr_put(char *s)
 {
 	tputs(s, 1, fputchar);
 }
 
 /* This function fetches an optional string from terminfo */
-static char *mayhave(name)
-char    *name;  /* terminfo name of the capability */
+static char *mayhave(char *name)         /* terminfo name of the capability */
 {
 	char    *val;
 
@@ -85,8 +84,7 @@ char    *name;  /* terminfo name of the capability */
 }
 
 /* This function fetches a required string from terminfo */
-static char *musthave(name)
-char    *name;  /* terminfo name of the capability */
+static char *musthave(char *name)        /* terminfo name of the capability */
 {
 	char    *val;
 
@@ -104,11 +102,10 @@ char    *name;  /* terminfo name of the capability */
 * This function fetches a pair of strings from terminfo.  If one of them
 * is missing, then the other one is ignored.
 */
-static void pair(T, U, sT, sU)
-char    **T;    /* where to store the first pointer */
-char    **U;    /* where to store the second pointer */
-char    *sT;    /* name of the first capability */
-char    *sU;    /* name of the second capability */
+static void pair(char **T,               /* where to store the first pointer */
+                 char **U,               /* where to store the second pointer */
+                 char *sT,               /* name of the first capability */
+                 char *sU)               /* name of the second capability */
 {
 	char    *t, *u;
 
@@ -127,7 +124,7 @@ char    *sU;    /* name of the second capability */
 ** Get the window size. setupterm() has already replaced the terminfo
 ** defaults with the real size of the window (or $LINES and $COLUMNS).
 */
-getsize()
+static void getsize(void)
 {
 	s_lines = tigetnum("lines");
 	s_cols = tigetnum("cols");
@@ -138,11 +135,10 @@ getsize()
 		fprintf(stderr, "Screen too small\n");
 		exit_program(2);
 	}
-	return 0;
 }
 
 /* Initialize the screen package. */
-initscreen()
+void initscreen(void)
 {
 	int     err;
 
@@ -179,8 +175,14 @@ initscreen()
 #	include <sgstat.h>
 #endif
 #include <stdio.h>
+#ifdef UNIXV
+#	include <stdlib.h>
+#	include <unistd.h>
+#	include <signal.h>
+#endif
 
-static void      starttcap();
+static void      starttcap(char *term);
+static void      getsize(int signo);
 
 /* variables, publicly available & used in the macros */
 char    *termtype;      /* name of terminal entry */
@@ -203,15 +205,14 @@ static char     *capbuf;        /* capability string buffer */
 char *default_TERM = "vt100";
 
 /* Used by tputs() */
-int fputchar(c)
-int c;
+int fputchar(int c)
 {
 	putchar(c);
 	return 0;
 }
 
 /* Initialize the Curses package. */
-initscreen()
+void initscreen(void)
 {
         termtype = (char *) getenv("TERM");
         if (!termtype)
@@ -226,9 +227,8 @@ initscreen()
 }
 
 /* This function fetches an optional string from termcap */
-static void mayhave(T, s)
-char    **T;    /* where to store the returned pointer */
-char    *s;     /* name of the capability */
+static void mayhave(char **T,            /* where to store the returned pointer */
+                    char *s)             /* name of the capability */
 {
 	char    *val;
 
@@ -241,9 +241,8 @@ char    *s;     /* name of the capability */
 
 
 /* This function fetches a required string from termcap */
-static void musthave(T, s)
-char    **T;    /* where to store the returned pointer */
-char    *s;     /* name of the capability */
+static void musthave(char **T,           /* where to store the returned pointer */
+                     char *s)            /* name of the capability */
 {
   mayhave(T, s);
   if (!*T)
@@ -263,11 +262,10 @@ char    *s;     /* name of the capability */
 * This function fetches a pair of strings from termcap.  If one of them is
 * missing, then the other one is ignored.
 */
-static void pair(T, U, sT, sU)
-char    **T;    /* where to store the first pointer */
-char    **U;    /* where to store the second pointer */
-char    *sT;    /* name of the first capability */
-char    *sU;    /* name of the second capability */
+static void pair(char **T,               /* where to store the first pointer */
+                 char **U,               /* where to store the second pointer */
+                 char *sT,               /* name of the first capability */
+                 char *sU)               /* name of the second capability */
 {
    mayhave(T, sT);
    mayhave(U, sU);
@@ -280,8 +278,7 @@ char    *sU;    /* name of the second capability */
 
 
 /* Read everything from termcap */
-static void starttcap(term)
-char    *term;
+static void starttcap(char *term)
 {
 static char     cbmem[800];
 static char     kbuf[1024];
@@ -324,8 +321,7 @@ getsize(0);
 * This function is called once during initialization, and thereafter it is
 * called whenever the SIGWINCH signal is sent to this process.
 */
-int getsize(signo)
-int     signo;
+static void getsize(int signo)
 {
 int     num_lines;
 int     num_cols;
@@ -406,7 +402,7 @@ if (*o_lines != s_lines || *o_columns != s_cols)
 }
 #endif
 
-return 0;
+return;
 }
 
 

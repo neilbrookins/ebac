@@ -18,7 +18,30 @@ char spaces[]="                          ";  /* MAXINDENT spaces */
 static int last_len = 0;
 struct bcv_type bcv;
 
-int main_menu()
+/* functions used only in this file */
+static int main_menu(void);
+static void remove_char(char *strg);
+static int get_number(void);
+static struct bcv_type *bcv_menu(void);
+static int count_lines(char tag, char *bookname, char *strg, int indent,
+                       char top_of_screen);
+static void dis_one_line(char *strg);
+static void dis_verse(char *strg, int indent, char firstTime);
+static void display_verse(char tag, struct bcv_array_type *bcv_arrays,
+                          int verIndent, char top_of_screen);
+static int calculate_fv(int last_verse);
+static void rev_printf(char *string);
+static int check_limits(int cur_verse);
+static void view_in_context(int cur_verse);
+#ifdef RAMDISK
+static short int vlist(struct TEMPFILE *tf, int rnum);
+static void view_match_list(struct TEMPFILE *verse_list);
+#else
+static void view_match_list(short int *verse_list);
+#endif
+static void prog_info(void);
+
+static int main_menu(void)
 {
         cls();
         printf("\n\n");
@@ -58,9 +81,8 @@ int main_menu()
             and that book, Exodus, is the second book of the Bible. "Exodus"
             will be printed.
 */
-int match_it(book_str, update_screen)
-char *book_str;
-int update_screen; /* boolean */
+int match_it(char *book_str,
+             int update_screen)          /* boolean */
 {
 #ifndef COCO
         extern struct bva *book;
@@ -135,8 +157,7 @@ int update_screen; /* boolean */
 ** Bugs: Does not work on terminals that don't use \b to move the cursor
 **       one char to the left -- these terminals are rare, but do exist.
 */
-Erase_word(length)
-int length;
+void Erase_word(int length)
 {
         int i;
         putchar(' ');
@@ -153,8 +174,7 @@ int length;
 /* Purpose: make a string shorter by one character.
    Example: "abc" becomes "ab"
 */
-remove_char(strg)
-char *strg;
+static void remove_char(char *strg)
 {
         int i;
         if (strg[0] != '\0')
@@ -170,11 +190,10 @@ char *strg;
         }
 }
 
-int get_number()
+static int get_number(void)
 {
         int i, number;
         char *chrptr;
-        char *get_line();
 
         chrptr = get_line(DIGITS_MODE);
         i = number = 0;
@@ -189,7 +208,7 @@ int get_number()
 }
 
 /* Purpose: Prompt user to enter the book, chapt, and verse desired */
-struct bcv_type *bcv_menu()
+static struct bcv_type *bcv_menu(void)
 {
         static char book_str[MAXWORDLEN];
         int c, i;
@@ -272,11 +291,7 @@ get_name_again:
 }
 
 /* figure out how many lines on the screen it will take to print this verse */
-int count_lines(tag, bookname, strg, indent, top_of_screen)
-char tag;
-char *bookname, *strg;
-int indent;
-char top_of_screen;
+static int count_lines(char tag, char *bookname, char *strg, int indent, char top_of_screen)
 {
         static char previous_book[MAXBOOKNAME] = { '\0' };
         int a_lines = 0, i, indentWidth = WIDTH - indent;
@@ -305,8 +320,7 @@ char top_of_screen;
 /* Purpose: Display one line of text to the screen. Highlight, via reverse
             video, the word being searched for.
 */
-dis_one_line(strg)
-char *strg;
+static void dis_one_line(char *strg)
 {
     int i = 0, j = 0, k;
     char wrd[MAXWORDLEN];
@@ -360,10 +374,7 @@ char *strg;
             '\0'. Then it recursively calls itself to handle the remainder
             of the verse.
 */
-dis_verse(strg, indent, firstTime)
-char *strg;
-int indent;
-char firstTime;
+static void dis_verse(char *strg, int indent, char firstTime)
 {
         int i, indentWidth = WIDTH - indent;
         char *outstr;
@@ -411,11 +422,7 @@ char firstTime;
 /* Purpose: Display header info for a verse, such as bookname, chapter and
             verse numbers etc.
 */
-display_verse(tag, bcv_arrays, verIndent, top_of_screen)
-char tag;
-struct bcv_array_type *bcv_arrays;
-int verIndent;
-char top_of_screen;
+static void display_verse(char tag, struct bcv_array_type *bcv_arrays, int verIndent, char top_of_screen)
 {
         int cv_length;
         static char previous_book[MAXBOOKNAME] = { '\0' };
@@ -476,12 +483,10 @@ char top_of_screen;
         strcpy(previous_book, bcv_arrays->book_array);
 }
 
-int calculate_fv(last_verse)
-int last_verse;
+static int calculate_fv(int last_verse)
 {
         int num_lines = s_lines;
         char top_of_screen = TRUE; /* I don't think this is right */
-        struct bcv_array_type *get_verse();
         struct bcv_array_type *bcv_arrays;
         for(;;)
         {
@@ -500,16 +505,14 @@ int last_verse;
 }
 
 /* maybe this should be in a macro for speed? */
-rev_printf(string)
-char *string;
+static void rev_printf(char *string)
 {
         standout();
         printf(string);
         standend();
 }
 
-int check_limits(cur_verse)
-int cur_verse;
+static int check_limits(int cur_verse)
 {
         if (cur_verse >= (numverses + 1))
                 return (FALSE);
@@ -518,12 +521,10 @@ int cur_verse;
         return (TRUE);
 }
 
-view_in_context(cur_verse)
-int cur_verse;
+static void view_in_context(int cur_verse)
 {
         int first_verse, num_lines;
         char exit_now = FALSE, top_of_screen;
-        struct bcv_array_type *get_verse();
         struct bcv_array_type *bcv_arrays;
         do{
                 num_lines = s_lines;
@@ -666,9 +667,8 @@ get_command:    switch (tolower(ugetchar()))
 }
 
 #ifdef RAMDISK
-short int vlist(tf, rnum)
-struct TEMPFILE *tf; /* temp file */
-int rnum; /* record number in file */
+static short int vlist(struct TEMPFILE *tf, /* temp file */
+                       int rnum)         /* record number in file */
 {
 	if (fseek(tf->fname, (long) rnum * sizeof(short int), 0) == -1)
 	{
@@ -679,18 +679,16 @@ int rnum; /* record number in file */
 }
 #endif
 
-view_match_list(verse_list)
 #ifdef RAMDISK
-struct TEMPFILE *verse_list;
+static void view_match_list(struct TEMPFILE *verse_list)
 #else
-short int *verse_list;
+static void view_match_list(short int *verse_list)
 #endif
 {
         int i = 0, first_i, num_lines, tag;
 	char ui; /* User Input */
         short int cur_verse;
         char exit_now = FALSE, top_of_screen;
-        struct bcv_array_type *get_verse();
         struct bcv_array_type *bcv_arrays;
         do{
                 cls();
@@ -822,7 +820,7 @@ short int *verse_list;
         }while (!(exit_now));
 }
 
-prog_info()
+static void prog_info(void)
 {
 cls();
 printf("Electronic Bible and Concordance (EBaC)      version 1.3\n");
@@ -861,14 +859,11 @@ ugetchar();
 }
 
 /* Main program! */
-main()
+int main(void)
 {
-        short int bcv_search();
 #ifdef RAMDISK
-	struct TEMPFILE *process_words();
 	struct TEMPFILE *verse_list;
 #else
-        short int *process_words();
         short int *verse_list;
 #endif
         short int cur_verse;

@@ -5,8 +5,7 @@
 */
 #include "bible.h"
 
-long int fgetl(fileptr)
-FILE *fileptr;
+long int fgetl(FILE *fileptr)
 {
         long int offset;
         offset = fgetc(fileptr);
@@ -21,8 +20,7 @@ FILE *fileptr;
         return(offset);
 }
 
-short int fgeti(fileptr)
-FILE *fileptr;
+short int fgeti(FILE *fileptr)
 {
         short int offset;
         offset = fgetc(fileptr);
@@ -39,17 +37,14 @@ FILE *fileptr;
 **          instead of char. This should take the most significant byte
 **          of the short int first and write it out to the file.
 */
-fputi(offset, fileptr)
-short int offset;
-FILE *fileptr;
+void fputi(short int offset, FILE *fileptr)
 {
         fputc((char) ((short) offset >> 8), fileptr);
         fputc((char) offset, fileptr);
 }
 #endif
 
-int new_verse(word)
-char *word;
+int new_verse(char *word)
 {
     int i;
     char c;
@@ -81,8 +76,7 @@ char *word;
    Bugs: Assumes that new_verse() is TRUE, which it always will be prior
          to calling new_chapter().
 */
-int new_chapter(word)
-char *word;
+int new_chapter(char *word)
 {
         int i;
 
@@ -100,8 +94,7 @@ char *word;
         exit(1);
 }
 
-int wordtochapt(word)
-char *word;
+int wordtochapt(char *word)
 {
         int chapt = 0;
         int i;
@@ -115,8 +108,7 @@ char *word;
         return(chapt);
 }
 
-int wordtoverse(word)
-char *word;
+int wordtoverse(char *word)
 {
         int verse = 0;
         int i;
@@ -131,8 +123,7 @@ char *word;
         return(verse);
 }
 
-short int i_bit_reset(number)
-short int number;
+short int i_bit_reset(short int number)
 {
         if (number & 0x8000) /* High bit set? */
         {
@@ -142,8 +133,7 @@ short int number;
         return(number);
 }
 
-long int l_bit_reset(l_number)
-long int l_number;
+long int l_bit_reset(long int l_number)
 {
         if (l_number & 0x20000000L)
         {
@@ -163,8 +153,7 @@ long int l_number;
         return((long) l_number);
 }
 
-short int bcv_search(bcvptr)
-struct bcv_type *bcvptr;
+short int bcv_search(struct bcv_type *bcvptr)
 {
 #ifndef COCO
     extern short int *pach;

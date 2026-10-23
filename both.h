@@ -48,7 +48,7 @@
 #endif
 
 #ifdef VMS
-        char ugetchar();
+        int ugetchar(void);
 #       define malloc VAXC$MALLOC_OPT /* these run faster, and */
 #       define free VAXC$FREE_OPT     /* have the same functionality */
 #endif
@@ -60,7 +60,10 @@
 #       define ugetchar() getchar()
 #endif
 #ifdef UNIXV
-	char ugetchar();
+#	include <stdlib.h>	/* malloc, free, exit, getenv, atoi */
+#	include <string.h>	/* strlen, strcpy, strcmp, ... */
+#	include <unistd.h>	/* read, chdir, unlink, getpid */
+	int ugetchar(void);
 #	define TRUE 1
 #	define FALSE 0
 #endif

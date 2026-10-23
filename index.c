@@ -49,14 +49,31 @@ long int offset; /* number of bytes offset from the beginning
                    of a book that a particular verse begins at. */
 int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
 
+/* functions in this file */
+static void fputl(long int offset, FILE *fileptr);
+static void fputi(short int offset, FILE *fileptr);
+static void mfclose(FILE *fileptr, char *string);
+static FILE *mfopen(char *string, char *mode);
+static void read_word(FILE *book_file);
+static void remove_head_punctuation(void);
+static void remove_tail_punctuation(void);
+static void make_into_lowercase(void);
+static struct tree *store_word(struct tree *node);
+static void free_node(struct list *listptr);
+static int new_verse(void);
+static int new_chapter(void);
+static void inorder_traversal(struct tree *node);
+static short int i_bit_twiddle(short int number);
+static long int l_bit_twiddle(long int number);
+static void visit_node(struct tree *node);
+static void print_list(struct list *listptr);
+
 /*
 Purpose: similar to the fputc function, but it works with long int
          instead of char. This should take the most significant byte
          of the long int first and write it out to the file.
 */
-fputl(offset,fileptr)
-long int offset;
-FILE *fileptr;
+static void fputl(long int offset, FILE *fileptr)
 {
         fputc((char) ((long) offset >> 24), fileptr);
         fputc((char) ((long) offset >> 16), fileptr);
@@ -69,9 +86,7 @@ FILE *fileptr;
 **          instead of char. This should take the most significant byte
 **          of the short int first and write it out to the file.
 */
-fputi(offset, fileptr)
-short int offset;
-FILE *fileptr;
+static void fputi(short int offset, FILE *fileptr)
 {
         fputc((char) ((short) offset >> 8), fileptr);
         fputc((char) offset, fileptr);
@@ -82,9 +97,7 @@ Purpose: the function fclose is called many times in this application
          and we always want to check for error status. This saves space
          by not having to repeat the code many times.
 */
-mfclose(fileptr, string)
-FILE *fileptr;
-char *string;
+static void mfclose(FILE *fileptr, char *string)
 {
         if(fclose(fileptr) == EOF)
         {
@@ -98,8 +111,7 @@ Purpose: the function fopen is called many times in this application
          and we always want to check for error status. This saves space
          by not having to repeat the code many times.
 */
-FILE *mfopen(string, mode)
-char *string, *mode;
+static FILE *mfopen(char *string, char *mode)
 {
         FILE *fileptr;
 
@@ -116,8 +128,7 @@ char *string, *mode;
         return(fileptr);
 }
 
-read_word(book_file)
-FILE *book_file;
+static void read_word(FILE *book_file)
 {
 int i = 0; /* index */
 
@@ -150,7 +161,7 @@ remove_tail_punctuation();
 make_into_lowercase();
 }
 
-remove_head_punctuation()
+static void remove_head_punctuation(void)
 {
   int i;
   if (isalnum(word[0]) || word[0] == '\0')
@@ -163,7 +174,7 @@ remove_head_punctuation()
   }
 }
 
-remove_tail_punctuation()
+static void remove_tail_punctuation(void)
 {
   if (word[0] == '\0' || isalnum(word[strlen(word) - 1]))
           return;
@@ -174,7 +185,7 @@ remove_tail_punctuation()
   }
 }
 
-make_into_lowercase()
+static void make_into_lowercase(void)
 {
         int i = 0;
         while (word[i] = tolower(word[i]))
@@ -187,8 +198,7 @@ make_into_lowercase()
 ** of the elements in the tree. Duplicate words are stored once, but
 ** a new reference is appended to the linked list.
 */
-struct tree *store_word(node)
-struct tree *node;
+static struct tree *store_word(struct tree *node)
 {
 int n;
 struct tree *newnode;
@@ -271,8 +281,7 @@ struct list *newnumber;
         printf("This sentence is NEVER printed to the screen.\n");
 }
 
-free_node(listptr)
-struct list *listptr;
+static void free_node(struct list *listptr)
 {
         if (listptr->next != NULL)
                 free_node(listptr->next); /* resursive */
@@ -283,7 +292,7 @@ struct list *listptr;
 #endif
 }
 
-new_verse()
+static int new_verse(void)
 {
         int i;
         char c;
@@ -315,7 +324,7 @@ new_verse()
    Bugs: Assumes that new_verse() is TRUE, which it always will be prior
          to calling new_chapter().
 */
-new_chapter()
+static int new_chapter(void)
 {
         int i;
 
@@ -333,8 +342,7 @@ new_chapter()
         exit(1);
 }
 
-inorder_traversal(node)
-struct tree *node;
+static void inorder_traversal(struct tree *node)
 {
     if (node->left != NULL)
         inorder_traversal(node->left); /* resursive */
@@ -343,8 +351,7 @@ struct tree *node;
         inorder_traversal(node->right); /* resursive */
 }
 
-short int i_bit_twiddle(number)
-short int number;
+static short int i_bit_twiddle(short int number)
 {
         if ((number & EOR) == EOR)
         {
@@ -355,8 +362,7 @@ short int number;
         return(number);
 }
 
-long int l_bit_twiddle(number)
-long int number;
+static long int l_bit_twiddle(long int number)
 {
         if ((number & (long) EOR) == (long) EOR)
         {
@@ -379,8 +385,7 @@ long int number;
         return(number);
 }
 
-visit_node(node)
-struct tree *node;
+static void visit_node(struct tree *node)
 {
         long int offset;
         if (node->verse_head != NULL)
@@ -410,8 +415,7 @@ struct tree *node;
         }
 }
 
-print_list(listptr)
-struct list *listptr;
+static void print_list(struct list *listptr)
 {
         listptr->number = i_bit_twiddle(listptr->number);
         fputi(listptr->number, references_file);
@@ -419,7 +423,7 @@ struct list *listptr;
                 print_list(listptr->next); /* resursive */
 }
 
-main()
+int main(void)
 {
 #ifdef COCO
 	pflinit(); /* needed to link libraries to print _long_ integers */

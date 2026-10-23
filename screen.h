@@ -34,7 +34,7 @@ extern char	*ND;		/* :nd=: non-destructive space */
 #ifdef USE_NCURSES
 
 /* send one terminal control string to the screen; defined in curses.c */
-extern void     scr_put();
+extern void     scr_put(char *s);
 
 #define standout()      scr_put(SO)
 #define standend()      scr_put(SE)
@@ -45,9 +45,12 @@ extern void     scr_put();
 
 #else /* termcap, or the fixed sequences in cure.c */
 
-extern char     *tgoto();
-extern char     *tgetstr();
-extern      tputs();
+/* termcap library (cure.c supplies its own tputs) */
+extern int      tgetent(char *bp, char *name);
+extern int      tgetnum(char *id);
+extern char     *tgetstr(char *id, char **area);
+extern char     *tgoto(char *cap, int col, int row);
+extern int      tputs(char *str, int affcnt, int (*outc)(int));
 
 extern char     *termtype;      /* name of terminal entry */
 extern short    ospeed;         /* tty speed, eg B2400 */
@@ -59,7 +62,7 @@ extern char PC;         /* Pad char */
 extern char     ERASEKEY;       /* taken from the ioctl structure */
 
 
-extern int fputchar();
+extern int fputchar(int c);
 
 #define standout()      tputs(SO, 1, fputchar)
 #define standend()      tputs(SE, 1, fputchar)

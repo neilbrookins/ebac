@@ -16,7 +16,6 @@ int cur_revword = 0;
 #ifdef RAMDISK
         struct TEMPFILE tempfile[20];
         int TFtop = 0;
-        short int vlist();
 #else
         struct stackptr
         {
@@ -26,8 +25,25 @@ int cur_revword = 0;
         struct stackptr *top = NULL;
 #endif
 
+/* functions used only in this file */
+static char *fgets_cr(char *s, int n, FILE *iop);
+static int compare(short int first, short int second, int prox);
+static void not_oper(void);
+static void or_oper(void);
+static void and_oper(int prox);
+static void add_rev(char *word);
+static int del_rev(void);
+static void store_book(int bnumber);
+#ifdef RAMDISK
+static void push(struct TEMPFILE *verse_list);
+static struct TEMPFILE *pop(void);
+#else
+static void push(short int *verse_list);
+static short int *pop(void);
+#endif
+
 char LOGFILE[80];
-initlogname()
+void initlogname(void)
 {
 #ifdef OSK
         char *getenv();
@@ -45,8 +61,6 @@ printf("For example:  setenv TEMPFILE /r0/\n");
         strcpy (LOGFILE, "/r0/ebac_log");
 #endif
 #ifdef UNIXV
-        char *getenv();
-
         strcpy (LOGFILE, "/tmp/ebac_log_");
 	strcat (LOGFILE, getenv("LOGNAME"));
 #endif
@@ -71,10 +85,7 @@ printf("For example:  set TEMPFILE=C:\\\n");
 ** Just like fgets, but it terminates on \r instead of \n
 ** This just happens to be the same thing on OS-9 systems.
 */
-char *fgets_cr(s, n, iop)
-char *s;
-int n;
-register FILE *iop;
+static char *fgets_cr(char *s, int n, FILE *iop)
 {
         register int c;
         register char *cs;
@@ -93,8 +104,7 @@ register FILE *iop;
          of the backspace '\b' character; therefore this should use the
          proper termcap entry for "move cursor left" instead of sending BS.
 */
-char *get_line(mode)
-int mode;
+char *get_line(int mode)
 {
         int c, i;
         static char line[MAXSEARCHLEN];
@@ -317,16 +327,14 @@ int mode;
 }
 
 #ifdef RAMDISK
-push(verse_list)
-struct TEMPFILE *verse_list;
+static void push(struct TEMPFILE *verse_list)
 {
         tempfile[TFtop].fname = verse_list->fname;
         strcpy(tempfile[TFtop].sname, verse_list->sname);
         ++TFtop;
 }
 #else
-push(verse_list)
-short int *verse_list;
+static void push(short int *verse_list)
 {
         int count = 0, i = 0;
         struct stackptr *stack;
@@ -358,7 +366,7 @@ short int *verse_list;
 #endif
 
 #ifdef RAMDISK
-struct TEMPFILE *pop()
+static struct TEMPFILE *pop(void)
 {
         if (--TFtop < 0)
         {
@@ -369,7 +377,7 @@ struct TEMPFILE *pop()
         return ((struct TEMPFILE *) &tempfile[TFtop]);
 }
 #else
-short int *pop()
+static short int *pop(void)
 {
         short int *verse_list; /* list of verses to be returned */
         short int *vl; /* list of verses to be printed */
@@ -404,7 +412,7 @@ short int *pop()
 **                then result = 1, 0     (the 0 marks the end of the list)
 */
 #ifdef RAMDISK
-not_oper()
+static void not_oper(void)
 {
         struct TEMPFILE *result;
         struct TEMPFILE *rfile;
@@ -453,7 +461,7 @@ not_oper()
         push(result);
 }
 #else
-not_oper()
+static void not_oper(void)
 {
         short int *result;
         short int *remove, *r, *keep, *k;
@@ -502,7 +510,7 @@ not_oper()
 **                then result = 1, 2, 6, 0
 */
 #ifdef RAMDISK
-or_oper()
+static void or_oper(void)
 {
         struct TEMPFILE *result;
         struct TEMPFILE *sec_file;
@@ -561,7 +569,7 @@ or_oper()
         push(result);
 }
 #else
-or_oper()
+static void or_oper(void)
 {
         short int *result;
         short int *second, *s, *first, *f;
@@ -614,9 +622,7 @@ or_oper()
 }
 #endif
 
-int compare (first, second, prox)
-short int first, second;
-int prox;
+static int compare(short int first, short int second, int prox)
 {
         if (first == second)
                 return (0);
@@ -647,8 +653,7 @@ int prox;
 **                then result = 3, 4, 5, 6, 7, 0
 */
 #ifdef RAMDISK
-and_oper(prox)
-int prox;
+static void and_oper(int prox)
 {
     struct TEMPFILE *result;
     struct TEMPFILE *sec_file;
@@ -781,8 +786,7 @@ int prox;
     or_oper();
 }
 #else
-and_oper(prox)
-int prox; /* proximity */
+static void and_oper(int prox)           /* proximity */
 {
     short int *result;
     short int *second, *s, *first, *f, *swap;
@@ -886,14 +890,13 @@ int prox; /* proximity */
 }
 #endif
 
-add_rev(word)
-char *word;
+static void add_rev(char *word)
 {
         rev_word[cur_revword++] = word;
         rev_word[cur_revword] = 0;
 }
 
-int del_rev()
+static int del_rev(void)
 {
         if (cur_revword <= 0)
                 return (FALSE);
@@ -907,8 +910,7 @@ int del_rev()
 /*
 ** store list of every verse in a particular book into element on stack
 */
-store_book(bnumber)
-int bnumber;
+static void store_book(int bnumber)
 {
 #ifdef RAMDISK
         struct TEMPFILE *book_file;
@@ -919,7 +921,6 @@ int bnumber;
 #endif
         struct bcv_type bcv;
         short int first_verse, last_verse, i;
-        short int bcv_search();
 
         bcv.book_number = bnumber;
         bcv.chapter_number = 1;
@@ -971,14 +972,12 @@ int bnumber;
 
 /* Purpose: get search term(s) from the user. Process into a list of verses */
 #ifdef RAMDISK
-struct TEMPFILE *process_words()
+struct TEMPFILE *process_words(void)
 {
-        struct TEMPFILE *find_word();
         struct TEMPFILE *verse_list;
 #else
-short int *process_words()
+short int *process_words(void)
 {
-        short int *find_word();
         short int *verse_list;
 #endif
         char *arg;  /* Points to argument within search line */

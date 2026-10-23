@@ -35,7 +35,7 @@ extern long int numverses;
 		char sname[35];
 	};
 
-	struct TEMPFILE *tmpopen();
+	struct TEMPFILE *tmpopen(void);
 #else
 /* size of array to store list of all the verses */
 #	define ALLVERSE 31103
@@ -72,5 +72,52 @@ struct bcv_type
 
 extern char etla[]; /* name of current translation in use*/
 
-FILE *mfopen();
+/*
+** Function prototypes for the bible program, grouped by the file that
+** defines them.
+*/
+
+/* bible.c */
+long int fgetl(FILE *fileptr);
+short int fgeti(FILE *fileptr);
+#ifdef RAMDISK
+void fputi(short int offset, FILE *fileptr);
+#endif
+int new_verse(char *word);
+int new_chapter(char *word);
+int wordtochapt(char *word);
+int wordtoverse(char *word);
+short int i_bit_reset(short int number);
+long int l_bit_reset(long int l_number);
+short int bcv_search(struct bcv_type *bcvptr);
+
+/* file.c */
+void exit_program(int errnum);
+void mfclose(FILE *fileptr, char *string);
+FILE *mfopen(char *string, char *mode);
+void initialize(void);
+void change_translations(void);
+int verse_to_book(short int sequ_verse_number);
+struct bcv_array_type *get_verse(short int sequ_verse_number);
+#ifdef RAMDISK
+struct TEMPFILE *find_word(char *word);
+#else
+short int *find_word(char *word);
+#endif
+
+/* process.c */
+void initlogname(void);
+char *get_line(int mode);
+#ifdef RAMDISK
+struct TEMPFILE *process_words(void);
+#else
+short int *process_words(void);
+#endif
+
+/* userint.c */
+int match_it(char *book_str, int update_screen);
+void Erase_word(int length);
+
+/* curses.c or cure.c */
+void initscreen(void);
 

@@ -53,20 +53,20 @@ long int offset; /* number of bytes offset from the beginning of a book that
                     a particular verse begins at. */
 int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
 
-extern long int fgetl();
-extern short int fgeti();
-extern int new_verse();
-extern int new_chapter();
-extern int wordtochapt();
-extern int wordtoverse();
-extern short int i_bit_reset();
-extern long int l_bit_reset();
+/* functions used only in this file */
+static void open_new_trans(void);
+static long int getcvarraydat(short int sequ_verse_number);
+static char *read_word(FILE *file_ptr);
+static long int lookup(long int start, long int end, char *word);
+#ifdef UNIXV
+static void set_raw_tty(void);
+static void contsignal(int signo);
+#endif
 
 /*
 ** Purpose: reset anything that needs to be fixed before the program exits.
 */
-exit_program(errnum)
-int errnum;
+void exit_program(int errnum)
 {
 #ifdef OSK
         /* system("tmode echo eof=1b"); */
@@ -84,7 +84,7 @@ int errnum;
 }
 
 #ifdef VMS
-char ugetchar()
+int ugetchar(void)
 {
         char c;
         vms_ttyread(&c, 1, 0);
@@ -93,7 +93,7 @@ char ugetchar()
 #endif
 
 #ifdef UNIXV
-char ugetchar()
+int ugetchar(void)
 {
         char c;
         int n;
@@ -112,9 +112,7 @@ Purpose: the function fclose is called many times in this application
          and we always want to check for error status. This saves space
          by not having to repeat the code many times.
 */
-mfclose(fileptr, string)
-FILE *fileptr;
-char *string;
+void mfclose(FILE *fileptr, char *string)
 {
         if(fclose(fileptr) == EOF)
         {
@@ -128,8 +126,7 @@ Purpose: the function fopen is called many times in this application
          and we always want to check for error status. This saves space
          by not having to repeat the code many times.
 */
-FILE *mfopen(string, mode)
-char *string, *mode;
+FILE *mfopen(char *string, char *mode)
 {
         FILE *fileptr;
 #       ifdef COCO
@@ -220,7 +217,7 @@ char *string, *mode;
 #endif
 
 /* Put the terminal into cbreak/noecho mode: one key at a time, no echo. */
-set_raw_tty()
+static void set_raw_tty(void)
 {
     newtermio = oldtermio;
     newtermio.c_iflag &= KEEP_IFLAGS;
@@ -232,17 +229,15 @@ set_raw_tty()
 }
 
 /* Restore raw mode after the program is resumed from CTRL-Z. */
-contsignal(signo)
-int signo;
+static void contsignal(int signo)
 {
     set_raw_tty();
 }
 #endif
 
-initialize()
+void initialize(void)
 {
 int i;
-int exit_program();
 FILE *trans_file;
 
 /*
@@ -377,7 +372,7 @@ FILE *trans_file;
 	open_new_trans();
 }
         
-open_new_trans()
+static void open_new_trans(void)
 {
         int i;
 
@@ -461,7 +456,7 @@ open_new_trans()
         references_file = mfopen("references.dat", READMODE);
 }
 
-change_translations()
+void change_translations(void)
 {
 #ifdef MSDOS
 #	define SLASH '\\'
@@ -512,8 +507,7 @@ change_translations()
 	open_new_trans();
 }
 
-long int getcvarraydat(sequ_verse_number)
-short int sequ_verse_number;
+static long int getcvarraydat(short int sequ_verse_number)
 {
 /*
 ** printf("sequ is: %d seek to: %ld\n",
@@ -526,8 +520,7 @@ short int sequ_verse_number;
     return(fgetl(cvarray_file));
 }
 
-int verse_to_book(sequ_verse_number)
-short int sequ_verse_number;
+int verse_to_book(short int sequ_verse_number)
 {
         int i;
         for(i = 1; i < numbooks; i++)
@@ -536,8 +529,7 @@ short int sequ_verse_number;
         return(i - 1);
 }
 
-char *read_word(file_ptr)
-FILE *file_ptr;
+static char *read_word(FILE *file_ptr)
 {
 int i = 0; /* index */
 static char word[80];
@@ -599,8 +591,7 @@ return((char *) word);
 **                      inside this function to avoid accessing the disk drives
 **                      too often. This must be adjustable.
 */
-struct bcv_array_type *get_verse(sequ_verse_number)
-short int sequ_verse_number;
+struct bcv_array_type *get_verse(short int sequ_verse_number)
 {
         static struct bcv_array_type bcv_arrays;
         long int offset;
@@ -698,9 +689,7 @@ short int sequ_verse_number;
         return(&bcv_arrays);
 }
 
-long int lookup(start, end, word)
-long int start, end;
-char *word;
+static long int lookup(long int start, long int end, char *word)
 {
         int ignore;
 #ifdef COCO /* Compiler pukes on "unsigned char" why? */
@@ -816,7 +805,7 @@ printf("random found the word we were looking for: %ld\n", refs_offset);
 }
 
 #ifdef RAMDISK
-struct TEMPFILE *tmpopen()
+struct TEMPFILE *tmpopen(void)
 {
         static struct TEMPFILE tf;
         static int i = 0;
@@ -854,11 +843,10 @@ struct TEMPFILE *tmpopen()
         return (&tf);
 }
 
-struct TEMPFILE *find_word(word)
+struct TEMPFILE *find_word(char *word)
 #else
-short int *find_word(word)
+short int *find_word(char *word)
 #endif
-char *word;
 {
  int i = 0;
  long int refs_offset;

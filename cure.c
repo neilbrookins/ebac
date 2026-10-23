@@ -29,23 +29,20 @@ char    *CL;            /* :cl=: clear screen */
 char	*ND;		/* :nd: non-destructive space */
 
 /* Used by tputs() */
-int fputchar(c)
-int c;
+int fputchar(int c)
 {
         putchar(c);
         return 0;
 }
 
-tputs(cp, i, fp)
-char *cp;
-int i;
-int (*fp)();
+int tputs(char *cp, int i, int (*fp)(int))
 {
         fputs(cp, stdout);
+        return 0;
 }
 
 /* Initialize the Curses package. */
-initscreen()
+void initscreen(void)
 {
 #ifdef COCO
         s_lines = 24;
