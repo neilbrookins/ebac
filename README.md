@@ -52,11 +52,11 @@ sudo apt install git build-essential libncurses-dev
 # On Fedora instead:  sudo dnf install git gcc make ncurses-devel
 ```
 
-**2. Download EBaC into your home folder.** This creates a folder called `ebac`.
+**2. Download EBaC into your home folder.** This creates a folder called `ebac`. (`--depth 1` downloads only the latest version, not the project's whole history, which halves the download. Updating works the same.)
 
 ```sh
 cd ~
-git clone https://github.com/neilbrookins/ebac.git
+git clone --depth 1 https://github.com/neilbrookins/ebac.git
 ```
 
 **3. Build the program.** This also builds the concordance index, the `.dat` files that make searching fast, from the Bible text; it takes a few seconds.
@@ -165,13 +165,17 @@ The original [`README`](README) describes the file layout in more detail.
 
 EBaC dates from 1993. Up to 2014 it ran on the Tandy Color Computer 3 (OS-9 6809, 512K), the MM/1 (OS-9 68000), VAX/VMS, MS-DOS, and the UNIX systems of the 1990s. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009.
 
-This repository starts with that release, unchanged, as its first commit and tagged **`v1.3.0`**. Each step needed to bring it up to date is a separate commit after it, with an explanation. Run `git log v1.3.0..` to read them.
+This repository starts with that release, unchanged, as its first commit and tagged **`v1.3.0`**. Each step needed to bring it up to date is a separate commit after it, with an explanation.
 
-**To build for a vintage system, use the original release:**
+The install steps above download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
 
 ```sh
+git clone https://github.com/neilbrookins/ebac.git ebac-full
+cd ebac-full
 git checkout v1.3.0
 ```
+
+In the full download, `git log v1.3.0..` lists each step since the original release. A folder made with `--depth 1` can get the full history later with `git fetch --unshallow --tags`.
 
 Version 2.0 is written in ANSI C (C89, and also valid C99, C17 and C23), which the CoCo's Microware C compiler cannot compile. The OS-9 68000, VMS and MS-DOS code is still in the source behind its `#ifdef`s and may still build with those systems' ANSI compilers, but only the Linux build has been tested.
 
