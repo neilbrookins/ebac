@@ -188,7 +188,7 @@ static void remove_tail_punctuation(void)
 static void make_into_lowercase(void)
 {
         int i = 0;
-        while (word[i] = tolower(word[i]))
+        while ((word[i] = tolower(word[i])) != '\0')
                 i++;
 }
 
@@ -214,8 +214,8 @@ struct list *newnumber;
                 newnode = (struct tree *) malloc (sizeof (struct tree));
                 if (newnode == NULL)
                 {
-                        printf ("malloc failed! size: %d\n",
-						                   sizeof (struct tree));
+                        printf ("malloc failed! size: %lu\n",
+				(unsigned long) sizeof (struct tree));
                         exit(1);
                 }
                 node = newnode;
@@ -279,6 +279,7 @@ struct list *newnumber;
                 return(node);
         }
         printf("This sentence is NEVER printed to the screen.\n");
+        return(node);
 }
 
 static void free_node(struct list *listptr)

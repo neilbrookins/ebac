@@ -89,7 +89,7 @@ int match_it(char *book_str,
 #else
         extern struct bva book[];
 #endif
-        int i, j, savei, len_str;
+        int i, j, savei = 0, len_str;
         int count = 0;  /* Number of matches found */
         char lower_name[MAXWORDLEN];
 
@@ -402,7 +402,7 @@ static void dis_verse(char *strg, int indent, char firstTime)
                 }
         }
         outstr = (char *) malloc (strlen(strg) + 1);
-        if (outstr == '\0')
+        if (outstr == NULL)
         {
                 printf("Out of memory!!\n");
                 exit_program(1);
@@ -508,7 +508,7 @@ static int calculate_fv(int last_verse)
 static void rev_printf(char *string)
 {
         standout();
-        printf(string);
+        fputs(string, stdout);
         standend();
 }
 
@@ -927,6 +927,7 @@ printf("Enter Search word(s) here:\n");
 			break;
                 case 'e':
                         exit_program(0);
+                        break; /* not reached */
                 default:
 			putchar('\7');
                         break;

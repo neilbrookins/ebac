@@ -231,6 +231,7 @@ static void set_raw_tty(void)
 /* Restore raw mode after the program is resumed from CTRL-Z. */
 static void contsignal(int signo)
 {
+    (void) signo;
     set_raw_tty();
 }
 #endif
@@ -422,7 +423,11 @@ static void open_new_trans(void)
         book_list = mfopen("booklist", "r");
         for (i = 0; i < numbooks; i++)
         {
-                fgets(book[i].name, MAXBOOKNAME, book_list);
+                if (fgets(book[i].name, MAXBOOKNAME, book_list) == NULL)
+                {
+                        printf("booklist has fewer than %ld books\n", numbooks);
+                        exit_program(1);
+                }
 /* get rid of the "\n" */
                 book[i].name[strlen(book[i].name) - 1] = '\0';
         }
@@ -466,7 +471,7 @@ void change_translations(void)
 	int i = -1;
 	char c;/* character the user types */
 	int n; /* number the user selects */
-	char new_dir[20]; /* example: ../nrsv */
+	char new_dir[MAX_ETLA + 4]; /* example: ../nrsv */
 
 	cls();
 	printf("Please select the number of the translation desired:\n\n");
@@ -728,7 +733,7 @@ static long int lookup(long int start, long int end, char *word)
                 refs_offset = l_bit_reset(refs_offset);
                 dword[i - 5] = '\0';
 
-                i = strcmp(word, dword);
+                i = strcmp(word, (char *) dword);
                 if (i == 0)
                 {
 /*
@@ -790,7 +795,7 @@ printf("from words: %x\n", ignore);
         refs_offset = l_bit_reset(refs_offset);
         dword[i - 5] = '\0';
 
-        i = strcmp(word, dword);
+        i = strcmp(word, (char *) dword);
         if (i == 0)
         {
 /*
@@ -800,8 +805,7 @@ printf("random found the word we were looking for: %ld\n", refs_offset);
         }
         if (i < 0)
                 return(lookup(start, save_pos - 1, word));   /* recursive */
-        if (i > 0)
-                return(lookup(ftell(words_file), end, word));/* recursive */
+        return(lookup(ftell(words_file), end, word));        /* recursive */
 }
 
 #ifdef RAMDISK

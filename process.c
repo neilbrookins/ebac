@@ -109,7 +109,7 @@ char *get_line(int mode)
         int c, i;
         static char line[MAXSEARCHLEN];
         int place = 0; /* location of cursor within, or after, line of text */
-        FILE *fp; /* log file for the line of text */
+        FILE *fp = NULL; /* log file for the line of text */
         int file_is_closed = TRUE; /* the above file's status */
         int old_length; /* length of previous line; before up/down arrow */
         long int position; /* value returned by ftell() */
@@ -321,7 +321,7 @@ char *get_line(int mode)
         }
 
         i = 0; /* Make line lowercase to match index data which is lowercase */
-        while (line[i] = tolower(line[i]))
+        while ((line[i] = tolower(line[i])) != '\0')
                 i++;
         return((char *)line);
 }
@@ -349,8 +349,8 @@ static void push(short int *verse_list)
              printf("Out of RAM\n");
              exit_program(1);
         }
-/* allocate two bytes for each verse */
-        if ((stack->node = (short int *) malloc (count <<= 1)) == NULL)
+/* allocate room for each verse */
+        if ((stack->node = (short int *) malloc (count * sizeof(short int))) == NULL)
         {
              printf("Out of RAM\n");
              exit_program(1);
@@ -380,7 +380,6 @@ static struct TEMPFILE *pop(void)
 static short int *pop(void)
 {
         short int *verse_list; /* list of verses to be returned */
-        short int *vl; /* list of verses to be printed */
         struct stackptr *off;  /* item popped 'off' the stack */
 
 /* We need better error handling than this for when the user types too many
@@ -392,7 +391,7 @@ static short int *pop(void)
                 exit_program(1);
         }
         off = top;
-        vl = verse_list = top->node;
+        verse_list = top->node;
         top = top->next;
         free (off);
         return ((short int *) verse_list);
@@ -981,9 +980,8 @@ short int *process_words(void)
         short int *verse_list;
 #endif
         char *arg;  /* Points to argument within search line */
-        int i, j;
+        int i;
         char end_of_list;
-        short int *chptr, *first;
         int book_number;
         while (del_rev()) /* Remove all words from list which had been */
                 ;         /* displayed in reverse video. */
