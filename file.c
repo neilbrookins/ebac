@@ -852,7 +852,6 @@ struct TEMPFILE *find_word(char *word)
 short int *find_word(char *word)
 #endif
 {
- int i = 0;
  long int refs_offset;
 #ifdef RAMDISK
  struct TEMPFILE *tempfile;
@@ -860,6 +859,7 @@ short int *find_word(char *word)
 
  tempfile = tmpopen();
 #else
+ int i = 0;
  static short int *refs_list = NULL;
 
  if (refs_list == NULL) /* only malloc once; never free() */
@@ -889,7 +889,6 @@ short int *find_word(char *word)
                         exit_program(1);
                 }
                 num_found = i_bit_reset(fgeti(references_file));
-/* i == 0 here always */
 #ifdef RAMDISK
                 tsi = fgeti(references_file);
                 do{
@@ -909,6 +908,7 @@ short int *find_word(char *word)
         }
         return((struct TEMPFILE *) tempfile);
 #else
+/* i == 0 here always */
                 refs_list[i++] = fgeti(references_file);
                 do{
                         if (i > (MAXREF - 1))

@@ -943,9 +943,10 @@ static void store_book(int bnumber)
 #else
         struct stackptr *stack;
         short int *cur_node;
+        short int i;
 #endif
         struct bcv_type bcv;
-        short int first_verse, last_verse, i;
+        short int first_verse, last_verse;
 
         bcv.book_number = bnumber;
         bcv.chapter_number = 1;
