@@ -100,7 +100,7 @@ int match_it(char *book_str,
                 count = numbooks;
         else
         {
-                for (i = 0; i < MAXWORDLEN; i++)
+                for (i = 0; i < MAXWORDLEN && book_str[i] != '\0'; i++)
                         book_str[i] = tolower((unsigned char) book_str[i]);
 
                 for (i = 0; i < numbooks; i++)
@@ -909,6 +909,8 @@ printf("\"hate\" within two verses of each other type:\n");
 printf("        love hate 2 @Mat 0\n\n");
 printf("Enter Search word(s) here:\n");
                         verse_list = process_words();
+                        if (verse_list == NULL) /* blank, or not valid */
+                                break;
 /*
 ** i = 0;
 ** do{

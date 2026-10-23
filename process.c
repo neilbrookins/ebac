@@ -34,6 +34,8 @@ static void and_oper(int prox);
 static void add_rev(char *word);
 static int del_rev(void);
 static void store_book(int bnumber);
+static int is_operator(char *arg);
+static int valid_search(char *line);
 #ifdef RAMDISK
 static void push(struct TEMPFILE *verse_list);
 static struct TEMPFILE *pop(void);
@@ -993,7 +995,86 @@ static void store_book(int bnumber)
 #endif
 }
 
-/* Purpose: get search term(s) from the user. Process into a list of verses */
+/* Purpose: TRUE if arg is one of the search operators: - ! | , or a number */
+static int is_operator(char *arg)
+{
+        return (strcmp (arg, "-") == 0 || strcmp (arg, "!") == 0 ||
+                strcmp (arg, "|") == 0 || strcmp (arg, ",") == 0 ||
+                isdigit ((unsigned char) *arg));
+}
+
+/*
+** Purpose: check a search line before evaluating it. A postfix expression
+**          needs exactly one more word (or @book) than it has operators,
+**          and every operator needs two results before it. Without this
+**          check a mistake emptied the stack and ended the program, or
+**          left stale results behind to corrupt the next search.
+** Returns: TRUE if the line can be evaluated. Otherwise it explains the
+**          problem, waits for a key, and returns FALSE.
+*/
+static int valid_search(char *line)
+{
+        static char copy[MAXSEARCHLEN];
+        char *arg;
+        int depth = 0;    /* number of results the stack would hold */
+        int operands = 0; /* number of words and books */
+
+        strcpy(copy, line);
+        for (arg = strtok(copy, " \r"); arg != NULL; arg = strtok(NULL, " \r"))
+        {
+                if (is_operator(arg))
+                {
+                        if (depth < 2)
+                        {
+                                printf("\nThe operator \"%s\" needs two words or books before it.\n", arg);
+                                break;
+                        }
+                        depth--;
+                        continue;
+                }
+                if (*arg == '@')
+                {
+                        switch (match_it(&arg[1], FALSE))
+                        {
+                        case -1:
+                                printf("\nNo such book: %s\n", &arg[1]);
+                                depth = -1;
+                                break;
+                        case 0:
+                                printf("\nNot unique: %s\n", &arg[1]);
+                                depth = -1;
+                                break;
+                        }
+                        if (depth < 0)
+                                break;
+                }
+                if (++operands >= MAXHIGHWORDS)
+                {
+                        printf("\nToo many words; the limit is %d.\n", MAXHIGHWORDS - 1);
+                        depth = -1;
+                        break;
+                }
+                depth++;
+        }
+        if (arg == NULL) /* reached the end of the line without an error */
+        {
+                if (depth == 0) /* blank line: nothing to search for */
+                        return FALSE;
+                if (depth == 1)
+                        return TRUE;
+                printf("\nThere are %d more words or books than operators can combine.\n",
+                       depth - 1);
+                printf("Put an operator after each pair, for example:  love hate 0\n");
+        }
+        printf("The search was not done.  (Press any Key) ");
+        fflush(stdout);
+        ugetchar();
+        return FALSE;
+}
+
+/* Purpose: get search term(s) from the user. Process into a list of verses
+** Returns: the list, or NULL if the line was blank or not a valid search.
+*/
 #ifdef RAMDISK
 struct TEMPFILE *process_words(void)
 {
@@ -1010,6 +1091,8 @@ short int *process_words(void)
         while (del_rev()) /* Remove all words from list which had been */
                 ;         /* displayed in reverse video. */
         arg = get_line(NORMAL_MODE); /* Get search terms from user. */
+        if (!valid_search(arg))
+                return (NULL);
         while (*arg++ == ' ') /* Get rid of leading spaces */
                 ;
         arg--;
