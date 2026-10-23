@@ -19,10 +19,13 @@
 #endif
 #ifdef UNIXV
 #       include <stdlib.h>              /* used by getenv() */
-#       include <sys/termio.h>
-#       include <sys/signal.h>
-        static struct termio oldtermio; /* original tty mode */
-        static struct termio newtermio; /* cbreak/noecho tty mode */
+#       include <unistd.h>              /* read(), chdir() */
+#       include <errno.h>
+#       include <termios.h>             /* POSIX replacement for termio */
+#       include <signal.h>
+        static struct termios oldtermio; /* original tty mode */
+        static struct termios newtermio; /* cbreak/noecho tty mode */
+        static int tty_saved = FALSE;    /* TRUE once oldtermio is valid */
 #endif
 
 FILE *book_list, *book_file, *cvarray_file, *bvarray_file, *chapter_file,
@@ -74,7 +77,8 @@ int errnum;
 	_ss_opt(1, &oldbuffer);
 #endif
 #ifdef UNIXV
-        ioctl(2, TCSETAW, &oldtermio);
+        if (tty_saved)
+                tcsetattr(0, TCSADRAIN, &oldtermio);
 #endif
         exit(errnum);
 }
@@ -92,7 +96,13 @@ char ugetchar()
 char ugetchar()
 {
         char c;
-        read(0, &c, (unsigned)1);
+        int n;
+
+        do{
+                n = read(0, &c, (unsigned)1);
+        }while (n < 0 && errno == EINTR); /* interrupted by a signal */
+        if (n != 1) /* end of input, or the terminal went away */
+                exit_program(0);
         return c;
 }
 #endif
@@ -198,14 +208,34 @@ char *string, *mode;
 
 
 #ifdef UNIXV
-contsignal()
+/*
+** Input modes we keep from the user's settings; all others (including
+** ICRNL, so that the Enter key arrives as '\r') are turned off.
+** IXANY is an X/Open extension, so only use it where it exists.
+*/
+#ifdef IXANY
+#       define KEEP_IFLAGS (IXON|IXOFF|IXANY|ISTRIP|IGNBRK)
+#else
+#       define KEEP_IFLAGS (IXON|IXOFF|ISTRIP|IGNBRK)
+#endif
+
+/* Put the terminal into cbreak/noecho mode: one key at a time, no echo. */
+set_raw_tty()
 {
-    newtermio.c_iflag &= (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);
-    newtermio.c_lflag &= ISIG;
+    newtermio = oldtermio;
+    newtermio.c_iflag &= KEEP_IFLAGS;
+    newtermio.c_lflag &= ISIG;          /* no ICANON, no ECHO */
     newtermio.c_cc[VINTR] = 3; /* CTRL-C */
     newtermio.c_cc[VMIN] = 1;
     newtermio.c_cc[VTIME] = 0;
-    ioctl(2, TCSETAW, &newtermio);
+    tcsetattr(0, TCSADRAIN, &newtermio);
+}
+
+/* Restore raw mode after the program is resumed from CTRL-Z. */
+contsignal(signo)
+int signo;
+{
+    set_raw_tty();
 }
 #endif
 
@@ -274,14 +304,13 @@ FILE *trans_file;
 		exit(1);
 	}
 
-        ioctl(2, TCGETA, &oldtermio);
-        newtermio = oldtermio;
-        newtermio.c_iflag &= (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);
-        newtermio.c_lflag &= ISIG;
-        newtermio.c_cc[VINTR] = 3; /* CTRL-C */
-        newtermio.c_cc[VMIN] = 1;
-        newtermio.c_cc[VTIME] = 0;
-        ioctl(2, TCSETAW, &newtermio);
+        if (!isatty(0) || tcgetattr(0, &oldtermio) != 0)
+        {
+                printf("EBaC must be run from an interactive terminal.\n");
+                exit(1);
+        }
+        tty_saved = TRUE;
+        set_raw_tty();
         signal(SIGINT, exit_program);
         signal(SIGCONT, contsignal);
 #endif
