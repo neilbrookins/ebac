@@ -59,12 +59,12 @@ int new_verse(char *word)
     for(i = 0; i < (int) strlen(word); i++)
     {
             c = word[i];
-            if (!(isdigit(c) || c == ':'))
+            if (!(isdigit((unsigned char) c) || c == ':'))
                     return(FALSE);
     } /* word contains digit(s), colon(s), or both. */
     for(i = 1; i < (int) strlen(word) - 1; i++)
     {
-      if (word[i] == ':' && isdigit(word[i - 1]) && isdigit(word[i + 1]))
+      if (word[i] == ':' && isdigit((unsigned char) word[i - 1]) && isdigit((unsigned char) word[i + 1]))
         return(TRUE);  /* word contains both digits and ':' */
     }
     return(FALSE);  /* word consists of only digits, eg: 1234 */

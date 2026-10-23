@@ -23,12 +23,12 @@ static int main_menu(void);
 static void remove_char(char *strg);
 static int get_number(void);
 static struct bcv_type *bcv_menu(void);
-static int count_lines(char tag, char *bookname, char *strg, int indent,
-                       char top_of_screen);
+static int count_lines(int tag, char *bookname, char *strg, int indent,
+                       int top_of_screen);
 static void dis_one_line(char *strg);
-static void dis_verse(char *strg, int indent, char firstTime);
-static void display_verse(char tag, struct bcv_array_type *bcv_arrays,
-                          int verIndent, char top_of_screen);
+static void dis_verse(char *strg, int indent, int firstTime);
+static void display_verse(int tag, struct bcv_array_type *bcv_arrays,
+                          int verIndent, int top_of_screen);
 static int calculate_fv(int last_verse);
 static void rev_printf(char *string);
 static int check_limits(int cur_verse);
@@ -101,13 +101,13 @@ int match_it(char *book_str,
         else
         {
                 for (i = 0; i < MAXWORDLEN; i++)
-                        book_str[i] = tolower(book_str[i]);
+                        book_str[i] = tolower((unsigned char) book_str[i]);
 
                 for (i = 0; i < numbooks; i++)
                 {
                         len_str = strlen(book[i].name);
                         for (j = 0; j <= len_str; j++)
-                                lower_name[j] = tolower(book[i].name[j]);
+                                lower_name[j] = tolower((unsigned char) book[i].name[j]);
 /*
 **printf("%s--%s--%d--%s\n", book[i].name, lower_name, len_str, book_str);
 */
@@ -291,7 +291,7 @@ get_name_again:
 }
 
 /* figure out how many lines on the screen it will take to print this verse */
-static int count_lines(char tag, char *bookname, char *strg, int indent, char top_of_screen)
+static int count_lines(int tag, char *bookname, char *strg, int indent, int top_of_screen)
 {
         static char previous_book[MAXBOOKNAME] = { '\0' };
         int a_lines = 0, i, indentWidth = WIDTH - indent;
@@ -329,7 +329,7 @@ static void dis_one_line(char *strg)
 
     for(;;)
     {
-        while (!(isalnum(strg[i])))
+        while (!(isalnum((unsigned char) strg[i])))
         {
                 if (strg[i] == '\0') /* We is done with this line */
                 {
@@ -340,11 +340,12 @@ static void dis_one_line(char *strg)
                 putchar(strg[i++]); /* prints commas, spaces, etc normally */
         }
 
-        while (isalnum(strg[i]) ||
+        while (isalnum((unsigned char) strg[i]) ||
                       (strg[i] == '\'') || /* allow "day's" to be highlighted */
 							 (strg[i] == '-'))    /* same with "father-in-law" */
         {
-                lower_wrd[j] = tolower(wrd[j] = strg[i++]);
+                wrd[j] = strg[i++];
+                lower_wrd[j] = tolower((unsigned char) wrd[j]);
                 ++j;
         }
 
@@ -374,7 +375,7 @@ static void dis_one_line(char *strg)
             '\0'. Then it recursively calls itself to handle the remainder
             of the verse.
 */
-static void dis_verse(char *strg, int indent, char firstTime)
+static void dis_verse(char *strg, int indent, int firstTime)
 {
         int i, indentWidth = WIDTH - indent;
         char *outstr;
@@ -422,7 +423,7 @@ static void dis_verse(char *strg, int indent, char firstTime)
 /* Purpose: Display header info for a verse, such as bookname, chapter and
             verse numbers etc.
 */
-static void display_verse(char tag, struct bcv_array_type *bcv_arrays, int verIndent, char top_of_screen)
+static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verIndent, int top_of_screen)
 {
         int cv_length;
         static char previous_book[MAXBOOKNAME] = { '\0' };
@@ -434,9 +435,9 @@ static void display_verse(char tag, struct bcv_array_type *bcv_arrays, int verIn
                 printf("%c)", tag - 10 + 'a');
             if (top_of_screen || strcmp(bcv_arrays->book_array, previous_book))
             {
-				   if (isdigit (bcv_arrays->book_array[0]) &&
-					    isupper (bcv_arrays->book_array[1]) &&
-					    islower (bcv_arrays->book_array[2]) )
+				   if (isdigit ((unsigned char) bcv_arrays->book_array[0]) &&
+					    isupper ((unsigned char) bcv_arrays->book_array[1]) &&
+					    islower ((unsigned char) bcv_arrays->book_array[2]) )
                {
                   printf("%s", spaces + MAXINDENT + strlen(bcv_arrays->book_array) + 1 - 15);
                   printf("%c ", bcv_arrays->book_array[0]);
@@ -460,9 +461,9 @@ static void display_verse(char tag, struct bcv_array_type *bcv_arrays, int verIn
                  printf("\n");
               printf("                            ");
               underline();
-				  if (isdigit (bcv_arrays->book_array[0]) &&
-					   isupper (bcv_arrays->book_array[1]) &&
-					   islower (bcv_arrays->book_array[2]) )
+				  if (isdigit ((unsigned char) bcv_arrays->book_array[0]) &&
+					   isupper ((unsigned char) bcv_arrays->book_array[1]) &&
+					   islower ((unsigned char) bcv_arrays->book_array[2]) )
               {
                  printf("%c ", bcv_arrays->book_array[0]);
                  printf("%s", &bcv_arrays->book_array[1]);
@@ -686,7 +687,7 @@ static void view_match_list(short int *verse_list)
 #endif
 {
         int i = 0, first_i, num_lines, tag;
-	char ui; /* User Input */
+	int ui; /* User Input */
         short int cur_verse;
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;

@@ -321,7 +321,7 @@ char *get_line(int mode)
         }
 
         i = 0; /* Make line lowercase to match index data which is lowercase */
-        while ((line[i] = tolower(line[i])) != '\0')
+        while ((line[i] = tolower((unsigned char) line[i])) != '\0')
                 i++;
         return((char *)line);
 }
@@ -1013,7 +1013,7 @@ short int *process_words(void)
                 }
                 else if ((strcmp (arg, "|") == 0) || (strcmp (arg, ",") == 0))
                         or_oper();
-                else if (isdigit (*arg)) /* only looks at first digit */
+                else if (isdigit ((unsigned char) *arg)) /* only looks at first digit */
                         and_oper(atoi(arg));
                 else if (*arg == '@')
                 {

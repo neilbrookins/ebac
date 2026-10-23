@@ -88,7 +88,7 @@ int ugetchar(void)
 {
         char c;
         vms_ttyread(&c, 1, 0);
-        return c;
+        return (unsigned char) c;
 }
 #endif
 
@@ -103,7 +103,7 @@ int ugetchar(void)
         }while (n < 0 && errno == EINTR); /* interrupted by a signal */
         if (n != 1) /* end of input, or the terminal went away */
                 exit_program(0);
-        return c;
+        return (unsigned char) c; /* 0..255, like getchar() */
 }
 #endif
 
@@ -138,7 +138,7 @@ FILE *mfopen(char *string, char *mode)
 */
         char NewName[80];
 
-        if (isdigit(*string))
+        if (isdigit((unsigned char) *string))
         {
              /* *NewName = 'a'; */
                 *NewName = 'x';
@@ -469,7 +469,7 @@ void change_translations(void)
 #	define SLASH '/'
 #endif
 	int i = -1;
-	char c;/* character the user types */
+	int c; /* character the user types */
 	int n; /* number the user selects */
 	char new_dir[MAX_ETLA + 4]; /* example: ../nrsv */
 

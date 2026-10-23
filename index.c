@@ -164,7 +164,7 @@ make_into_lowercase();
 static void remove_head_punctuation(void)
 {
   int i;
-  if (isalnum(word[0]) || word[0] == '\0')
+  if (isalnum((unsigned char) word[0]) || word[0] == '\0')
           return;
   else
   {
@@ -176,7 +176,7 @@ static void remove_head_punctuation(void)
 
 static void remove_tail_punctuation(void)
 {
-  if (word[0] == '\0' || isalnum(word[strlen(word) - 1]))
+  if (word[0] == '\0' || isalnum((unsigned char) word[strlen(word) - 1]))
           return;
   else
   {
@@ -188,7 +188,7 @@ static void remove_tail_punctuation(void)
 static void make_into_lowercase(void)
 {
         int i = 0;
-        while ((word[i] = tolower(word[i])) != '\0')
+        while ((word[i] = tolower((unsigned char) word[i])) != '\0')
                 i++;
 }
 
@@ -308,12 +308,12 @@ static int new_verse(void)
         for(i = 0; i < (int) strlen(word); i++)
         {
                 c = word[i];
-                if (!(isdigit(c) || (c == ':')))
+                if (!(isdigit((unsigned char) c) || (c == ':')))
                         return(FALSE);
         } /* word contains digit(s), colon(s), or both. */
         for(i = 1; i < (int) strlen(word) - 1; i++)
         {
-           if (word[i] == ':' && isdigit(word[i - 1]) && isdigit(word[i + 1]))
+           if (word[i] == ':' && isdigit((unsigned char) word[i - 1]) && isdigit((unsigned char) word[i + 1]))
                 return(TRUE);  /* word contains both digits and ':' */
         }
         return(FALSE);  /* word consists of only digits, eg: 1234 */
