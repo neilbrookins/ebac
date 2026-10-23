@@ -1,0 +1,10 @@
+# build output
+*.o
+/bible
+/index
+/split
+/splitmsdos
+/splitmm1
+/lab
+/llength
+/verses

@@ -824,7 +824,7 @@ static void view_match_list(short int *verse_list)
 static void prog_info(void)
 {
 cls();
-printf("Electronic Bible and Concordance (EBaC)      version 1.3\n");
+printf("Electronic Bible and Concordance (EBaC)      version 2.0\n");
 printf("     Copyright (C) 2004 by Neil G. Brookins\n");
 printf("\n");
 printf("The following translations are available for use with EBAC:\n");
@@ -853,6 +853,7 @@ printf("      IBM-PC and compatibles (MS-DOS, Windows)\n");
 printf("      Sun                    (SunOS 4.x, Solaris 2.x)\n");
 printf("      DEC                    (Ultrix, OSF/1)\n");
 printf("      HP 9000                (HP-UX 10.x)\n");
+printf("      PCs and Raspberry Pi   (Linux, with ncurses)\n");
 printf("\n");
 printf("(Press any Key) ");
 fflush(stdout);
