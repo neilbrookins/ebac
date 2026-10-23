@@ -15,6 +15,166 @@
  */
 
 #include "screen.h"
+
+#ifdef USE_NCURSES
+/*
+** UNIX version, rewritten for the ncurses library.
+**
+** The termcap library (tgetent, tgetstr, tgetnum) is obsolete. This reads
+** the same few capabilities through the terminfo interface of ncurses,
+** which is the modern equivalent:
+**
+**      termcap    terminfo
+**      tgetent    setupterm
+**      tgetstr    tigetstr
+**      tgetnum    tigetnum
+**        so         smso       standout start
+**        se         rmso       standout end
+**        us         smul       underline start
+**        ue         rmul       underline end
+**        cl         clear      clear screen
+**        nd         cuf1       non-destructive space (cursor right)
+**        li         lines      number of rows
+**        co         cols       number of columns
+**
+** Output still goes through stdio, exactly as before, so the rest of the
+** program keeps using printf(). ncurses only supplies the escape
+** sequences for this terminal and pads them correctly with tputs().
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <term.h>
+
+/* variables, publicly available & used in the macros */
+int     s_lines;          /* number of rows */
+int     s_cols;           /* number of columns */
+char    *SO = "";       /* smso: standout start */
+char    *SE = "";       /* rmso: standout end */
+char    *US = "";       /* smul: underline start */
+char    *UE = "";       /* rmul: underline end */
+char    *CL;            /* clear: clear screen */
+char	*ND;		/* cuf1: non-destructive space */
+
+static char *termtype;  /* name of terminal entry */
+static char *default_TERM = "vt100";
+
+/* Used by tputs() to send each character to the screen */
+static int fputchar(c)
+int c;
+{
+	return putchar(c);
+}
+
+/* Send one terminal control string, with any padding it needs. */
+void scr_put(s)
+char *s;
+{
+	tputs(s, 1, fputchar);
+}
+
+/* This function fetches an optional string from terminfo */
+static char *mayhave(name)
+char    *name;  /* terminfo name of the capability */
+{
+	char    *val;
+
+	val = tigetstr(name);
+	if (val == NULL || val == (char *) -1) /* absent, or not a string */
+		return NULL;
+	return val;
+}
+
+/* This function fetches a required string from terminfo */
+static char *musthave(name)
+char    *name;  /* terminfo name of the capability */
+{
+	char    *val;
+
+	val = mayhave(name);
+	if (val == NULL)
+	{
+		fprintf(stderr, "The terminfo entry for \"%s\" lacks the %s capability\n",
+			termtype, name);
+		exit_program(2);
+	}
+	return val;
+}
+
+/*
+* This function fetches a pair of strings from terminfo.  If one of them
+* is missing, then the other one is ignored.
+*/
+static void pair(T, U, sT, sU)
+char    **T;    /* where to store the first pointer */
+char    **U;    /* where to store the second pointer */
+char    *sT;    /* name of the first capability */
+char    *sU;    /* name of the second capability */
+{
+	char    *t, *u;
+
+	t = mayhave(sT);
+	u = mayhave(sU);
+	if (t != NULL && u != NULL)
+	{
+		*T = t;
+		*U = u;
+	}
+	else
+		*T = *U = "";
+}
+
+/*
+** Get the window size. setupterm() has already replaced the terminfo
+** defaults with the real size of the window (or $LINES and $COLUMNS).
+*/
+getsize()
+{
+	s_lines = tigetnum("lines");
+	s_cols = tigetnum("cols");
+
+	/* Make sure we got values that we can live with */
+	if (s_lines < 10 || s_cols < 32)
+	{
+		fprintf(stderr, "Screen too small\n");
+		exit_program(2);
+	}
+	return 0;
+}
+
+/* Initialize the screen package. */
+initscreen()
+{
+	int     err;
+
+	termtype = getenv("TERM");
+	if (!termtype || !*termtype)
+	{
+		fprintf(stderr, "Environment variable TERM must be set!\n");
+		fprintf(stderr, "Defaulting to %s...\n", default_TERM);
+		termtype = default_TERM;
+	}
+
+	/* read the terminfo entry for this terminal */
+	if (setupterm(termtype, 1, &err) != 0)
+	{
+		if (err == 0)
+			fprintf(stderr, "Unrecognized TERM type \"%s\"\n", termtype);
+		else
+			fprintf(stderr, "Can't find the terminfo database\n");
+		exit_program(3);
+	}
+
+	/* get strings */
+	pair(&SO, &SE, "smso", "rmso");
+	pair(&US, &UE, "smul", "rmul");
+	CL = musthave("clear");   /* Clear Screen */
+	ND = musthave("cuf1");    /* non-destructive space */
+
+	getsize();
+}
+
+#else /* !USE_NCURSES: the original termcap version */
+
 #ifdef OSK
 #	include <sgstat.h>
 #endif
@@ -249,3 +409,5 @@ if (*o_lines != s_lines || *o_columns != s_cols)
 return 0;
 }
 
+
+#endif /* USE_NCURSES */

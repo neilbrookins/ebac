@@ -7,23 +7,25 @@ CC=gcc
 #If you are using UNIX, Solaris, HP-UX, Linux, BSD, or Cygwin:
 CFLAGS= -O3 -DNORAMDISK -DUNIXV
 RFILES= bible.o file.o userint.o process.o curses.o
+LIBS= -lncurses
 
 #if you are using Microsoft MS-DOS, DOS, with about 512KB RAM:
 #Intel 8086 CPU, using Watcom C compiler
-#remove -ltermcap from below.
 #CFLAGS= -DRAMDISK -DMSDOS
 #RFILES= bible.o file.o userint.o process.o cure.o
+#LIBS=
 
 #If you are using Microware OS-9 68000 on MM/1
 #on Philips 68070 CPU, using gcc
 #CFLAGS= -DNORAMDISK -DOSK
 #RFILES= bible.o file.o userint.o process.o curses.o
+#LIBS= -ltermcap
 
 #If you are using Microware OS-9 6809 on Tandy CoCo 3
 #on Motorola 6809 CPU, using Microware C
-#remove -ltermcap from below.
 #CFLAGS= -DRAMDISK -DCOCO
 #RFILES= bible.o file.o userint.o process.o cure.o
+#LIBS=
 
 #If you are using OpenVMS, VAX/VMS:
 #on a VAXstation, using Digital C
@@ -38,9 +40,9 @@ OD= -o ./
 all: bible index
 
 bible: $(RFILES)
-#	quantify $(CC) $(CFLAGS) $(OD)bible $(RFILES) -ltermcap
-#	purify $(CC) $(CFLAGS) $(OD)bible $(RFILES) -ltermcap
-	$(CC) $(CFLAGS) $(OD)bible $(RFILES) -ltermcap
+#	quantify $(CC) $(CFLAGS) $(OD)bible $(RFILES) $(LIBS)
+#	purify $(CC) $(CFLAGS) $(OD)bible $(RFILES) $(LIBS)
+	$(CC) $(CFLAGS) $(OD)bible $(RFILES) $(LIBS)
 	@echo done.
 
 # this program needs over 7.5 meg RAM to run.
