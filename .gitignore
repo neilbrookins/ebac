@@ -9,3 +9,6 @@
 /llength
 /verses
 /tests/build/
+
+# Concordance index files, made by "make" (see translation.mk)
+*.dat

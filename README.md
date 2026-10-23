@@ -59,7 +59,7 @@ cd ~
 git clone https://github.com/neilbrookins/ebac.git
 ```
 
-**3. Build the program.**
+**3. Build the program.** This also builds the concordance index, the `.dat` files that make searching fast, from the Bible text; it takes a few seconds.
 
 ```sh
 cd ~/ebac
@@ -184,7 +184,7 @@ Modern compilers (GCC 14 and later, Clang 16 and later, and the C23 standard) re
 - fixes bugs that newer compilers and 64-bit, ARM (Raspberry Pi) systems exposed, plus a crash when `LOGNAME` is unset and an exit on malformed searches;
 - follows the terminal window when it is resized.
 
-The concordance index built on 64-bit Linux is byte-for-byte identical to the one shipped in 1.3.0.
+The concordance index built on 64-bit Linux is byte-for-byte identical to the one shipped in 1.3.0. Since it can be rebuilt in seconds, it is no longer stored in the repository: `make` builds it. The `v1.3.0` release still includes its `.dat` files, for computers such as the CoCo that don't have the memory to run `index`.
 
 ## Testing
 
