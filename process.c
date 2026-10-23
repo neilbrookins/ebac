@@ -42,7 +42,7 @@ static void push(short int *verse_list);
 static short int *pop(void);
 #endif
 
-char LOGFILE[80];
+char LOGFILE[256];
 void initlogname(void)
 {
 #ifdef OSK
@@ -61,8 +61,32 @@ printf("For example:  setenv TEMPFILE /r0/\n");
         strcpy (LOGFILE, "/r0/ebac_log");
 #endif
 #ifdef UNIXV
-        strcpy (LOGFILE, "/tmp/ebac_log_");
-	strcat (LOGFILE, getenv("LOGNAME"));
+/*
+** Keep the search history in the user's home directory, where it is
+** private and survives a reboot. If $HOME is not usable, fall back to
+** the old location in /tmp. LOGNAME is often unset (cron, containers,
+** some remote logins), so don't depend on it.
+*/
+        char *home, *user;
+
+        home = getenv("HOME");
+        if (home != NULL && *home != '\0' &&
+            strlen(home) + sizeof("/.ebac_log") <= sizeof(LOGFILE))
+        {
+                strcpy (LOGFILE, home);
+                strcat (LOGFILE, "/.ebac_log");
+        }
+        else
+        {
+                user = getenv("LOGNAME");
+                if (user == NULL || *user == '\0')
+                        user = getenv("USER");
+                if (user == NULL || *user == '\0' ||
+                    strlen(user) + sizeof("/tmp/ebac_log_") > sizeof(LOGFILE))
+                        user = "unknown";
+                strcpy (LOGFILE, "/tmp/ebac_log_");
+                strcat (LOGFILE, user);
+        }
 #endif
 #ifdef VMS
         strcpy (LOGFILE, "SYS$SCRATCH:ebac_log.");
