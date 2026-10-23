@@ -69,10 +69,10 @@ verses: verses.c
 clean:
 	rm -f index bible *.o
 
-file.o: bible.h curses.h both.h
-userint.o: bible.h curses.h both.h
-curses.o: curses.h
+file.o: bible.h screen.h both.h
+userint.o: bible.h screen.h both.h
+curses.o: screen.h
 bible.o: bible.h both.h
-process.o: bible.h curses.h both.h
+process.o: bible.h screen.h both.h
 
 #End of Makefile

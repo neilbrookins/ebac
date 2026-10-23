@@ -4,7 +4,7 @@
    http://ebac.sourceforge.net/
 */
 #include "bible.h"
-#include "curses.h"
+#include "screen.h"
 
 #define WIDTH (s_cols - 1)
 #define MAXINDENT 26

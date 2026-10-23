@@ -3,7 +3,7 @@
    written by Neil G. Brookins
    http://ebac.sourceforge.net/
 */
-/* curses.h */
+/* screen.h -- terminal control (was curses.h) */
 
 extern char     *tgoto();
 extern char     *tgetstr();

@@ -4,7 +4,7 @@
    http://ebac.sourceforge.net/
 */
 #include "bible.h"
-#include "curses.h"
+#include "screen.h"
 
 /* Allow the user to type two, or more full lines of search parameters */
 #define MAXSEARCHLEN 256

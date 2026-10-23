@@ -14,7 +14,7 @@
  * functions, limited compatibility with full curses, and only stdscr.
  */
 
-#include "curses.h"
+#include "screen.h"
 #ifdef OSK
 #	include <sgstat.h>
 #endif

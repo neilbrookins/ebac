@@ -34,7 +34,7 @@ menu$(EXE) : menu.c
 clean :
         del bible.exe;*, *.obj;*
 file.obj : bible.h both.h
-userint.obj : bible.h curses.h both.h
+userint.obj : bible.h screen.h both.h
 bible.obj : bible.h both.h
 process.obj : bible.h both.h
 vmsio.obj : vmsio.h

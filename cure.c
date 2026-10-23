@@ -5,7 +5,7 @@
 */
 /* cure.c */
 
-#include "curses.h"
+#include "screen.h"
 #include <stdio.h>
 #ifdef VMS
 #       include curses

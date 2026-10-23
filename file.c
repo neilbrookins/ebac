@@ -4,7 +4,7 @@
    http://ebac.sourceforge.net/
 */
 #include "bible.h"
-#include "curses.h"
+#include "screen.h"
 #ifdef VMS
 #       include "vmsio.h"
 #       include signal
