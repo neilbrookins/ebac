@@ -25,6 +25,19 @@ char spaces[]="                          ";  /* MAXINDENT spaces */
 #       define KEYHELP(text)
 #endif
 
+/*
+** The keys that pick an entry from a list of search results.
+** Entries 1 to 9 are labelled with digits, and can also be picked with the
+** letters under the digits on a keyboard (q for 1 ... o for 9), so a phone's
+** on-screen keyboard needn't be switched to numbers and back.
+** Entries 10 and up are labelled with letters that mean nothing else on that
+** screen: never q to o (entries 1 to 9), n or p (next and previous screen)
+** or x (exit).
+*/
+static char digit_keys[] = "qwertyuio";       /* entries 1 to 9 */
+static char more_tags[]  = "abcdfghjklmsvz";  /* entries 10, 11, ... */
+#define MAXTAGS (9 + (int) sizeof(more_tags) - 1)
+
 static int last_len = 0;
 struct bcv_type bcv;
 
@@ -50,6 +63,8 @@ static void view_match_list(struct TEMPFILE *verse_list);
 static void view_match_list(short int *verse_list);
 #endif
 static void prog_info(void);
+static int tag_label(int tag);
+static int key_to_tag(int key);
 
 static int main_menu(void)
 {
@@ -439,10 +454,7 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
         static char previous_book[MAXBOOKNAME] = { '\0' };
         if (tag != -1)
         {
-            if (tag <= 9)
-                printf("%c)", tag + '0'); /*This only works on ASCII machines*/
-            else
-                printf("%c)", tag - 10 + 'a');
+            printf("%c)", tag_label(tag));
             if (top_of_screen || strcmp(bcv_arrays->book_array, previous_book))
             {
 				   if (isdigit ((unsigned char) bcv_arrays->book_array[0]) &&
@@ -696,7 +708,7 @@ static void view_match_list(struct TEMPFILE *verse_list)
 static void view_match_list(short int *verse_list)
 #endif
 {
-        int i = 0, first_i, num_lines, tag;
+        int i = 0, first_i, num_lines, tag, n;
 	int ui; /* User Input */
         short int cur_verse;
         char exit_now = FALSE, top_of_screen;
@@ -724,6 +736,8 @@ static void view_match_list(short int *verse_list)
                     cur_verse = verse_list[i++];
 #endif
                     if (cur_verse == 0)
+                        break;
+                    if (tag > MAXTAGS) /* no label left for another entry */
                         break;
                     bcv_arrays = get_verse(cur_verse);
                     num_lines -= count_lines(tag, bcv_arrays->book_array,
@@ -760,6 +774,7 @@ static void view_match_list(short int *verse_list)
                 case 'p':
 		case 0x1a: /* Page Up on MM/1 */
                    num_lines = s_lines;
+                   n = 0; /* entries that fit on the previous screen */
                    for(;;)
                    {
                      if (--first_i < 0)
@@ -767,6 +782,8 @@ static void view_match_list(short int *verse_list)
                         first_i = -1;
                         break;
                      }
+                     if (++n > MAXTAGS) /* no label left for another entry */
+                        break;
 #ifdef RAMDISK
                      cur_verse = vlist(verse_list, first_i);
 #else
@@ -785,22 +802,13 @@ static void view_match_list(short int *verse_list)
                         exit_now = TRUE;
                         break;
 		default:
-		    if ((ui >= '1') && (ui <= '9') && (tag > (ui - '0')))
+		    /* tag is one more than the number of entries shown */
+		    if ((n = key_to_tag(ui)) > 0 && n < tag)
 		    {
 #ifdef RAMDISK
-			cur_verse = vlist(verse_list, first_i + ui - '1');
+			cur_verse = vlist(verse_list, first_i + n - 1);
 #else
-                        cur_verse = verse_list[first_i + ui - '1'];
-#endif
-                        view_in_context(cur_verse - NUM_SHOW_BEFORE);
-                        i = first_i;
-		    }
-		    else if ((ui >= 'a')&&(ui <= 'm')&&(tag > (10+ui-'a')))
-		    {
-#ifdef RAMDISK
-			cur_verse = vlist(verse_list, first_i + 9 + ui - 'a');
-#else
-                        cur_verse = verse_list[first_i + 9 + ui - 'a'];
+                        cur_verse = verse_list[first_i + n - 1];
 #endif
                         view_in_context(cur_verse - NUM_SHOW_BEFORE);
                         i = first_i;
@@ -813,7 +821,12 @@ static void view_match_list(short int *verse_list)
                         underend();
                         printf("Press:\n");
                         rev_printf("number");
+                        printf(" or ");
+                        rev_printf("letter");
                         printf(" views that verse in context\n");
+                        printf("       (");
+                        rev_printf("q w e r t y u i o");
+                        printf(" also choose 1 to 9)\n");
                         rev_printf("space bar");
                         printf(" or ");
                         rev_printf("n");
@@ -829,6 +842,33 @@ static void view_match_list(short int *verse_list)
 		    }
                 }
         }while (!(exit_now));
+}
+
+/* Purpose: the label shown beside entry number "tag" in a list */
+static int tag_label(int tag)
+{
+        if (tag <= 9)
+                return '0' + tag; /* This only works on ASCII machines */
+        return more_tags[tag - 10];
+}
+
+/*
+** Purpose: which entry of the list a key picks.
+** Returns: the entry number (1 for the first), or 0 if the key picks none.
+*/
+static int key_to_tag(int key)
+{
+        char *p;
+
+        if (key >= '1' && key <= '9')
+                return key - '0';
+        if (key == '\0')
+                return 0;
+        if ((p = strchr(digit_keys, key)) != NULL)
+                return 1 + (int) (p - digit_keys);
+        if ((p = strchr(more_tags, key)) != NULL)
+                return 10 + (int) (p - more_tags);
+        return 0;
 }
 
 static void prog_info(void)

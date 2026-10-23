@@ -90,6 +90,11 @@ SCENARIOS = [
     ("unused keys ignored",     ["s", "\x1bOP", "\x1b[2~", "\x1b[15~", "amen\r", "x", "e"]),
     ("ESC key leaves view",     ["v", "joh\r", "1\r", "1\r", "\x1b", "s", "amen\r", "\x1b", "e"]),
     ("ESC then key at once",    ["v", "joh\r", "1\r", "1\r", "\x1bx", "e"]),
+    # q w e r t y u i o pick list entries 1-9, like the digits above them;
+    # entries 10 and up are labelled a b c d f g h j k l m s v z
+    ("letters for 1-9 in list", ["s", "jesus wept ,\r", "q", "x", "w", "x", "E", "x", "o", "x",
+                                 "1", "x", "z", " ", "x", "e"]),  # no entry z here: help screen
+    ("letters past 9 in list",  ["s", "the\r", " ", "a", "x", "d", "x", "f", "x", "p", "x", "e"]),
 ]
 
 
