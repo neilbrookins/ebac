@@ -24,6 +24,9 @@ extern long int numbooks;
 /* number of verses in the bible */
 extern long int numverses;
 
+/* number of chapters in the bible, less one (the last index into pach[]) */
+extern long int numchapters;
+
 /* A guess at the length of the longest verse in bytes plus a little
 ** more just in case we guessed wrong */
 #define LONGESTVERSE 700

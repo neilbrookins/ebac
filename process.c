@@ -135,6 +135,7 @@ char *get_line(int mode)
         int c, i;
         static char digit_letters[] = "qwertyuiop"; /* stand for 1-9, 0 */
         char *digit; /* letter standing for a digit, in DIGITS_MODE */
+        int numeric; /* c may be part of a number, in DIGITS_MODE */
         static char line[MAXSEARCHLEN];
         int place = 0; /* location of cursor within, or after, line of text */
         FILE *fp = NULL; /* log file for the line of text */
@@ -330,11 +331,13 @@ char *get_line(int mode)
                         if (mode == DIGITS_MODE && c > 0 && c < 256 &&
                             (digit = strchr(digit_letters, tolower(c))) != NULL)
                                 c = "1234567890"[digit - digit_letters];
+                        /* a number may start with a minus sign */
+                        numeric = isdigit(c) || (c == '-' && line[0] == '\0');
                         if ((mode == DIGITS_MODE) &&
-                            (!isdigit(c)) && (line[0] != '\0'))
+                            (!numeric) && (line[0] != '\0'))
                                 c = '\r';
                         if ((mode == DIGITS_MODE) &&
-                            (!isdigit(c)) && (c != '\r'))
+                            (!numeric) && (c != '\r'))
                         {
                                 putchar('\7');
                                 fflush(stdout);

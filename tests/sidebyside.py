@@ -115,6 +115,11 @@ SCENARIOS = [
     ("labels past the screen",  ["<resize 12x80>", "s", "faith @gal 0\r", "3", "x", "e", "x", "m", "x",
                                  "s", " ", "x", " ", "3", "x", "x", "e"]),
     ("labels past list end",    ["<resize 12x80>", "s", "jesus wept 0\r", "3", "x", "4", " ", "w", "x", "x", "e"]),
+    # Chapter and verse are offsets: 0 and negative numbers count back,
+    # Enter alone means 1, and past either end of the Bible shows "doesn't exist".
+    ("zero and negative refs",  ["v", "joh\r", "3\r", "0\r", "x", "v", "exo\r", "0\r", "\r", "x",
+                                 "v", "joh\r", "-2\r", "-3\r", "x", "v", "gen\r", "0\r", "\r", "x",
+                                 "v", "rev\r", "99\r", "\r", "x", "v", "rut\r", "p\r", "p\r", "x", "e"]),
     ("letters as digits in view", ["v", "gen\r", "r\r", "r\r", "x", "v", "psa\r", "qqo\r", "Qpt\r", "x",
                                    "v", "joh\r", "e1\r", "q", "p\r", "x", "e"]),
 ]

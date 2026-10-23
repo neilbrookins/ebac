@@ -162,23 +162,27 @@ short int bcv_search(struct bcv_type *bcvptr)
     extern short int pach[];
     extern struct bva book[];
 #endif
-int seq_chapter;
+long int seq_chapter, seq_verse;
 
 /*
-**printf("booknum: %d\n", bcvptr->book_number);
+** The chapter and verse are offsets from the start of the book, so they may
+** run past its end into the next book, or (with 0 or a negative number)
+** back into the one before. A chapter before Genesis 1 or after the last
+** chapter gives 0 or numverses + 1, verses that don't exist, which the
+** passage screen shows as such.
 */
 seq_chapter = book[(bcvptr->book_number) - 1].chapt;
-/*
-**printf("Should be zero on book: %d\n", seq_chapter);
-*/
+seq_chapter += (long) bcvptr->chapter_number - 1;
+if (seq_chapter < 0)
+        return(0);
+if (seq_chapter > numchapters) /* pach[numchapters] is the end mark */
+        return((short int) (numverses + 1));
 
-seq_chapter += bcvptr->chapter_number - 1;
-
-/*
-** printf("then chapt: %d\n", seq_chapter);
-** printf("Returned before verse: %d\n", pach[seq_chapter]);
-*/
-
-return(pach[seq_chapter] + bcvptr->verse_number - 1);
+seq_verse = pach[seq_chapter] + (long) bcvptr->verse_number - 1;
+if (seq_verse < 0)
+        seq_verse = 0;
+if (seq_verse > numverses + 1)
+        seq_verse = numverses + 1;
+return((short int) seq_verse);
 }
 

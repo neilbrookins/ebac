@@ -217,21 +217,32 @@ static void remove_char(char *strg)
         }
 }
 
+/*
+** Purpose: read a chapter or verse number. Enter on its own means 1, the
+**          first. 0 and negative numbers are allowed: they count back from
+**          the start of the book or chapter (verse 0 is the last verse of the
+**          chapter before; chapter 0 is the last chapter of the book before).
+*/
 static int get_number(void)
 {
-        int i, number;
+        int i, number, negative, digits;
         char *chrptr;
 
         chrptr = get_line(DIGITS_MODE);
-        i = number = 0;
-        while (chrptr[i] != '\r')
+        i = number = digits = 0;
+        negative = (chrptr[0] == '-');
+        if (negative)
+                i++;
+        while (isdigit((unsigned char) chrptr[i]))
         {
-                number *= 10;
-                number += chrptr[i++] - '0';
+                if (number < 100000) /* far past any real chapter or verse */
+                        number = number * 10 + (chrptr[i] - '0');
+                i++;
+                digits++;
         }
-        if (number == 0)
-                number = 1;
-        return (number);
+        if (digits == 0)  /* nothing typed (or only "-"): the default */
+                return (1);
+        return (negative ? -number : number);
 }
 
 /* Purpose: Prompt user to enter the book, chapt, and verse desired */
