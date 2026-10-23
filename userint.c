@@ -77,10 +77,12 @@ static int main_menu(void)
         underline();
         printf("\nMain Menu\n");
         underend();
-        printf("C)hange to a different translation\n");
-        printf("V)iew by:   Bookname Chapter:Verse\n");
-        printf("S)earch by: Keyword(s)\n");
-        printf("I)nformation about EBaC\n");
+        /* a blank line between the choices, so each is easy to tap on a
+           touch screen (see gestures.js in the Home Assistant app) */
+        printf("C)hange to a different translation\n\n");
+        printf("V)iew by:   Bookname Chapter:Verse\n\n");
+        printf("S)earch by: Keyword(s)\n\n");
+        printf("I)nformation about EBaC\n\n");
         printf("E)xit Program\n\n");
         printf("Please press C, V, S, I, or E now.\n");
 /*
