@@ -50,7 +50,7 @@ of Revelation, search for:
 	amen @rev 0
 
 To search for the word "blessed" in the gospels:
-	@mat @mar @lu @joh , , , blessed 0
+	blessed @mat @mar @lu @joh , , , 0
 or, this does the same thing:
 	@mat @mar , @lu , @joh , blessed 0
 
