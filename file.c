@@ -658,6 +658,7 @@ void change_translations(void)
 	printf("Please select the number of the translation desired:\n\n");
 	while (trans[++i][0] != '\0')
 		printf("%d) %s", i + 1, trans[i]);
+	scr_mode("trans");
 	c = ugetchar();
 	if (!isdigit(c))
 		return;

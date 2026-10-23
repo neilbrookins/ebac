@@ -90,6 +90,7 @@ static int main_menu(void)
 #ifdef VMS
         putchar('\r');
 #endif
+        scr_mode("menu");
         return(ugetchar());
 }
 
@@ -252,6 +253,7 @@ static struct bcv_type *bcv_menu(void)
         int c, i;
 
 get_name_again:
+        scr_mode("input");
         printf("\n(Use a blank line to abort...)\n");
         printf("Please enter: Book name\n");
         printf("?\b");
@@ -638,7 +640,8 @@ static void view_in_context(int cur_verse)
 */
                 printf(" for menu.\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
                 fflush(stdout);
-get_command:    switch (tolower(screen_key()))
+get_command:    scr_mode("passage");
+                switch (tolower(screen_key()))
                 {
 					 case 'f':
 								cur_verse--;
@@ -742,6 +745,7 @@ get_command:    switch (tolower(screen_key()))
                         if (first_verse == -1)
                                 first_verse = calculate_fv(cur_verse - 1);
                         cur_verse = first_verse;
+			scr_mode("anykey");
 			ugetchar();
                 }
         }while (!(exit_now));
@@ -822,6 +826,7 @@ static void view_match_list(short int *verse_list)
                 rev_printf("?");
                 printf(" for menu.)");
                 fflush(stdout);
+                scr_mode("list");
                 switch (ui = tolower(screen_key()))
                 {
                 case KEY_REDRAW: /* CTRL-L, or the window was resized */
@@ -912,6 +917,7 @@ static void view_match_list(short int *verse_list)
                         printf(" exits to Main Menu\n");
 			printf("\n(Press any Key) ");
 			fflush(stdout);
+			scr_mode("anykey");
 			ugetchar();
 			i = first_i;
 		    }
@@ -982,6 +988,7 @@ printf("      http://ebac.sourceforge.net/\n");
 printf("\n");
 printf("(Press any Key) ");
 fflush(stdout);
+scr_mode("anykey");
 ugetchar();
 cls();
 printf("EBaC currently supports the following types of computers:\n");
@@ -997,6 +1004,7 @@ printf("      PCs and Raspberry Pi   (Linux, with ncurses)\n");
 printf("\n");
 printf("(Press any Key) ");
 fflush(stdout);
+scr_mode("anykey");
 ugetchar();
 }
 

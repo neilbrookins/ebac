@@ -41,6 +41,8 @@ extern void     scr_clear(void);
 extern void     scr_end(void);
 /* readable when the window has been resized (see ugetchar() in file.c) */
 extern int      scr_resize_fd(void);
+/* tell a web terminal page which screen is showing (see curses.c) */
+extern void     scr_mode(char *name);
 
 /*
 ** Keys that send several characters are translated to the single control
@@ -70,6 +72,8 @@ extern int      scr_key_lookup(char *seq, int len, int *code);
 #define nd_space()	scr_put(ND)
 
 #else /* termcap, or the fixed sequences in cure.c */
+
+#define scr_mode(name)  /* only the ncurses build talks to web pages */
 
 /* termcap library (cure.c supplies its own tputs) */
 extern int      tgetent(char *bp, char *name);

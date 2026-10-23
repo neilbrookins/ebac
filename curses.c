@@ -270,6 +270,31 @@ int scr_resize_fd(void)
 	return resize_pipe[0];
 }
 
+/*
+** Purpose: say which screen is showing, for a web page that runs EBaC in
+**          a terminal and lets the user tap and swipe (the Home Assistant
+**          app). It sends a private escape sequence, "ESC ] 7766 ; name
+**          BEL", that the page watches for. Screens:
+**            menu     main menu          trans    choose a translation
+**            passage  reading a passage  list     list of search results
+**            anykey   "Press any key"    input    typing a book, number
+**                                                 or search
+**          Only sent when EBAC_GESTURES is set in the environment, so an
+**          ordinary terminal never sees it.
+*/
+void scr_mode(char *name)
+{
+	static int enabled = -1;
+
+	if (enabled < 0)
+		enabled = (getenv("EBAC_GESTURES") != NULL);
+	if (enabled)
+	{
+		printf("\033]7766;%s\007", name);
+		fflush(stdout);
+	}
+}
+
 /* Clear the screen, using the new window size if it has changed. */
 void scr_clear(void)
 {

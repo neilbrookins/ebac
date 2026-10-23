@@ -144,6 +144,7 @@ char *get_line(int mode)
         long int position; /* value returned by ftell() */
 
         line[0] = '\0';
+        scr_mode("input");
         do{
                 switch (c = ugetchar())     /* get a single char from user */
                 {
@@ -1108,6 +1109,7 @@ static int valid_search(char *line)
         }
         printf("The search was not done.  (Press any Key) ");
         fflush(stdout);
+        scr_mode("anykey");
         ugetchar();
         return FALSE;
 }
