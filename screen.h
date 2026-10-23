@@ -35,12 +35,14 @@ extern char	*ND;		/* :nd=: non-destructive space */
 
 /* send one terminal control string to the screen; defined in curses.c */
 extern void     scr_put(char *s);
+/* clear the screen, first picking up any change in the window size */
+extern void     scr_clear(void);
 
 #define standout()      scr_put(SO)
 #define standend()      scr_put(SE)
 #define underline()     scr_put(US)
 #define underend()      scr_put(UE)
-#define cls()           scr_put(CL)
+#define cls()           scr_clear()
 #define nd_space()	scr_put(ND)
 
 #else /* termcap, or the fixed sequences in cure.c */

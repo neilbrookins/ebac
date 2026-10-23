@@ -528,9 +528,9 @@ static void view_in_context(int cur_verse)
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;
         do{
+                cls(); /* may update s_lines if the window was resized */
                 num_lines = s_lines;
                 first_verse = cur_verse; /* a legal value */
-                cls();
                 top_of_screen = TRUE;
                 for(;;)
                 {

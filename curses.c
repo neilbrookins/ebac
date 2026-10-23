@@ -43,6 +43,8 @@
 */
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <sys/ioctl.h>          /* TIOCGWINSZ */
 #include <term.h>
 
 /* variables, publicly available & used in the macros */
@@ -58,6 +60,7 @@ char	*ND;		/* cuf1: non-destructive space */
 void exit_program(int errnum);    /* in file.c */
 
 static char *termtype;  /* name of terminal entry */
+static volatile sig_atomic_t resized = 0; /* set when the window changes */
 static char *default_TERM = "vt100";
 
 /* Used by tputs() to send each character to the screen */
@@ -120,6 +123,36 @@ static void pair(char **T,               /* where to store the first pointer */
 		*T = *U = "";
 }
 
+#ifdef SIGWINCH
+/* The window was resized. Just note it; the new size is read at the
+** next screen clear, which is when the program lays out a new page. */
+static void winch(int signo)
+{
+	(void) signo;
+	resized = 1;
+}
+#endif
+
+/* Clear the screen, using the new window size if it has changed. */
+void scr_clear(void)
+{
+#ifdef TIOCGWINSZ
+	struct winsize size;
+
+	if (resized)
+	{
+		resized = 0;
+		if (ioctl(1, TIOCGWINSZ, &size) == 0 &&
+		    size.ws_row >= 10 && size.ws_col >= 32)
+		{
+			s_lines = size.ws_row;
+			s_cols = size.ws_col;
+		}
+	}
+#endif
+	tputs(CL, 1, fputchar);
+}
+
 /*
 ** Get the window size. setupterm() has already replaced the terminfo
 ** defaults with the real size of the window (or $LINES and $COLUMNS).
@@ -167,6 +200,9 @@ void initscreen(void)
 	ND = musthave("cuf1");    /* non-destructive space */
 
 	getsize();
+#ifdef SIGWINCH
+	signal(SIGWINCH, winch);
+#endif
 }
 
 #else /* !USE_NCURSES: the original termcap version */
