@@ -74,14 +74,13 @@ cd ~/ebac
 make
 ```
 
-**4. Tell EBaC where its files are.** Copy these four lines and paste them in as they are. They work out which settings file your terminal uses (`~/.bashrc`, or `~/.zshrc` if you use the zsh shell), add the setting there once, and say where they put it. This only needs to be done once; it's remembered for every new terminal window, and pasting it again does no harm.
+**4. Tell EBaC where its files are.** Type or paste this line. It works out which shell your terminal uses (bash, zsh, ksh, csh, tcsh, fish, ...) and adds the setting to that shell's own settings files, in that shell's own words, so it works whichever one you have. It says which files it changed. This only needs to be done once, and doing it again does no harm.
 
 ```sh
-case "$SHELL" in */zsh) f="$HOME/.zshrc" ;; *) f="$HOME/.bashrc" ;; esac
-grep -qs 'BIBLEROOT=' "$f" || echo 'export BIBLEROOT=$HOME/ebac' >> "$f"
-export BIBLEROOT="$HOME/ebac"
-echo "BIBLEROOT is set, in $f"
+sh ~/ebac/set-bibleroot.sh
 ```
+
+Then close the terminal window and open a new one, so that it picks up the setting.
 
 **5. Run EBaC.**
 
@@ -127,7 +126,7 @@ That's all. Your settings and your search history are kept.
   make
   ```
 - **`term.h: No such file or directory`** while building: step 1 wasn't done. Install the tools, then type `make` again.
-- **`Error: getenv(BIBLEROOT) failed`** when starting: step 4 wasn't done, or the terminal window was open before it was. Do step 4, or open a new terminal window.
+- **`Error: getenv(BIBLEROOT) failed`** when starting: step 4 wasn't done, or the terminal window was open before it was. Do step 4 (`sh ~/ebac/set-bibleroot.sh`), then open a new terminal window.
 
 ## Installing on Windows
 
@@ -149,7 +148,7 @@ From then on, open **Ubuntu** from the Start menu and type `~/ebac/bible` to run
 
 ## Installing on macOS
 
-The steps are the same as [for Linux](#first-time-install-do-this-only-once), with three differences. They work in the Mac's own Terminal app, and in other terminal windows such as iTerm2 or xterm. (EBaC has been built and tested here with the same tools a Mac has, including its version of `make`, but not yet on a Mac itself; if something doesn't work, please report it.)
+The steps are the same as [for Linux](#first-time-install-do-this-only-once), except for installing the tools, and a few keys. They work in the Mac's own Terminal app, and in other terminal windows such as iTerm2 or xterm. (EBaC has been built and tested here with the same tools a Mac has, including its version of `make`, but not yet on a Mac itself; if something doesn't work, please report it.)
 
 **1. Install the tools EBaC needs** with Apple's Command Line Tools, instead of `apt`. Type this, then select **Install** in the window that appears and wait for it to finish (a few minutes). If it says the tools are already installed, you already have everything.
 
@@ -168,13 +167,10 @@ cd ~/ebac
 make
 ```
 
-**3. Tell EBaC where its files are.** Copy these four lines and paste them in as they are. Macs since macOS 10.15 Catalina use the zsh shell, and older ones bash, which keep their settings in different files; these lines work out which one your Terminal uses (`~/.zshrc` or `~/.bash_profile`), add the setting there once, and say where they put it. Pasting them again does no harm.
+**3. Tell EBaC where its files are,** with the same line as on Linux. Macs since macOS 10.15 Catalina use the zsh shell and older ones bash, which keep their settings in different files; the line works out which one your Terminal uses, so you don't need to know. Then close the Terminal window and open a new one.
 
 ```sh
-case "$SHELL" in */zsh) f="$HOME/.zshrc" ;; *) f="$HOME/.bash_profile" ;; esac
-grep -qs 'BIBLEROOT=' "$f" || echo 'export BIBLEROOT=$HOME/ebac' >> "$f"
-export BIBLEROOT="$HOME/ebac"
-echo "BIBLEROOT is set, in $f"
+sh ~/ebac/set-bibleroot.sh
 ```
 
 Then run EBaC with `~/ebac/bible`, and update it with `git pull` and `make`, as on Linux.
@@ -183,7 +179,7 @@ Then run EBaC with `~/ebac/bible`, and update it with `git pull` and `make`, as 
 
 ## Installing on Solaris 11
 
-The steps are the same as [for Linux](#first-time-install-do-this-only-once), with three differences. (This hasn't been tried on a Solaris computer yet; if something doesn't work, please report it.)
+The steps are the same as [for Linux](#first-time-install-do-this-only-once), with two differences. (This hasn't been tried on a Solaris computer yet; if something doesn't work, please report it.)
 
 **1. Install the tools with `pkg`** instead of `apt`. (`pfexec` works in place of `sudo`.)
 
@@ -200,11 +196,7 @@ gmake
 
 and updating is `git pull`, then `gmake`.
 
-**3. Set `BIBLEROOT` in `~/.profile`** in step 4, and log in again:
-
-```sh
-echo 'export BIBLEROOT=$HOME/ebac' >> ~/.profile
-```
+Step 4, telling EBaC where its files are, is the same line as on Linux, `sh ~/ebac/set-bibleroot.sh`. It works with whichever shell you use, whether Solaris's usual bash or ksh, csh or another, and for both terminal windows and logins over SSH.
 
 The rest is taken care of. Solaris keeps the ncurses headers EBaC needs in their own folder, `/usr/include/ncurses`, apart from its own older curses: the makefile finds them there (or asks `pkg-config`, if it is installed). It also uses Solaris's `nawk`, as its `/usr/bin/awk` is the original 1970s version. On SPARC computers, the index files `gmake` builds are the same as everywhere else: they are written one byte at a time, the same on every kind of processor.
 
