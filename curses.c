@@ -281,8 +281,8 @@ int scr_resize_fd(void)
 **          BEL", that the page watches for. Screens:
 **            menu     main menu          trans    choose a translation
 **            passage  reading a passage  list     list of search results
-**            anykey   "Press any key"    input    typing a book, number
-**                                                 or search
+**            anykey   "Press any key"    input    typing a book or number
+**            search   typing a search
 **          Only sent when EBAC_GESTURES is set in the environment, so an
 **          ordinary terminal never sees it.
 */

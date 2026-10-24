@@ -146,7 +146,8 @@ char *get_line(int mode)
         long int position; /* value returned by ftell() */
 
         line[0] = '\0';
-        scr_mode("input");
+        /* "search": its history can be stepped through (Up and Down) */
+        scr_mode(mode == DIGITS_MODE ? "input" : "search");
         do{
                 switch (c = ugetchar())     /* get a single char from user */
                 {
