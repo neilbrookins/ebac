@@ -13,6 +13,7 @@
 #define MAXHIGHWORDS 30
 char *rev_word[MAXHIGHWORDS] = { 0 };
 int cur_revword = 0;
+char count_word[MAXCOUNTWORD] = "";
 #ifdef RAMDISK
         struct TEMPFILE tempfile[20];
         int TFtop = 0;
@@ -1130,6 +1131,8 @@ short int *process_words(void)
         int i;
         char end_of_list;
         int book_number;
+        int terms = 0; /* words, books and operators in the search */
+        count_word[0] = '\0';
         while (del_rev()) /* Remove all words from list which had been */
                 ;         /* displayed in reverse video. */
         arg = get_line(NORMAL_MODE); /* Get search terms from user. */
@@ -1155,6 +1158,8 @@ short int *process_words(void)
                         arg[i] = '\0';
                         end_of_list = TRUE;
                 }
+                if (strlen (arg) > 0)
+                        terms++;
                 if ((strcmp (arg, "-") == 0) || (strcmp (arg, "!") == 0))
                 {
                         del_rev(); /* Don't highlight removed words */
@@ -1184,6 +1189,11 @@ short int *process_words(void)
                 else if (strlen (arg) > 0)
                 {
                         add_rev(arg);
+                        if (terms == 1)
+                        {
+                                strncpy(count_word, arg, MAXCOUNTWORD - 1);
+                                count_word[MAXCOUNTWORD - 1] = '\0';
+                        }
                         verse_list = find_word(arg);
                         push(verse_list);
                 }
@@ -1196,6 +1206,8 @@ short int *process_words(void)
                         ;
                 arg--;
         }
+        if (terms != 1)
+                count_word[0] = '\0'; /* a count of one word would mislead */
         verse_list = pop();
 #ifdef RAMDISK
         return((struct TEMPFILE *) verse_list);

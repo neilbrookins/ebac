@@ -61,6 +61,10 @@ struct bva
 
 /* The number of times a word occurs in the bible. Set during word searching */
 extern int num_found;
+/* the word searched for, when the search was that one word alone (so the
+** list's header can say how many times it occurs), else ""; process.c */
+#define MAXCOUNTWORD 41
+extern char count_word[MAXCOUNTWORD];
 extern int num_verses;
 
 #define NORMAL_MODE 0

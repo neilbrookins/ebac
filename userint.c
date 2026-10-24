@@ -774,6 +774,7 @@ static void view_match_list(short int *verse_list)
 {
         int i = 0, first_i, num_lines, tag, n, j;
 	int ui; /* User Input */
+        char count[24 + MAXCOUNTWORD], times[24 + MAXCOUNTWORD];
         short int cur_verse;
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;
@@ -782,11 +783,26 @@ static void view_match_list(short int *verse_list)
                 num_lines = s_lines;
                 if (i == 0)
                 {
-                        rev_printf("--Begining of list--");
-			if (num_verses == 1)
-                        	printf(" (%d verse matched)\n", num_verses);
-                        else
-                        	printf(" (%d verses matched) %d \n", num_verses, num_found);
+/*
+** "--Beginning of list-- 56 verses", and when the search was one word
+** alone, how many times it occurs: ', "grass" 62 times' (a verse can
+** have it more than once). That part is left out if it would make the
+** line wrap. A count of one word in a search with others, or limited to
+** a book, would be of the whole Bible, not of this list, so none is shown.
+*/
+#define HEAD_TEXT       "--Beginning of list--"
+                        rev_printf(HEAD_TEXT);
+                        sprintf(count, " %d verse%s", num_verses,
+                                num_verses == 1 ? "" : "s");
+                        if (count_word[0] != '\0')
+                        {
+                                sprintf(times, ", \"%s\" %d time%s", count_word,
+                                        num_found, num_found == 1 ? "" : "s");
+                                if ((int) (sizeof(HEAD_TEXT) - 1 + strlen(count) +
+                                        strlen(times)) <= WIDTH)
+                                        strcat(count, times);
+                        }
+                        printf("%s\n", count);
                         num_lines--;
                 }
                 first_i = i;
