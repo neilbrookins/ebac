@@ -179,7 +179,25 @@ git checkout v1.3.0
 
 In the full download, `git log v1.3.0..` lists each step since the original release. A folder made with `--depth 1` can get the full history later with `git fetch --unshallow --tags`.
 
-Version 2.0 is written in ANSI C (C89, and also valid C99, C17 and C23), which the CoCo's Microware C compiler cannot compile. The OS-9 68000, VMS and MS-DOS code is still in the source behind its `#ifdef`s and may still build with those systems' ANSI compilers, but only the Linux build has been tested.
+Version 2.0 is written in ANSI C (C89, and also valid C99, C17 and C23). The OS-9 68000, VMS and MS-DOS code is still in the source behind its `#ifdef`s and may still build with those systems' ANSI compilers, but only the Linux build has been tested.
+
+### Version 2 on the Tandy CoCo 3 (untested)
+
+The CoCo's Microware C compiler only takes the older K&R C, and the CoCo hasn't the memory to build the concordance index. On a Linux computer, `make coco` prepares everything it needs:
+
+```sh
+make coco
+```
+
+This writes `coco/build/ebac-coco.tar`, and, if [ToolShed](https://github.com/nitros9project/toolshed)'s `os9` program is installed, `coco/build/ebac-coco.dsk`, an OS-9 disk image (8 MB, for DriveWire, a CoCoSDC or an emulator). Each holds one folder, `BIBLE`, which goes in `/dd/BIBLE` on the CoCo:
+
+- `BIBLE/SRC`: the program's source, converted to K&R C by [ansi2knr](coco/ansi2knr.c) (by L. Peter Deutsch; GPL), and a makefile with 1.3.0's CoCo settings (`-DRAMDISK -DCOCO`). Compile it there to make `bible`.
+- `BIBLE/AV`: the King James text and its index. The index files are the same on every computer, so the ones built on Linux work on the CoCo unchanged.
+- `BIBLE/trans`: the list of translations.
+
+Text files are given OS-9's line endings (a carriage return), and books whose names begin with a digit get the CoCo's names, so `1Chronicles` is stored as `x1Chronicle`.
+
+To make this possible, the source avoids what K&R compilers lack: declarations put their parameters in `P((...))`, which is `()` on the CoCo (see `both.h`); there is no `void`, `unsigned char`, `#if defined`, or string constants placed side by side on the CoCo; and EBaC has its own replacements for `strchr()` and `strtok()`. The converted source passes GCC's `-Wtraditional` check, but it has not been compiled on a CoCo yet. Whether version 2 fits in the CoCo's memory is also still to be found out.
 
 ## What changed in 2.0
 

@@ -106,11 +106,19 @@ test: $(TESTSRC) bible.h both.h screen.h tests/sidebyside.py indexes
 	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/ramdisk/bible
 
 #remove binaries and object files. (The .dat index files are kept.)
+# The Tandy CoCo 3 (OS-9 6809): the source converted to K&R C, with the
+# text and the concordance index (which the CoCo can't build itself), in
+# coco/build/ebac-coco.tar, and coco/build/ebac-coco.dsk, an OS-9 disk
+# image, if ToolShed's "os9" program is installed. See coco/mkcoco.sh.
+coco: indexes coco/mkcoco.sh coco/splitdefs.awk coco/ansi2knr.c coco/makefile
+	mkdir -p coco/build
+	CC="$(CC)" sh coco/mkcoco.sh coco/build
+
 clean:
 	rm -f index bible split splitmsdos splitmm1 lab llength verses *.o
-	rm -rf tests/build
+	rm -rf tests/build coco/build
 
-.PHONY: all indexes test clean
+.PHONY: all indexes test clean coco
 
 file.o: bible.h screen.h both.h
 userint.o: bible.h screen.h both.h
