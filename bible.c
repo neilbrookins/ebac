@@ -44,6 +44,18 @@ void fputi(short int offset, FILE *fileptr)
 }
 #endif
 
+/* Purpose: finds a character in a string, like strchr(), which the C
+            libraries of older systems such as the CoCo may not have.
+   Returns: a pointer to its first place in the string, or NULL.
+*/
+char *find_char(char *s, int c)
+{
+        for (; *s != '\0'; s++)
+                if (*s == c)
+                        return (s);
+        return (NULL);
+}
+
 int new_verse(char *word)
 {
     int i;
@@ -59,12 +71,12 @@ int new_verse(char *word)
     for(i = 0; i < (int) strlen(word); i++)
     {
             c = word[i];
-            if (!(isdigit((unsigned char) c) || c == ':'))
+            if (!(isdigit(UCHAR(c)) || c == ':'))
                     return(FALSE);
     } /* word contains digit(s), colon(s), or both. */
     for(i = 1; i < (int) strlen(word) - 1; i++)
     {
-      if (word[i] == ':' && isdigit((unsigned char) word[i - 1]) && isdigit((unsigned char) word[i + 1]))
+      if (word[i] == ':' && isdigit(UCHAR(word[i - 1])) && isdigit(UCHAR(word[i + 1])))
         return(TRUE);  /* word contains both digits and ':' */
     }
     return(FALSE);  /* word consists of only digits, eg: 1234 */

@@ -27,22 +27,23 @@ char count_word[MAXCOUNTWORD] = "";
 #endif
 
 /* functions used only in this file */
-static char *fgets_cr(char *s, int n, FILE *iop);
-static int compare(short int first, short int second, int prox);
-static void not_oper(void);
-static void or_oper(void);
-static void and_oper(int prox);
-static void add_rev(char *word);
-static int del_rev(void);
-static void store_book(int bnumber);
-static int is_operator(char *arg);
-static int valid_search(char *line);
+static char *fgets_cr P((char *s, int n, FILE *iop));
+static int compare P((short int first, short int second, int prox));
+static void not_oper P((void));
+static void or_oper P((void));
+static void and_oper P((int prox));
+static void add_rev P((char *word));
+static int del_rev P((void));
+static void store_book P((int bnumber));
+static int is_operator P((char *arg));
+static int valid_search P((char *line));
+static char *next_term P((char **pos));
 #ifdef RAMDISK
-static void push(struct TEMPFILE *verse_list);
-static struct TEMPFILE *pop(void);
+static void push P((struct TEMPFILE *verse_list));
+static struct TEMPFILE *pop P((void));
 #else
-static void push(short int *verse_list);
-static short int *pop(void);
+static void push P((short int *verse_list));
+static short int *pop P((void));
 #endif
 
 char LOGFILE[256];
@@ -333,7 +334,7 @@ char *get_line(int mode)
                         ** sign is what appears on the screen.
                         */
                         if (mode == DIGITS_MODE && c > 0 && c < 256 &&
-                            (digit = strchr(digit_letters, tolower(c))) != NULL)
+                            (digit = find_char(digit_letters, tolower(c))) != NULL)
                                 c = "1234567890"[digit - digit_letters];
                         if (mode == DIGITS_MODE && (c == 'm' || c == 'M'))
                                 c = '-';
@@ -388,7 +389,7 @@ char *get_line(int mode)
         }
 
         i = 0; /* Make line lowercase to match index data which is lowercase */
-        while ((line[i] = tolower((unsigned char) line[i])) != '\0')
+        while ((line[i] = tolower(UCHAR(line[i]))) != '\0')
                 i++;
         return((char *)line);
 }
@@ -1042,7 +1043,7 @@ static int is_operator(char *arg)
 {
         return (strcmp (arg, "-") == 0 || strcmp (arg, "!") == 0 ||
                 strcmp (arg, "|") == 0 || strcmp (arg, ",") == 0 ||
-                isdigit ((unsigned char) *arg));
+                isdigit (UCHAR(*arg)));
 }
 
 /*
@@ -1057,12 +1058,13 @@ static int is_operator(char *arg)
 static int valid_search(char *line)
 {
         static char copy[MAXSEARCHLEN];
-        char *arg;
+        char *arg, *pos;
         int depth = 0;    /* number of results the stack would hold */
         int operands = 0; /* number of words and books */
 
         strcpy(copy, line);
-        for (arg = strtok(copy, " \r"); arg != NULL; arg = strtok(NULL, " \r"))
+        pos = copy;
+        for (arg = next_term(&pos); arg != NULL; arg = next_term(&pos))
         {
                 if (is_operator(arg))
                 {
@@ -1113,6 +1115,32 @@ static int valid_search(char *line)
         scr_mode("anykey");
         ugetchar();
         return FALSE;
+}
+
+/* Purpose: finds the next word, book or operator of a search line, from
+            *pos on. They are separated by spaces, or the line's carriage
+            return. Ends it with a '\0' and moves *pos past it. (Like
+            strtok(), which the C libraries of older systems may not have.)
+   Returns: the term, or NULL at the end of the line.
+*/
+static char *next_term(char **pos)
+{
+        char *p = *pos, *start;
+
+        while (*p == ' ' || *p == '\r')
+                p++;
+        if (*p == '\0')
+        {
+                *pos = p;
+                return (NULL);
+        }
+        start = p;
+        while (*p != '\0' && *p != ' ' && *p != '\r')
+                p++;
+        if (*p != '\0')
+                *p++ = '\0';
+        *pos = p;
+        return (start);
 }
 
 /* Purpose: get search term(s) from the user. Process into a list of verses
@@ -1167,7 +1195,7 @@ short int *process_words(void)
                 }
                 else if ((strcmp (arg, "|") == 0) || (strcmp (arg, ",") == 0))
                         or_oper();
-                else if (isdigit ((unsigned char) *arg)) /* only looks at first digit */
+                else if (isdigit (UCHAR(*arg))) /* only looks at first digit */
                         and_oper(atoi(arg));
                 else if (*arg == '@')
                 {

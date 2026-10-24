@@ -57,13 +57,13 @@ long int offset; /* number of bytes offset from the beginning of a book that
 int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
 
 /* functions used only in this file */
-static void open_new_trans(void);
-static long int getcvarraydat(short int sequ_verse_number);
-static char *read_word(FILE *file_ptr);
-static long int lookup(long int start, long int end, char *word);
+static void open_new_trans P((void));
+static long int getcvarraydat P((short int sequ_verse_number));
+static char *read_word P((FILE *file_ptr));
+static long int lookup P((long int start, long int end, char *word));
 #ifdef UNIXV
-static void set_raw_tty(void);
-static void contsignal(int signo);
+static void set_raw_tty P((void));
+static void contsignal P((int signo));
 #endif
 
 /*
@@ -94,7 +94,7 @@ int ugetchar(void)
 {
         char c;
         vms_ttyread(&c, 1, 0);
-        return (unsigned char) c;
+        return UCHAR(c);
 }
 #endif
 
@@ -225,7 +225,7 @@ static int read_escape(void)
                 }
                 else
                 {
-                        c = (unsigned char) seq[len - 1];
+                        c = UCHAR(seq[len - 1]);
                         while (len < MAXSEQ && (len == 2 || c < '@' || c > '~'))
                         {
                                 if ((c = read_key_byte(ESC_WAIT)) < 0)
@@ -238,7 +238,7 @@ static int read_escape(void)
 
         /* ESC, then an ordinary key typed quickly: deliver both */
         for (i = 1; i < len; i++)
-                pending[npending++] = (unsigned char) seq[i];
+                pending[npending++] = UCHAR(seq[i]);
         return '\033';
 }
 #endif /* USE_NCURSES */
@@ -304,7 +304,7 @@ FILE *mfopen(char *string, char *mode)
 */
         char NewName[80];
 
-        if (isdigit((unsigned char) *string))
+        if (isdigit(UCHAR(*string)))
         {
              /* *NewName = 'a'; */
                 *NewName = 'x';
@@ -539,7 +539,7 @@ FILE *trans_file;
         }
 
         i = 0;
-        while (!isspace((unsigned char) trans[0][i]) && trans[0][i] != '\0' &&
+        while (!isspace(UCHAR(trans[0][i])) && trans[0][i] != '\0' &&
                (i < MAX_ETLA - 1))
         {
         	etla[i] = trans[0][i]; /* default to first trans in list */
@@ -667,7 +667,7 @@ void change_translations(void)
 		return;
         --n;
         i = 0;
-        while (!isspace((unsigned char) trans[n][i]) && trans[n][i] != '\0' &&
+        while (!isspace(UCHAR(trans[n][i])) && trans[n][i] != '\0' &&
                (i < MAX_ETLA - 1))
         {
         	etla[i] = trans[n][i]; /* default to first trans in list */
@@ -1031,10 +1031,11 @@ struct TEMPFILE *tmpopen(void)
 }
 
 struct TEMPFILE *find_word(char *word)
+{
 #else
 short int *find_word(char *word)
-#endif
 {
+#endif
  long int refs_offset;
 #ifdef RAMDISK
  struct TEMPFILE *tempfile;

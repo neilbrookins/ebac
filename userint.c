@@ -16,13 +16,21 @@ char spaces[]="                          ";  /* MAXINDENT spaces */
 #define MAXWORDLEN 40
 
 /*
-** KEYHELP(text) adds text to a help line on keyboards that have arrow and
-** page keys: the MM/1, and UNIX terminals (read through ncurses).
+** ARROWKEYS: the keyboard has arrow and page keys: the MM/1, and UNIX
+** terminals (read through ncurses). KEYHELP(text) is then text, to add to
+** a help line with %s, or else "". (Only #ifdef is used, and no string
+** constants placed side by side, so that K&R compilers take this too.)
 */
-#if defined(USE_NCURSES) || defined(OSK)
+#ifdef USE_NCURSES
+#       define ARROWKEYS
+#endif
+#ifdef OSK
+#       define ARROWKEYS
+#endif
+#ifdef ARROWKEYS
 #       define KEYHELP(text) text
 #else
-#       define KEYHELP(text)
+#       define KEYHELP(text) ""
 #endif
 
 /*
@@ -42,31 +50,31 @@ static int last_len = 0;
 struct bcv_type bcv;
 
 /* functions used only in this file */
-static int main_menu(void);
-static void remove_char(char *strg);
-static int get_number(void);
-static struct bcv_type *bcv_menu(void);
-static int count_lines(int tag, char *bookname, char *strg, int indent,
-                       int top_of_screen);
-static void dis_one_line(char *strg);
-static void dis_verse(char *strg, int indent, int firstTime);
-static void display_verse(int tag, struct bcv_array_type *bcv_arrays,
-                          int verIndent, int top_of_screen);
-static int calculate_fv(int last_verse);
-static int scrolled_top(int last_shown);
-static void rev_printf(char *string);
-static int check_limits(int cur_verse);
-static void view_in_context(int cur_verse);
+static int main_menu P((void));
+static void remove_char P((char *strg));
+static int get_number P((void));
+static struct bcv_type *bcv_menu P((void));
+static int count_lines P((int tag, char *bookname, char *strg, int indent,
+                       int top_of_screen));
+static void dis_one_line P((char *strg));
+static void dis_verse P((char *strg, int indent, int firstTime));
+static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
+                          int verIndent, int top_of_screen));
+static int calculate_fv P((int last_verse));
+static int scrolled_top P((int last_shown));
+static void rev_printf P((char *string));
+static int check_limits P((int cur_verse));
+static void view_in_context P((int cur_verse));
 #ifdef RAMDISK
-static short int vlist(struct TEMPFILE *tf, int rnum);
-static void view_match_list(struct TEMPFILE *verse_list);
+static short int vlist P((struct TEMPFILE *tf, int rnum));
+static void view_match_list P((struct TEMPFILE *verse_list));
 #else
-static void view_match_list(short int *verse_list);
+static void view_match_list P((short int *verse_list));
 #endif
-static void prog_info(void);
-static int tag_label(int tag);
-static int key_to_tag(int key);
-static int screen_key(void);
+static void prog_info P((void));
+static int tag_label P((int tag));
+static int key_to_tag P((int key));
+static int screen_key P((void));
 
 static int main_menu(void)
 {
@@ -131,13 +139,13 @@ int match_it(char *book_str,
         else
         {
                 for (i = 0; i < MAXWORDLEN && book_str[i] != '\0'; i++)
-                        book_str[i] = tolower((unsigned char) book_str[i]);
+                        book_str[i] = tolower(UCHAR(book_str[i]));
 
                 for (i = 0; i < numbooks; i++)
                 {
                         len_str = strlen(book[i].name);
                         for (j = 0; j <= len_str; j++)
-                                lower_name[j] = tolower((unsigned char) book[i].name[j]);
+                                lower_name[j] = tolower(UCHAR(book[i].name[j]));
 /*
 **printf("%s--%s--%d--%s\n", book[i].name, lower_name, len_str, book_str);
 */
@@ -236,7 +244,7 @@ static int get_number(void)
         negative = (chrptr[0] == '-');
         if (negative)
                 i++;
-        while (isdigit((unsigned char) chrptr[i]))
+        while (isdigit(UCHAR(chrptr[i])))
         {
                 if (number < 100000) /* far past any real chapter or verse */
                         number = number * 10 + (chrptr[i] - '0');
@@ -371,7 +379,7 @@ static void dis_one_line(char *strg)
 
     for(;;)
     {
-        while (!(isalnum((unsigned char) strg[i])))
+        while (!(isalnum(UCHAR(strg[i]))))
         {
                 if (strg[i] == '\0') /* We is done with this line */
                 {
@@ -382,12 +390,12 @@ static void dis_one_line(char *strg)
                 putchar(strg[i++]); /* prints commas, spaces, etc normally */
         }
 
-        while (isalnum((unsigned char) strg[i]) ||
+        while (isalnum(UCHAR(strg[i])) ||
                       (strg[i] == '\'') || /* allow "day's" to be highlighted */
 							 (strg[i] == '-'))    /* same with "father-in-law" */
         {
                 wrd[j] = strg[i++];
-                lower_wrd[j] = tolower((unsigned char) wrd[j]);
+                lower_wrd[j] = tolower(UCHAR(wrd[j]));
                 ++j;
         }
 
@@ -474,9 +482,9 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
             printf("%c)", tag_label(tag));
             if (top_of_screen || strcmp(bcv_arrays->book_array, previous_book))
             {
-				   if (isdigit ((unsigned char) bcv_arrays->book_array[0]) &&
-					    isupper ((unsigned char) bcv_arrays->book_array[1]) &&
-					    islower ((unsigned char) bcv_arrays->book_array[2]) )
+				   if (isdigit (UCHAR(bcv_arrays->book_array[0])) &&
+					    isupper (UCHAR(bcv_arrays->book_array[1])) &&
+					    islower (UCHAR(bcv_arrays->book_array[2])) )
                {
                   printf("%s", spaces + MAXINDENT + strlen(bcv_arrays->book_array) + 1 - 15);
                   printf("%c ", bcv_arrays->book_array[0]);
@@ -500,9 +508,9 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
                  printf("\n");
               printf("                            ");
               underline();
-				  if (isdigit ((unsigned char) bcv_arrays->book_array[0]) &&
-					   isupper ((unsigned char) bcv_arrays->book_array[1]) &&
-					   islower ((unsigned char) bcv_arrays->book_array[2]) )
+				  if (isdigit (UCHAR(bcv_arrays->book_array[0])) &&
+					   isupper (UCHAR(bcv_arrays->book_array[1])) &&
+					   islower (UCHAR(bcv_arrays->book_array[2])) )
               {
                  printf("%c ", bcv_arrays->book_array[0]);
                  printf("%s", &bcv_arrays->book_array[1]);
@@ -725,17 +733,17 @@ get_command:    scr_mode("passage");
                         rev_printf("space bar");
                         printf(" or ");
                         rev_printf("n");
-                        printf(" next screen" KEYHELP(", or Page Down") "\n");
+                        printf(" next screen%s\n", KEYHELP(", or Page Down"));
                         rev_printf("p");
-                        printf("              previous screen" KEYHELP(", or Page Up") "\n");
+                        printf("              previous screen%s\n", KEYHELP(", or Page Up"));
                         rev_printf(".");
                         printf("         or ");
                         rev_printf(">");
-                        printf(" next verse" KEYHELP(", or Down arrow") "\n");
+                        printf(" next verse%s\n", KEYHELP(", or Down arrow"));
                         rev_printf(",");
                         printf("         or ");
                         rev_printf("<");
-                        printf(" previous verse" KEYHELP(", or Up arrow") "\n");
+                        printf(" previous verse%s\n", KEYHELP(", or Up arrow"));
                         rev_printf("f");
                         printf("              forward one book\n");
                         rev_printf("b");
@@ -768,10 +776,11 @@ static short int vlist(struct TEMPFILE *tf, /* temp file */
 
 #ifdef RAMDISK
 static void view_match_list(struct TEMPFILE *verse_list)
+{
 #else
 static void view_match_list(short int *verse_list)
-#endif
 {
+#endif
         int i = 0, first_i, num_lines, tag, n, j;
 	int ui; /* User Input */
         char count[24 + MAXCOUNTWORD], times[24 + MAXCOUNTWORD];
@@ -954,9 +963,9 @@ static void view_match_list(short int *verse_list)
                         rev_printf("space bar");
                         printf(" or ");
                         rev_printf("n");
-                        printf(" next screen" KEYHELP(", or Page Down") "\n");
+                        printf(" next screen%s\n", KEYHELP(", or Page Down"));
                         rev_printf("p");
-                        printf(" previous screen" KEYHELP(", or Page Up") "\n");
+                        printf(" previous screen%s\n", KEYHELP(", or Page Up"));
                         rev_printf("x");
                         printf(" exits to Main Menu\n");
 			printf("\n(Press any Key) ");
@@ -1004,9 +1013,9 @@ static int key_to_tag(int key)
                 return key - '0';
         if (key == '\0')
                 return 0;
-        if ((p = strchr(digit_keys, key)) != NULL)
+        if ((p = find_char(digit_keys, key)) != NULL)
                 return 1 + (int) (p - digit_keys);
-        if ((p = strchr(more_tags, key)) != NULL)
+        if ((p = find_char(more_tags, key)) != NULL)
                 return 10 + (int) (p - more_tags);
         return 0;
 }
@@ -1086,7 +1095,7 @@ int main(void)
                 case 's':
 cls();
 printf("\n\nSearch line editing keys:\n");
-#if defined(USE_NCURSES) || defined(OSK) /* keyboards with arrow keys */
+#ifdef ARROWKEYS
 printf("Up    or CTRL-g  get previous search   Left  or CTRL-b  back\n");
 printf("Down  or CTRL-v  view next search      Right or CTRL-f  forward\n");
 #else

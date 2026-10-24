@@ -38,7 +38,7 @@ extern long int numchapters;
 		char sname[35];
 	};
 
-	struct TEMPFILE *tmpopen(void);
+	struct TEMPFILE *tmpopen P((void));
 #else
 /* size of array to store list of all the verses */
 #	define ALLVERSE 31103
@@ -93,46 +93,47 @@ extern char etla[]; /* name of current translation in use*/
 */
 
 /* bible.c */
-long int fgetl(FILE *fileptr);
-short int fgeti(FILE *fileptr);
+long int fgetl P((FILE *fileptr));
+short int fgeti P((FILE *fileptr));
 #ifdef RAMDISK
-void fputi(short int offset, FILE *fileptr);
+void fputi P((short int offset, FILE *fileptr));
 #endif
-int new_verse(char *word);
-int new_chapter(char *word);
-int wordtochapt(char *word);
-int wordtoverse(char *word);
-short int i_bit_reset(short int number);
-long int l_bit_reset(long int l_number);
-short int bcv_search(struct bcv_type *bcvptr);
+char *find_char P((char *s, int c));
+int new_verse P((char *word));
+int new_chapter P((char *word));
+int wordtochapt P((char *word));
+int wordtoverse P((char *word));
+short int i_bit_reset P((short int number));
+long int l_bit_reset P((long int l_number));
+short int bcv_search P((struct bcv_type *bcvptr));
 
 /* file.c */
-void exit_program(int errnum);
-void mfclose(FILE *fileptr, char *string);
-FILE *mfopen(char *string, char *mode);
-void initialize(void);
-void change_translations(void);
-int verse_to_book(short int sequ_verse_number);
-struct bcv_array_type *get_verse(short int sequ_verse_number);
+void exit_program P((int errnum));
+void mfclose P((FILE *fileptr, char *string));
+FILE *mfopen P((char *string, char *mode));
+void initialize P((void));
+void change_translations P((void));
+int verse_to_book P((short int sequ_verse_number));
+struct bcv_array_type *get_verse P((short int sequ_verse_number));
 #ifdef RAMDISK
-struct TEMPFILE *find_word(char *word);
+struct TEMPFILE *find_word P((char *word));
 #else
-short int *find_word(char *word);
+short int *find_word P((char *word));
 #endif
 
 /* process.c */
-void initlogname(void);
-char *get_line(int mode);
+void initlogname P((void));
+char *get_line P((int mode));
 #ifdef RAMDISK
-struct TEMPFILE *process_words(void);
+struct TEMPFILE *process_words P((void));
 #else
-short int *process_words(void);
+short int *process_words P((void));
 #endif
 
 /* userint.c */
-int match_it(char *book_str, int update_screen);
-void Erase_word(int length);
+int match_it P((char *book_str, int update_screen));
+void Erase_word P((int length));
 
 /* curses.c or cure.c */
-void initscreen(void);
+void initscreen P((void));
 

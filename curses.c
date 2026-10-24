@@ -2,8 +2,12 @@
 
 /* A compiler asked for strict ISO C hides POSIX functions such as
 ** sigaction(); ask for them. (Must come before any #include.) */
-#if defined(UNIXV) && defined(__STRICT_ANSI__) && !defined(_POSIX_C_SOURCE)
+#ifdef UNIXV
+#ifdef __STRICT_ANSI__
+#ifndef _POSIX_C_SOURCE
 #	define _POSIX_C_SOURCE 200809L
+#endif
+#endif
 #endif
 
 /* Author:
