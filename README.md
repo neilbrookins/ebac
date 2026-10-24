@@ -129,7 +129,7 @@ That's all. Your settings and your search history are kept.
 
 ## Installing on Windows
 
-On Windows 10 (version 2004 or later) and Windows 11, EBaC runs in **WSL**, the Windows Subsystem for Linux: Microsoft's own, free way to run Linux programs on Windows. (It replaced Microsoft's older *Services for UNIX*, which was removed in Windows 8.1.) WSL runs a real Linux, Ubuntu, in a window, so once it's set up, EBaC installs exactly as on Linux.
+On Windows 10 (version 2004 or later) and Windows 11, in every edition including Home, EBaC runs in **WSL**, the Windows Subsystem for Linux: Microsoft's own, free way to run Linux programs on Windows. (It replaced Microsoft's older *Services for UNIX*, which was removed in Windows 8.1.) WSL runs a real Linux, Ubuntu, in a window, so once it's set up, EBaC installs exactly as on Linux.
 
 **1. Install WSL** (only once; skip this if you already have it). Right-click the **Start** button and select **Terminal (Admin)** (on Windows 10, **Windows PowerShell (Admin)**), then type:
 
@@ -137,7 +137,7 @@ On Windows 10 (version 2004 or later) and Windows 11, EBaC runs in **WSL**, the 
 wsl --install
 ```
 
-Restart the computer when it's done. Afterwards, an **Ubuntu** window opens by itself (or open **Ubuntu** from the Start menu) and asks you to choose a user name and password for Linux. They can be different from your Windows ones; remember the password, as step 2 asks for it.
+Restart the computer when it's done. (If it reports an error about virtualization, it has to be switched on in the computer's BIOS or UEFI settings, usually among the CPU options; Microsoft explains how in [Enable virtualization on Windows](https://support.microsoft.com/windows/c5578302-6e43-4b4b-a449-8ced115f58e1). A PC too old for WSL, such as one with a Core 2 Duo, can use Cygwin instead, below.) Afterwards, an **Ubuntu** window opens by itself (or open **Ubuntu** from the Start menu) and asks you to choose a user name and password for Linux. They can be different from your Windows ones; remember the password, as step 2 asks for it.
 
 **2. In the Ubuntu window, follow [First-time install](#first-time-install-do-this-only-once) for Linux,** using the commands for Ubuntu. They download EBaC into your Linux home folder, which is the best place for it.
 
