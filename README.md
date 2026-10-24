@@ -1,9 +1,18 @@
 # EBaC — Electronic Bible and Concordance
 
 > [!NOTE]
-> **You are looking at EBaC to install on a computer yourself:** Linux (including the Raspberry Pi), a Mac, or Solaris. You download it and build it with a few typed commands, and it runs in a terminal window, used with the keyboard.
+> **Do you use Home Assistant?** Then install **[EBaC for Home Assistant](https://github.com/neilbrookins/ebac-ha)** instead of this. It's the easier way: there's nothing to type or build, it updates itself, and besides the keyboard it works by tapping, swiping and clicking, on a phone, a tablet or a computer's web browser. (Home Assistant is a free smart-home system, often run on a small computer such as a Raspberry Pi and used through a web browser or its phone app.) If typing commands and building a program sounds unfamiliar, and you have Home Assistant or would like to, that version is the one for you.
 >
-> **Do you use Home Assistant?** Then install **[EBaC for Home Assistant](https://github.com/neilbrookins/ebac-ha)** instead. It's the easier way: there's nothing to type or build, it updates itself, and besides the keyboard it works by tapping, swiping and clicking, on a phone, a tablet or a computer's web browser. (Home Assistant is a free smart-home system, often run on a small computer such as a Raspberry Pi and used through a web browser or its phone app.) If typing commands and building a program sounds unfamiliar, and you have Home Assistant or would like to, that version is the one for you.
+> **This page is EBaC to install on a computer yourself.** You download it and build it with a few typed commands, and it runs in a terminal window, used with the keyboard. Pick your computer to go straight to its instructions:
+>
+> | Your computer | Instructions |
+> |---|---|
+> | Linux, including a Raspberry Pi | [Installing on Linux](#installing-on-linux) |
+> | Windows 10 or 11 | [Installing on Windows](#installing-on-windows) |
+> | Apple Mac | [Installing on macOS](#installing-on-macos) |
+> | Solaris 11 | [Installing on Solaris 11](#installing-on-solaris-11) |
+> | Tandy Color Computer 3 (OS-9) | [Version 2 on the Tandy CoCo 3](#version-2-on-the-tandy-coco-3-untested) |
+> | MM/1, VAX/VMS, MS-DOS and other vintage computers | [History, and building on vintage computers](#history-and-building-on-vintage-computers) |
 
 Written by Neil G. Brookins.
 
@@ -13,13 +22,6 @@ EBaC is a fast, text-mode Bible reader and concordance. It has two main jobs:
 - **Concordance:** type a word and get every verse that contains it, with the word highlighted. Then pick any verse to read it in context.
 
 Unlike a printed concordance, EBaC shows complete verses. It indexes every word, even common ones like *I* and *am*. Searches can combine words and books with AND, OR, AND NOT and proximity ("within 2 verses"). The King James (Authorized) Version is included.
-
-## Two ways to install
-
-- **If you use Home Assistant**, install the EBaC app. It's the easiest way: there is nothing to type or compile, Home Assistant builds EBaC for you and keeps it updated, EBaC appears as a button in the Home Assistant sidebar, and it can be used by tapping, swiping and clicking as well as with the keyboard. See [Installing in Home Assistant](#installing-in-home-assistant).
-- **On a Linux computer**, such as a Raspberry Pi, **a Mac**, or **Solaris**, you build EBaC yourself with a few commands. See [Installing on Linux](#installing-on-linux), [Installing on macOS](#installing-on-macos) or [Installing on Solaris 11](#installing-on-solaris-11).
-
-Both are the same program and work the same way.
 
 ## Installing in Home Assistant
 
@@ -53,6 +55,7 @@ Type each command exactly as shown, pressing Enter after each line. Lines starti
 
 ```sh
 # On Raspberry Pi OS, Debian or Ubuntu:
+sudo apt update
 sudo apt install git build-essential libncurses-dev
 # On Fedora instead:  sudo dnf install git gcc make ncurses-devel
 ```
@@ -123,6 +126,24 @@ That's all. Your settings and your search history are kept.
   ```
 - **`term.h: No such file or directory`** while building: step 1 wasn't done. Install the tools, then type `make` again.
 - **`Error: getenv(BIBLEROOT) failed`** when starting: step 4 wasn't done, or the terminal window was open before it was. Do step 4, or open a new terminal window.
+
+## Installing on Windows
+
+On Windows 10 (version 2004 or later) and Windows 11, EBaC runs in **WSL**, the Windows Subsystem for Linux: Microsoft's own, free way to run Linux programs on Windows. (It replaced Microsoft's older *Services for UNIX*, which was removed in Windows 8.1.) WSL runs a real Linux, Ubuntu, in a window, so once it's set up, EBaC installs exactly as on Linux.
+
+**1. Install WSL** (only once; skip this if you already have it). Right-click the **Start** button and select **Terminal (Admin)** (on Windows 10, **Windows PowerShell (Admin)**), then type:
+
+```powershell
+wsl --install
+```
+
+Restart the computer when it's done. Afterwards, an **Ubuntu** window opens by itself (or open **Ubuntu** from the Start menu) and asks you to choose a user name and password for Linux. They can be different from your Windows ones; remember the password, as step 2 asks for it.
+
+**2. In the Ubuntu window, follow [First-time install](#first-time-install-do-this-only-once) for Linux,** using the commands for Ubuntu. They download EBaC into your Linux home folder, which is the best place for it.
+
+From then on, open **Ubuntu** from the Start menu and type `~/ebac/bible` to run EBaC; [updating](#updating-to-the-latest-version) is the same as on Linux. The window works with all the keys EBaC uses, including **Home**, **End**, **Page Up** and **Page Down**. (WSL also appears in the **Terminal** app, as an Ubuntu tab.)
+
+**With Cygwin instead.** [Cygwin](https://www.cygwin.com/) is an older way of running UNIX programs on Windows, and still maintained; EBaC 1.3.0 was used and tested at length with it. Version 2 should build the same way (this hasn't been tried yet): when installing Cygwin with its `setup-x86_64.exe`, also select the packages **gcc-core**, **make**, **git** and **libncurses-devel** (and **python3** for `make test`), then type the Linux commands from step 2 of [First-time install](#first-time-install-do-this-only-once) onwards in the Cygwin terminal.
 
 ## Installing on macOS
 
@@ -233,7 +254,7 @@ The original [`README`](README) describes the file layout in more detail.
 
 ## History, and building on vintage computers
 
-EBaC dates from 1993. Up to 2014 it ran on the Tandy Color Computer 3 (OS-9 6809, 512K), the MM/1 (OS-9 68000), VAX/VMS, MS-DOS, and the UNIX systems of the 1990s. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009.
+EBaC dates from 1993. Up to 2014 it ran on the Tandy Color Computer 3 (OS-9 6809, 512K), the MM/1 (OS-9 68000), VAX/VMS, MS-DOS, Windows (with Cygwin), and the UNIX systems of the 1990s. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009.
 
 This repository starts with that release, unchanged, as its first commit and tagged **`v1.3.0`**. Each step needed to bring it up to date is a separate commit after it, with an explanation.
 
