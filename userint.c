@@ -785,24 +785,32 @@ static void view_match_list(short int *verse_list)
                 {
 /*
 ** "--Beginning of list-- 56 verses", and when the search was one word
-** alone, how many times it occurs: ', "grass" 62 times' (a verse can
-** have it more than once). That part is left out if it would make the
-** line wrap. A count of one word in a search with others, or limited to
-** a book, would be of the whole Bible, not of this list, so none is shown.
+** alone, how many times it occurs: ", grass 62 times", with the word in
+** reverse video as it is in the verses below (a verse can have it more
+** than once). That part is left out if it would make the line wrap. A
+** count of one word in a search with others, or limited to a book, would
+** be of the whole Bible, not of this list, so none is shown.
 */
 #define HEAD_TEXT       "--Beginning of list--"
                         rev_printf(HEAD_TEXT);
                         sprintf(count, " %d verse%s", num_verses,
                                 num_verses == 1 ? "" : "s");
+                        fputs(count, stdout);
                         if (count_word[0] != '\0')
                         {
-                                sprintf(times, ", \"%s\" %d time%s", count_word,
-                                        num_found, num_found == 1 ? "" : "s");
+                                sprintf(times, " %d time%s", num_found,
+                                        num_found == 1 ? "" : "s");
+                                /* ", " word times */
                                 if ((int) (sizeof(HEAD_TEXT) - 1 + strlen(count) +
-                                        strlen(times)) <= WIDTH)
-                                        strcat(count, times);
+                                        2 + strlen(count_word) + strlen(times))
+                                        <= WIDTH)
+                                {
+                                        fputs(", ", stdout);
+                                        rev_printf(count_word);
+                                        fputs(times, stdout);
+                                }
                         }
-                        printf("%s\n", count);
+                        putchar('\n');
                         num_lines--;
                 }
                 first_i = i;
