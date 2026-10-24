@@ -787,7 +787,7 @@ static void view_match_list(short int *verse_list)
 ** "--Beginning of list-- 56 verses", and when the search was one word
 ** alone, how many times it occurs: ", grass 62 times", with the word in
 ** reverse video as it is in the verses below (a verse can have it more
-** than once). That part is left out if it would make the line wrap. A
+** than once). That part is left out if it doesn't fit on the line. A
 ** count of one word in a search with others, or limited to a book, would
 ** be of the whole Bible, not of this list, so none is shown.
 */
@@ -800,10 +800,14 @@ static void view_match_list(short int *verse_list)
                         {
                                 sprintf(times, " %d time%s", num_found,
                                         num_found == 1 ? "" : "s");
-                                /* ", " word times */
+                                /* ", " word times: up to the last column, as
+                                   modern terminals (xterm and the like) take a
+                                   full line before the newline without an
+                                   extra blank line. (Change s_cols to WIDTH if
+                                   one doesn't.) */
                                 if ((int) (sizeof(HEAD_TEXT) - 1 + strlen(count) +
                                         2 + strlen(count_word) + strlen(times))
-                                        <= WIDTH)
+                                        <= s_cols)
                                 {
                                         fputs(", ", stdout);
                                         rev_printf(count_word);
