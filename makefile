@@ -4,18 +4,33 @@
 #change this to the name of your C compiler (gcc and clang both work):
 CC=gcc
 
-#If you are using Linux, BSD, macOS, Cygwin, or another modern UNIX:
-#This needs the ncurses development files, which provide <term.h>:
+#If you are using Linux, BSD, macOS, Cygwin, Solaris 11, or another modern
+#UNIX: this needs GNU make (on Solaris and BSD it is called gmake) and the
+#ncurses development files, which provide <term.h>:
 #  Debian, Ubuntu, Raspberry Pi OS:  sudo apt install libncurses-dev
 #  Fedora, RHEL:                     sudo dnf install ncurses-devel
 #  Arch:                             sudo pacman -S ncurses
 #  macOS:                            included with the Xcode tools
+#  Solaris 11:                       sudo pkg install library/ncurses
 CFLAGS= -O2 -Wall -Wextra -DNORAMDISK -DUNIXV
 RFILES= bible.o file.o userint.o process.o curses.o
-LIBS= -lncurses
+LIBS= $(NCURSES_LIBS)
+
+# Where ncurses is. pkg-config knows, where it is installed. Without it,
+# look for the folder Solaris keeps ncurses' headers in, apart from its own
+# older curses (whose <term.h> doesn't suit EBaC); otherwise the compiler's
+# usual places are right. Only curses.c includes ncurses' headers.
+NCURSES_CFLAGS := $(shell pkg-config --cflags ncurses 2>/dev/null)
+NCURSES_LIBS := $(shell pkg-config --libs ncurses 2>/dev/null)
+ifeq ($(strip $(NCURSES_LIBS)),)
+NCURSES_LIBS := -lncurses
+ifneq ($(wildcard /usr/include/ncurses/term.h),)
+NCURSES_CFLAGS := -I/usr/include/ncurses
+endif
+endif
 
 #If you are using an older UNIX that still has termcap instead of ncurses,
-#(Solaris, HP-UX, and other System V from the 1990s):
+#(Solaris before 11, HP-UX, and other System V from the 1990s):
 #CFLAGS= -O -DNORAMDISK -DUNIXV -DUSE_TERMCAP
 #RFILES= bible.o file.o userint.o process.o curses.o
 #LIBS= -ltermcap
@@ -101,8 +116,8 @@ test: $(TESTSRC) bible.h both.h screen.h tests/sidebyside.py indexes
 	sh translations.sh check --strict
 	rm -rf tests/build
 	mkdir -p tests/build/noramdisk tests/build/ramdisk
-	$(CC) $(TESTCFLAGS) -DNORAMDISK -o tests/build/noramdisk/bible $(TESTSRC) $(LIBS)
-	$(CC) $(TESTCFLAGS) -DRAMDISK -o tests/build/ramdisk/bible $(TESTSRC) $(LIBS)
+	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) -DNORAMDISK -o tests/build/noramdisk/bible $(TESTSRC) $(LIBS)
+	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) -DRAMDISK -o tests/build/ramdisk/bible $(TESTSRC) $(LIBS)
 	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/ramdisk/bible
 
 #remove binaries and object files. (The .dat index files are kept.)
@@ -122,7 +137,8 @@ clean:
 
 file.o: bible.h screen.h both.h
 userint.o: bible.h screen.h both.h
-curses.o: screen.h
+curses.o: curses.c screen.h both.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(NCURSES_CFLAGS) -c curses.c
 cure.o: screen.h
 bible.o: bible.h both.h
 process.o: bible.h screen.h both.h

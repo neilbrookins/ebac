@@ -22,6 +22,8 @@
 
 set -e
 CC=${CC:-cc}
+# splitdefs.awk needs a newer awk than Solaris's /usr/bin/awk: nawk there
+if command -v nawk > /dev/null 2>&1; then AWK=nawk; else AWK=awk; fi
 out=$1
 [ -n "$out" ] || { echo "usage: sh coco/mkcoco.sh OUTDIR" >&2; exit 2; }
 for f in AV/bvarray.dat AV/chapter.dat AV/common.dat AV/cvarray.dat \
@@ -41,7 +43,7 @@ cr() {
 # the source, as K&R C
 $CC -w -DSTDC_HEADERS -o "$out/ansi2knr" coco/ansi2knr.c
 for f in bible.c file.c userint.c process.c cure.c; do
-        awk -f coco/splitdefs.awk "$f" | "$out/ansi2knr" | grep -v '^#line ' \
+        $AWK -f coco/splitdefs.awk "$f" | "$out/ansi2knr" | grep -v '^#line ' \
                 > "$out/knr.c"
         cr "$out/knr.c" "$stage/BIBLE/SRC/$f"
 done

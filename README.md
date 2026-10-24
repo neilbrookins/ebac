@@ -12,7 +12,7 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 ## Two ways to install
 
 - **If you use Home Assistant**, install the EBaC app. It's the easiest way: there is nothing to type or compile, Home Assistant builds EBaC for you and keeps it updated, and EBaC appears as a button in the Home Assistant sidebar. See **Installing in Home Assistant** below.
-- **On any Linux computer**, such as a Raspberry Pi, you build EBaC yourself with a few commands. See **Installing on Linux** below.
+- **On any Linux computer**, such as a Raspberry Pi, you build EBaC yourself with a few commands. See **Installing on Linux** below. (On Solaris 11, see **Installing on Solaris 11**.)
 
 Both are the same program and work the same way.
 
@@ -118,6 +118,35 @@ That's all. Your settings and your search history are kept.
   ```
 - **`term.h: No such file or directory`** while building: step 1 wasn't done. Install the tools, then type `make` again.
 - **`Error: getenv(BIBLEROOT) failed`** when starting: step 4 wasn't done, or the terminal window was open before it was. Do step 4, or open a new terminal window.
+
+## Installing on Solaris 11
+
+The steps are the same as for Linux, with three differences. (This hasn't been tried on a Solaris computer yet; if something doesn't work, please report it.)
+
+**1. Install the tools with `pkg`** instead of `apt`. (`pfexec` works in place of `sudo`.)
+
+```sh
+sudo pkg install developer/gcc developer/build/gnu-make developer/versioning/git library/ncurses
+```
+
+**2. Type `gmake` wherever these instructions say `make`.** EBaC's makefile needs GNU make, which Solaris calls `gmake`; Solaris's own `make` stops with errors. So step 3 is:
+
+```sh
+cd ~/ebac
+gmake
+```
+
+and updating is `git pull`, then `gmake`.
+
+**3. Set `BIBLEROOT` in `~/.profile`** in step 4, and log in again:
+
+```sh
+echo 'export BIBLEROOT=$HOME/ebac' >> ~/.profile
+```
+
+The rest is taken care of. Solaris keeps the ncurses headers EBaC needs in their own folder, `/usr/include/ncurses`, apart from its own older curses: the makefile finds them there (or asks `pkg-config`, if it is installed). It also uses Solaris's `nawk`, as its `/usr/bin/awk` is the original 1970s version. On SPARC computers, the index files `gmake` builds are the same as everywhere else: they are written one byte at a time, the same on every kind of processor.
+
+Over SSH from Linux, a Mac or Windows, EBaC works in any terminal window. On Solaris's own console, ncurses needs to know the console's terminal type; if EBaC says it can't, log in over SSH instead.
 
 ## Searching
 

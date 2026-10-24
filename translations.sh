@@ -22,12 +22,25 @@
 
 cd "$(dirname "$0")" || exit 1
 
+# Solaris's /usr/bin/awk is the original awk of the 1970s, without sub()
+# or -v; its newer awk is called nawk. Use nawk wherever there is one.
+if command -v nawk > /dev/null 2>&1; then
+    AWK=nawk
+else
+    AWK=awk
+fi
+
 listed() {      # translation folders: first word of each non-comment line
-    awk '!/^[ \t]*#/ && NF { print $1 }' trans
+    $AWK '!/^[ \t]*#/ && NF { print $1 }' trans
 }
 
 noted() {       # folders named in comments: first word after the '#'
-    awk '/^[ \t]*#/ { sub(/^[ \t]*#[ \t]*/, ""); if (NF) print $1 }' trans
+    $AWK '/^[ \t]*#/ { sub(/^[ \t]*#[ \t]*/, ""); if (NF) print $1 }' trans
+}
+
+mentioned() {   # whether trans lists or notes folder $1 (without grep -q
+                # and -x, which older versions of grep lack)
+    { listed; noted; } | $AWK -v d="$1" '$0 == d { found = 1 } END { exit !found }'
 }
 
 case "$1" in
@@ -63,7 +76,7 @@ fi
 for d in */; do
     [ -d "$d" ] || continue         # no folders at all
     d=${d%/}
-    if ! { listed; noted; } | grep -qx -- "$d"; then
+    if ! mentioned "$d"; then
         echo "$level: folder $d is not mentioned in 'trans'. If it is a translation," >&2
         echo "  add a line for it; if not, add a comment line:  # $d  (what it is)" >&2
         [ "$level" = Error ] && status=1
