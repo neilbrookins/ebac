@@ -286,6 +286,17 @@ int scr_resize_fd(void)
 **          Only sent when EBAC_GESTURES is set in the environment, so an
 **          ordinary terminal never sees it.
 */
+/*
+** Purpose: the terminal library and its version, for the Information
+**          screen (such as "ncurses 6.4.20240113"; macOS has 5.7).
+*/
+extern const char *curses_version(void);     /* in ncurses, from curses.h */
+
+char *scr_library(void)
+{
+	return (char *) curses_version();
+}
+
 void scr_mode(char *name)
 {
 	static int enabled = -1;

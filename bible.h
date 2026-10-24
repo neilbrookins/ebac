@@ -64,6 +64,10 @@ extern int num_found;
 /* the word searched for, when the search was that one word alone (so the
 ** list's header can say how many times it occurs), else ""; process.c */
 #define MAXCOUNTWORD 41
+/* the folder EBaC's files are in (BIBLEROOT), once known; file.c */
+extern char *bible_root;
+/* the search history file; process.c */
+extern char LOGFILE[];
 extern char count_word[MAXCOUNTWORD];
 extern int num_verses;
 

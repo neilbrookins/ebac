@@ -59,6 +59,22 @@ endif
 #then use descrip.mms and options_file.opt instead of this file.
 #The cflags -DVMS will be defined by default.
 
+# The version shown on the Information screen: the commit this is built
+# from and its date ("715d8dd, 2026-10-24", and "(modified)" if the files
+# have been changed since that commit), from git, or, in a copy
+# downloaded as an archive (GitHub's "Download ZIP", or the Home Assistant
+# app's build), from version.txt, which git fills in when it makes the
+# archive (see .gitattributes). A package can name itself in EBAC_PACKAGE:
+#   make EBAC_PACKAGE="Home Assistant app 2.1.12"
+EBAC_COMMIT := $(shell git log -1 --format='%h, %cs' 2>/dev/null)
+ifeq ($(strip $(EBAC_COMMIT)),)
+EBAC_COMMIT := $(shell sed -n '/Format/!s/^commit //p' version.txt 2>/dev/null)
+else
+EBAC_COMMIT += $(shell git diff --quiet HEAD -- 2>/dev/null || echo '(modified)')
+endif
+EBAC_PACKAGE =
+VERSION_FLAGS = -DEBAC_COMMIT='"$(EBAC_COMMIT)"' -DEBAC_PACKAGE='"$(EBAC_PACKAGE)"'
+
 OD= -o ./
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
@@ -117,27 +133,38 @@ test: $(TESTSRC) bible.h both.h screen.h tests/sidebyside.py indexes
 	sh translations.sh check --strict
 	rm -rf tests/build
 	mkdir -p tests/build/noramdisk tests/build/ramdisk
-	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) -DNORAMDISK -o tests/build/noramdisk/bible $(TESTSRC) $(LIBS)
-	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) -DRAMDISK -o tests/build/ramdisk/bible $(TESTSRC) $(LIBS)
+	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DNORAMDISK -o tests/build/noramdisk/bible $(TESTSRC) $(LIBS)
+	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DRAMDISK -o tests/build/ramdisk/bible $(TESTSRC) $(LIBS)
 	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/ramdisk/bible
 
-#remove binaries and object files. (The .dat index files are kept.)
 # The Tandy CoCo 3 (OS-9 6809): the source converted to K&R C, with the
 # text and the concordance index (which the CoCo can't build itself), in
 # coco/build/ebac-coco.tar, and coco/build/ebac-coco.dsk, an OS-9 disk
 # image, if ToolShed's "os9" program is installed. See coco/mkcoco.sh.
 coco: indexes coco/mkcoco.sh coco/splitdefs.awk coco/ansi2knr.c coco/makefile
 	mkdir -p coco/build
-	CC="$(CC)" sh coco/mkcoco.sh coco/build
+	CC="$(CC)" EBAC_COMMIT="$(EBAC_COMMIT)" sh coco/mkcoco.sh coco/build
 
+#remove binaries and object files. (The .dat index files are kept.)
 clean:
 	rm -f index bible split splitmsdos splitmm1 lab llength verses *.o
+	rm -f version.stamp
 	rm -rf tests/build coco/build
 
-.PHONY: all indexes test clean coco
+# version.stamp holds the version flags last compiled into userint.o, and
+# changes only when they do, so that a new commit rebuilds userint.o (and
+# nothing else, and a "make" with nothing new to do still does nothing).
+version.stamp: FORCE
+	@echo '$(VERSION_FLAGS)' > version.stamp.new; \
+	if cmp -s version.stamp.new version.stamp; then rm -f version.stamp.new; \
+	else mv version.stamp.new version.stamp; fi
+FORCE:
+
+.PHONY: all indexes test clean coco FORCE
 
 file.o: bible.h screen.h both.h
-userint.o: bible.h screen.h both.h
+userint.o: userint.c bible.h screen.h both.h version.stamp
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VERSION_FLAGS) -c userint.c
 curses.o: curses.c screen.h both.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(NCURSES_CFLAGS) -c curses.c
 cure.o: screen.h

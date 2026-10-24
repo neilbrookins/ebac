@@ -1,0 +1,3 @@
+# version.txt: git fills in the commit and its date in archives it makes
+# (GitHub's "Download ZIP", the Home Assistant app's build); see makefile
+version.txt export-subst

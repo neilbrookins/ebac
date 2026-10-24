@@ -43,8 +43,13 @@ cr() {
 # the source, as K&R C
 $CC -w -DSTDC_HEADERS -o "$out/ansi2knr" coco/ansi2knr.c
 for f in bible.c file.c userint.c process.c cure.c; do
-        $AWK -f coco/splitdefs.awk "$f" | "$out/ansi2knr" | grep -v '^#line ' \
-                > "$out/knr.c"
+        {
+                # the version for the Information screen (from the makefile)
+                if [ "$f" = userint.c ] && [ -n "$EBAC_COMMIT" ]; then
+                        echo "#define EBAC_COMMIT \"$EBAC_COMMIT\""
+                fi
+                $AWK -f coco/splitdefs.awk "$f" | "$out/ansi2knr" | grep -v '^#line '
+        } > "$out/knr.c"
         cr "$out/knr.c" "$stage/BIBLE/SRC/$f"
 done
 rm -f "$out/knr.c"

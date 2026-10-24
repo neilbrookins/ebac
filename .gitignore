@@ -13,3 +13,5 @@
 
 # Concordance index files, made by "make" (see translation.mk)
 *.dat
+/version.stamp
+/version.stamp.new

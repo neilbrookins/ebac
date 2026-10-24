@@ -6,6 +6,27 @@
 #include "bible.h"
 #include "screen.h"
 
+#ifdef UNIXV
+#       include <sys/utsname.h>  /* uname(), for the Information screen */
+#endif
+
+/*
+** The version. EBAC_RELEASE is set here; the makefile passes the commit
+** it was built from and its date, such as "715d8dd, 2026-10-24" (from git,
+** or from version.txt in a downloaded archive), as EBAC_COMMIT, and a
+** package such as the Home Assistant app can name itself in EBAC_PACKAGE.
+*/
+#define EBAC_RELEASE "2.0"
+#ifndef EBAC_COMMIT
+#       define EBAC_COMMIT ""
+#endif
+#ifndef EBAC_PACKAGE
+#       define EBAC_PACKAGE ""
+#endif
+
+/* how this program was started, for the Information screen */
+static char program_path[512] = "";
+
 #define WIDTH (s_cols - 1)
 #define MAXINDENT 26
 char spaces[]="                          ";  /* MAXINDENT spaces */
@@ -72,6 +93,8 @@ static void view_match_list P((struct TEMPFILE *verse_list));
 static void view_match_list P((short int *verse_list));
 #endif
 static void prog_info P((void));
+static void prog_diagnostics P((void));
+static void set_program_path P((char *argv0));
 static int tag_label P((int tag));
 static int key_to_tag P((int key));
 static int screen_key P((void));
@@ -1049,8 +1072,10 @@ static int key_to_tag(int key)
 static void prog_info(void)
 {
 cls();
-printf("Electronic Bible and Concordance (EBaC)      version 2.0\n");
+printf("Electronic Bible and Concordance (EBaC)      version %s\n", EBAC_RELEASE);
 printf("     Copyright (C) 2004 by Neil G. Brookins\n");
+if (EBAC_COMMIT[0] != '\0')
+        printf("     Built from commit %s\n", EBAC_COMMIT);
 printf("\n");
 printf("The following translations are available for use with EBAC:\n");
 printf("      King James (Authorized) Version\n");
@@ -1088,10 +1113,91 @@ printf("(Press any Key) ");
 fflush(stdout);
 scr_mode("anykey");
 ugetchar();
+prog_diagnostics();
+}
+
+/*
+** Purpose: the third Information page: which EBaC this is and where it
+**          runs from, so that two copies (say, in two windows) can be told
+**          apart, and how the terminal is set up, as a wrong TERM (one set
+**          by a login script, say) makes the screen come out garbled.
+**          (Whether this is the RAMDISK or NORAMDISK build isn't shown: the
+**          two must look the same.)
+*/
+static void prog_diagnostics(void)
+{
+#ifdef UNIXV
+        char *term;
+        struct utsname sys;
+#endif
+        char *library;
+
+        cls();
+        underline();
+        printf("Diagnostic information\n");
+        underend();
+        printf("\n");
+        printf("Version:          %s", EBAC_RELEASE);
+        if (EBAC_COMMIT[0] != '\0')
+                printf(", commit %s", EBAC_COMMIT);
+        printf("\n");
+        if (EBAC_PACKAGE[0] != '\0')
+                printf("                  %s\n", EBAC_PACKAGE);
+        if (program_path[0] != '\0')
+                printf("Program:          %s\n", program_path);
+        printf("BIBLEROOT:        %s\n", bible_root);
+        printf("Search history:   %s\n", LOGFILE);
+#ifdef UNIXV
+        term = getenv("TERM");
+        printf("TERM:             %s\n", term != NULL ? term : "(not set)");
+#endif
+        printf("Window:           %d rows, %d columns\n", s_lines, s_cols);
+        library = scr_library();
+        if (library[0] != '\0')
+                printf("Terminal library: %s\n", library);
+#ifdef UNIXV
+        if (uname(&sys) == 0)
+                printf("System:           %s %s %s\n", sys.sysname, sys.release,
+                       sys.machine);
+        printf("\n");
+        printf("If the screen looks garbled, TERM may not match your terminal\n");
+        printf("window: a login script may set TERM=vt100 in an xterm, say. Set\n");
+        printf("TERM to your terminal's type (xterm-256color, for most), and\n");
+        printf("start EBaC again.\n");
+#endif
+        printf("\n");
+        printf("(Press any Key) ");
+        fflush(stdout);
+        scr_mode("anykey");
+        ugetchar();
+}
+
+/*
+** Purpose: remember how this program was started, as a full path where
+**          possible, before initialize() changes to BIBLEROOT.
+*/
+static void set_program_path(char *argv0)
+{
+        if (argv0 == NULL)
+                return;
+#ifdef UNIXV
+        if (argv0[0] != '/' && find_char(argv0, '/') != NULL &&
+            getcwd(program_path, sizeof(program_path) - 2) != NULL &&
+            strlen(program_path) + strlen(argv0) + 2 <= sizeof(program_path))
+        {
+                strcat(program_path, "/");
+                while (argv0[0] == '.' && argv0[1] == '/')
+                        argv0 += 2;             /* ./bible: just bible */
+                strcat(program_path, argv0);
+                return;
+        }
+#endif
+        if (strlen(argv0) < sizeof(program_path))
+                strcpy(program_path, argv0);
 }
 
 /* Main program! */
-int main(void)
+int main(int argc, char **argv)
 {
 #ifdef RAMDISK
 	struct TEMPFILE *verse_list;
@@ -1100,6 +1206,7 @@ int main(void)
 #endif
         short int cur_verse;
         struct bcv_type *point_bcv;
+        set_program_path(argc > 0 ? argv[0] : NULL);
         initialize();
         cls();
         for(;;)

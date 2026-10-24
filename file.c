@@ -44,6 +44,7 @@ char trans[MAXTRANS][80]; /* room for 80 char description of translation */
 char etla[MAX_ETLA];/*global variable with name of current translation in use*/
 long int numverses, numchapters, numbooks, sizeofwordsdat;
 int num_found;  /* Number of matches in a word search */
+char *bible_root = "";  /* the folder EBaC's files are in (BIBLEROOT) */
 int num_verses;  /* Number of verses in item on stack */
 #ifndef COCO
         struct bva *book;
@@ -499,12 +500,14 @@ FILE *trans_file;
 		printf("You must set BIBLEROOT in your autoexec.bat\n");
 		exit_program(1);
 	}
+	bible_root = t_path;            /* for the Information screen */
 	if (chdir(t_path) != 0)
 	{
 		printf("Can't chdir to %s\n", t_path);
 		exit_program(0);
 	}
 #else
+        bible_root = BIBLEROOT;         /* for the Information screen */
         if (chdir(BIBLEROOT) != 0)
         {
         	printf("Can't chdir to %s\n", BIBLEROOT);

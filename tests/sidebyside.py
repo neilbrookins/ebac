@@ -45,7 +45,7 @@ ROWS, COLS = 24, 80
 
 # (name, keystrokes) -- every scenario should end by exiting with "e"
 SCENARIOS = [
-    ("main menu, info, exit",   ["i", " ", " ", "e"]),
+    ("main menu, info, exit",   ["i", " ", " ", " ", "e"]),
     ("view John 3:16, page",    ["v", "joh\r", "3\r", "16\r", " ", " ", "p", "p", "x", "e"]),
     ("view verse step . ,",     ["v", "gen\r", "1\r", "1\r", ".", ".", ".", ",", ",", "x", "e"]),
     ("view next/prev book f b", ["v", "rut\r", "4\r", "20\r", "f", "f", "b", "b", "b", "x", "e"]),
@@ -220,7 +220,13 @@ def main():
                 home = os.path.join(tmp, tag)
                 shutil.rmtree(home, ignore_errors=True)
                 os.makedirs(home)
-                res[tag] = run(binary, keys, home, bibleroot)
+                out, exited = run(binary, keys, home, bibleroot)
+                # the Information screen shows the program's own path and its
+                # search history file, which differ between the two builds:
+                # compare with them blanked out
+                out = out.replace(os.path.abspath(binary).encode(), b"<program>")
+                out = out.replace(home.encode(), b"<home>")
+                res[tag] = (out, exited)
 
             # run both builds at the same time, each in its own terminal
             threads = [threading.Thread(target=one, args=b) for b in builds]
