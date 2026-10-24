@@ -601,11 +601,24 @@ static int check_limits(int cur_verse)
         return (TRUE);
 }
 
+/*
+** cur_verse is the verse at the top of the screen to draw. After drawing,
+** it is one past the next verse to show (the one that didn't fit), which
+** the keys below rely on; at the end of the Bible, that next verse is one
+** past Revelation's last, numverses + 1. A key with nowhere to go (back a
+** book or a verse from Genesis 1:1, on a book or a screen from the end)
+** beeps and leaves the screen as it is.
+*/
 static void view_in_context(int cur_verse)
 {
-        int first_verse, num_lines;
+        int first_verse, num_lines, start;
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;
+
+        if (cur_verse < 1)
+                cur_verse = 1;
+        if (cur_verse > numverses)
+                cur_verse = numverses;
         do{
                 cls(); /* may update s_lines if the window was resized */
                 num_lines = s_lines;
@@ -613,27 +626,14 @@ static void view_in_context(int cur_verse)
                 top_of_screen = TRUE;
                 for(;;)
                 {
-                    if (check_limits(cur_verse))
+                    if (!check_limits(cur_verse))
                     {
-                        bcv_arrays = get_verse(cur_verse++);
-                        num_lines -= count_lines(-1, bcv_arrays->book_array,
-                           bcv_arrays->data_array, 8, top_of_screen);
+                        cur_verse++;    /* the end of the Bible: no more */
+                        break;
                     }
-                    else
-                    {
-/*
-** We are not really getting a verse here, we just need the adress of
-** bcv_arrays so that the strcpy function puts stuff into a valid address
-*/
-                        bcv_arrays = get_verse(-1);
-                        strcpy(bcv_arrays->book_array, "");
-                        strcpy(bcv_arrays->chapt_array, "0");
-                        strcpy(bcv_arrays->verse_array, "0");
-                        strcpy(bcv_arrays->data_array,
-                                "This verse doesn't exist...");
-                        cur_verse++;
-                        num_lines--; /* The error message fits on one line */
-                    }
+                    bcv_arrays = get_verse(cur_verse++);
+                    num_lines -= count_lines(-1, bcv_arrays->book_array,
+                       bcv_arrays->data_array, 8, top_of_screen);
                     if (num_lines < 1)
                             break;
 /*
@@ -653,24 +653,44 @@ static void view_in_context(int cur_verse)
 get_command:    scr_mode("passage");
                 switch (tolower(screen_key()))
                 {
-					 case 'f':
-								cur_verse--;
-								while (verse_to_book(cur_verse - 1) ==
-										 verse_to_book(cur_verse))
-                                cur_verse++;
-								break;
-					 case 'b':
+                case 'f':  /* the first verse of the next book */
+                        start = cur_verse - 1;
+                        while (start <= numverses &&
+                               verse_to_book(start - 1) == verse_to_book(start))
+                                start++;
+                        if (start > numverses)  /* in Revelation */
+                        {
+                                putchar('\7');     /* beep */
+                                fflush(stdout);
+                                goto get_command;
+                        }
+                        cur_verse = start;
+                        break;
+                case 'b':  /* the first verse of this book, or, from there,
+                              of the book before */
                         if (first_verse == -1)
                                 first_verse = calculate_fv(cur_verse);
-								cur_verse = first_verse;
-								cur_verse--;
-								while (verse_to_book(cur_verse - 1) ==
-										 verse_to_book(cur_verse))
-                                cur_verse--;
-								break;
+                        start = first_verse - 1;
+                        if (start < 1)          /* at Genesis 1:1 */
+                        {
+                                putchar('\7');     /* beep */
+                                fflush(stdout);
+                                goto get_command;
+                        }
+                        while (start > 1 &&
+                               verse_to_book(start - 1) == verse_to_book(start))
+                                start--;
+                        cur_verse = start;
+                        break;
                 case 'n':
                 case ' ':
                 case 0x16: /* Page Down on MM/1 */
+                        if (cur_verse - 1 > numverses)  /* the end is showing */
+                        {
+                                putchar('\7');     /* beep */
+                                fflush(stdout);
+                                goto get_command;
+                        }
 /*
 ** This verse didn't fit on the current screen; so it becomes the first
 ** verse on the next screen
@@ -706,6 +726,12 @@ get_command:    scr_mode("passage");
                 case 0x10: /* Up Arrow on MM/1 */
                         if (first_verse == -1)
                                 first_verse = calculate_fv(cur_verse - 1);
+                        if (first_verse <= 1)   /* at Genesis 1:1 */
+                        {
+                                putchar('\7');     /* beep */
+                                fflush(stdout);
+                                goto get_command;
+                        }
                         cur_verse = first_verse - 1;
                         break;
                 case 'x':

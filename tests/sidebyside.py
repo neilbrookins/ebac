@@ -50,6 +50,13 @@ SCENARIOS = [
     ("view verse step . ,",     ["v", "gen\r", "1\r", "1\r", ".", ".", ".", ",", ",", "x", "e"]),
     ("view next/prev book f b", ["v", "rut\r", "4\r", "20\r", "f", "f", "b", "b", "b", "x", "e"]),
     ("view end of Bible",       ["v", "rev\r", "22\r", "21\r", ".", " ", "p", "x", "e"]),
+    # The ends of the Bible: b back to Genesis 1:1 (from Exodus, from within
+    # Genesis); b, ',' at Genesis 1:1, and f, space, '.' at the end, beep
+    # and stay; and nothing past Revelation 22:21 is drawn.
+    ("back a book to Genesis",  ["v", "exo\r", "\r", "\r", "b", "b", ",", "x",
+                                 "v", "gen\r", "25\r", "\r", "b", "x", "e"]),
+    ("past the ends of the Bible", ["v", "rev\r", "22\r", "15\r", "f", " ", ".", "p", " ", " ", "x",
+                                 "v", "rev\r", "22\r", "22\r", "x", "v", "gen\r", "1\r", "0\r", ",", "x", "e"]),
     ("view help screen",        ["v", "psa\r", "23\r", "\r", "?", "z", "x", "e"]),
     ("view bad book, retry",    ["v", "zz", "\r", "1co\r", "13\r", "4\r", "x", "e"]),
     ("view ambiguous book",     ["v", "jo\r", "joh\r", "\r", "\r", "x", "e"]),
