@@ -11,8 +11,8 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 
 ## Two ways to install
 
-- **If you use Home Assistant**, install the EBaC app. It's the easiest way: there is nothing to type or compile, Home Assistant builds EBaC for you and keeps it updated, and EBaC appears as a button in the Home Assistant sidebar. See **Installing in Home Assistant** below.
-- **On any Linux computer**, such as a Raspberry Pi, you build EBaC yourself with a few commands. See **Installing on Linux** below. (On Solaris 11, see **Installing on Solaris 11**.)
+- **If you use Home Assistant**, install the EBaC app. It's the easiest way: there is nothing to type or compile, Home Assistant builds EBaC for you and keeps it updated, and EBaC appears as a button in the Home Assistant sidebar. See [Installing in Home Assistant](#installing-in-home-assistant).
+- **On a Linux computer**, such as a Raspberry Pi, **a Mac**, or **Solaris**, you build EBaC yourself with a few commands. See [Installing on Linux](#installing-on-linux), [Installing on macOS](#installing-on-macos) or [Installing on Solaris 11](#installing-on-solaris-11).
 
 Both are the same program and work the same way.
 
@@ -37,8 +37,8 @@ The app needs Home Assistant OS or a Supervised install (the kinds that have **S
 
 Not sure which steps you need? Open a terminal and type `ls ~/ebac`:
 
-- If it says **No such file or directory**, you don't have EBaC yet: follow **First-time install**.
-- If it lists files (`bible`, `README`, `AV`, ...), you already have it: follow **Updating to the latest version**.
+- If it says **No such file or directory**, you don't have EBaC yet: follow [First-time install](#first-time-install-do-this-only-once).
+- If it lists files (`bible`, `README`, `AV`, ...), you already have it: follow [Updating to the latest version](#updating-to-the-latest-version).
 
 Type each command exactly as shown, pressing Enter after each line. Lines starting with `#` are comments; you don't need to type them.
 
@@ -102,11 +102,11 @@ make
 That's all. Your settings and your search history are kept.
 
 - If `git pull` says `Already up to date.`, you already have the latest version.
-- If `make` says `Nothing to be done for 'all'`, that's fine too: the update didn't change the program itself, only things like the documentation.
+- If `make` prints nothing at all, that's fine too: the update didn't change the program itself, only things like the documentation, so there was nothing to rebuild.
 
 ### If something goes wrong
 
-- **`destination path 'ebac' already exists`:** you already have EBaC. Use **Updating to the latest version** instead.
+- **`destination path 'ebac' already exists`:** you already have EBaC. Use [Updating to the latest version](#updating-to-the-latest-version) instead.
 - **`fatal: not a git repository`:** you weren't in the EBaC folder. Type `cd ~/ebac` first, then try again.
 - **`You are not currently on a branch`:** the folder was switched to an old version. Type `git checkout main`, then `git pull` and `make`.
 - **`Your local changes ... would be overwritten`:** you changed a file that the update also changes, such as `trans`. To keep your change and still update, type:
@@ -119,9 +119,43 @@ That's all. Your settings and your search history are kept.
 - **`term.h: No such file or directory`** while building: step 1 wasn't done. Install the tools, then type `make` again.
 - **`Error: getenv(BIBLEROOT) failed`** when starting: step 4 wasn't done, or the terminal window was open before it was. Do step 4, or open a new terminal window.
 
+## Installing on macOS
+
+The steps are the same as [for Linux](#first-time-install-do-this-only-once), with three differences. They work in the Mac's own Terminal app, and in other terminal windows such as iTerm2 or xterm. (EBaC has been built and tested here with the same tools a Mac has, including its version of `make`, but not yet on a Mac itself; if something doesn't work, please report it.)
+
+**1. Install the tools EBaC needs** with Apple's Command Line Tools, instead of `apt`. Type this, then select **Install** in the window that appears and wait for it to finish (a few minutes). If it says the tools are already installed, you already have everything.
+
+```sh
+xcode-select --install
+```
+
+This gives you the compiler, `make` and `git`, and the ncurses library EBaC uses; nothing else (such as Homebrew) is needed.
+
+**2. Download and build EBaC** with the same commands as on Linux (steps 2 and 3):
+
+```sh
+cd ~
+git clone --depth 1 https://github.com/neilbrookins/ebac.git
+cd ~/ebac
+make
+```
+
+**3. Tell EBaC where its files are in `~/.zshrc`,** not `~/.bashrc`: a Mac's Terminal uses the zsh shell.
+
+```sh
+echo 'export BIBLEROOT=$HOME/ebac' >> ~/.zshrc
+source ~/.zshrc
+```
+
+(On a Mac older than macOS 10.15 Catalina, whose Terminal still uses bash, put that line in `~/.bash_profile` instead.)
+
+Then run EBaC with `~/ebac/bible`, and update it with `git pull` and `make`, as on Linux.
+
+**Keys in the Mac's Terminal app.** Terminal keeps **Home**, **End**, **Page Up** and **Page Down** for scrolling its own window, so EBaC doesn't see them. Hold **Shift** with them to send them to EBaC (on a laptop keyboard, **Shift**+**fn** with the arrow keys), or use EBaC's own keys instead: **space** and **p** for the next and previous screen, and **CTRL-A** and **CTRL-E** for the start and end of the search line. The arrow keys work as they are. The Mac's **delete** key erases to the left; **fn**+**delete** erases to the right.
+
 ## Installing on Solaris 11
 
-The steps are the same as for Linux, with three differences. (This hasn't been tried on a Solaris computer yet; if something doesn't work, please report it.)
+The steps are the same as [for Linux](#first-time-install-do-this-only-once), with three differences. (This hasn't been tried on a Solaris computer yet; if something doesn't work, please report it.)
 
 **1. Install the tools with `pkg`** instead of `apt`. (`pfexec` works in place of `sudo`.)
 
@@ -198,7 +232,7 @@ EBaC dates from 1993. Up to 2014 it ran on the Tandy Color Computer 3 (OS-9 6809
 
 This repository starts with that release, unchanged, as its first commit and tagged **`v1.3.0`**. Each step needed to bring it up to date is a separate commit after it, with an explanation.
 
-The install steps above download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
+The [install steps](#first-time-install-do-this-only-once) download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
 
 ```sh
 git clone https://github.com/neilbrookins/ebac.git ebac-full
