@@ -5,7 +5,8 @@
 CC=gcc
 
 #If you are using Linux, BSD, macOS, Cygwin, Solaris 11, or another modern
-#UNIX: this needs GNU make (on Solaris and BSD it is called gmake) and the
+#UNIX (on Windows 10 and 11, WSL is Linux; EBaC 1.3.0 was also used and
+#tested at length with Cygwin on Windows): this needs GNU make (on Solaris and BSD it is called gmake) and the
 #ncurses development files, which provide <term.h>:
 #  Debian, Ubuntu, Raspberry Pi OS:  sudo apt install libncurses-dev
 #  Fedora, RHEL:                     sudo dnf install ncurses-devel

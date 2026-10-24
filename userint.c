@@ -1075,11 +1075,14 @@ printf("      MM/1, System V, TC-70  (OS-9 68000)\n");
 printf("      Digital VAX            (OpenVMS)\n");
 printf("      Tandy Color Computer 3 (OS-9 6809)\n");
 printf("      AT&T 3B1               (UNIX System V)\n");
-printf("      IBM-PC and compatibles (MS-DOS, Windows)\n");
+/* "Windows" was Cygwin, with which EBaC 1.3.0 was used and tested at
+   length on Windows; today, Windows 10 and 11 run it in WSL (Linux) */
+printf("      IBM-PC and compatibles (MS-DOS, Windows with Cygwin)\n");
 printf("      Sun                    (SunOS 4.x, Solaris 2.x)\n");
 printf("      DEC                    (Ultrix, OSF/1)\n");
 printf("      HP 9000                (HP-UX 10.x)\n");
 printf("      PCs and Raspberry Pi   (Linux, with ncurses)\n");
+printf("      Windows 10 and 11      (WSL, or Cygwin)\n");
 printf("\n");
 printf("(Press any Key) ");
 fflush(stdout);
