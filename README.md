@@ -74,11 +74,13 @@ cd ~/ebac
 make
 ```
 
-**4. Tell EBaC where its files are.** This only needs to be done once; it's remembered for every new terminal window.
+**4. Tell EBaC where its files are.** Copy these four lines and paste them in as they are. They work out which settings file your terminal uses (`~/.bashrc`, or `~/.zshrc` if you use the zsh shell), add the setting there once, and say where they put it. This only needs to be done once; it's remembered for every new terminal window, and pasting it again does no harm.
 
 ```sh
-echo 'export BIBLEROOT=$HOME/ebac' >> ~/.bashrc
-source ~/.bashrc
+case "$SHELL" in */zsh) f="$HOME/.zshrc" ;; *) f="$HOME/.bashrc" ;; esac
+grep -qs 'BIBLEROOT=' "$f" || echo 'export BIBLEROOT=$HOME/ebac' >> "$f"
+export BIBLEROOT="$HOME/ebac"
+echo "BIBLEROOT is set, in $f"
 ```
 
 **5. Run EBaC.**
@@ -166,14 +168,14 @@ cd ~/ebac
 make
 ```
 
-**3. Tell EBaC where its files are in `~/.zshrc`,** not `~/.bashrc`: a Mac's Terminal uses the zsh shell.
+**3. Tell EBaC where its files are.** Copy these four lines and paste them in as they are. Macs since macOS 10.15 Catalina use the zsh shell, and older ones bash, which keep their settings in different files; these lines work out which one your Terminal uses (`~/.zshrc` or `~/.bash_profile`), add the setting there once, and say where they put it. Pasting them again does no harm.
 
 ```sh
-echo 'export BIBLEROOT=$HOME/ebac' >> ~/.zshrc
-source ~/.zshrc
+case "$SHELL" in */zsh) f="$HOME/.zshrc" ;; *) f="$HOME/.bash_profile" ;; esac
+grep -qs 'BIBLEROOT=' "$f" || echo 'export BIBLEROOT=$HOME/ebac' >> "$f"
+export BIBLEROOT="$HOME/ebac"
+echo "BIBLEROOT is set, in $f"
 ```
-
-(On a Mac older than macOS 10.15 Catalina, whose Terminal still uses bash, put that line in `~/.bash_profile` instead.)
 
 Then run EBaC with `~/ebac/bible`, and update it with `git pull` and `make`, as on Linux.
 
