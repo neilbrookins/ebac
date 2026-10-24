@@ -1,5 +1,10 @@
 # EBaC — Electronic Bible and Concordance
 
+> [!NOTE]
+> **You are looking at EBaC to install on a computer yourself:** Linux (including the Raspberry Pi), a Mac, or Solaris. You download it and build it with a few typed commands, and it runs in a terminal window, used with the keyboard.
+>
+> **Do you use Home Assistant?** Then install **[EBaC for Home Assistant](https://github.com/neilbrookins/ebac-ha)** instead. It's the easier way: there's nothing to type or build, it updates itself, and besides the keyboard it works by tapping, swiping and clicking, on a phone, a tablet or a computer's web browser. (Home Assistant is a free smart-home system, often run on a small computer such as a Raspberry Pi and used through a web browser or its phone app.) If typing commands and building a program sounds unfamiliar, and you have Home Assistant or would like to, that version is the one for you.
+
 Written by Neil G. Brookins.
 
 EBaC is a fast, text-mode Bible reader and concordance. It has two main jobs:
@@ -11,7 +16,7 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 
 ## Two ways to install
 
-- **If you use Home Assistant**, install the EBaC app. It's the easiest way: there is nothing to type or compile, Home Assistant builds EBaC for you and keeps it updated, and EBaC appears as a button in the Home Assistant sidebar. See [Installing in Home Assistant](#installing-in-home-assistant).
+- **If you use Home Assistant**, install the EBaC app. It's the easiest way: there is nothing to type or compile, Home Assistant builds EBaC for you and keeps it updated, EBaC appears as a button in the Home Assistant sidebar, and it can be used by tapping, swiping and clicking as well as with the keyboard. See [Installing in Home Assistant](#installing-in-home-assistant).
 - **On a Linux computer**, such as a Raspberry Pi, **a Mac**, or **Solaris**, you build EBaC yourself with a few commands. See [Installing on Linux](#installing-on-linux), [Installing on macOS](#installing-on-macos) or [Installing on Solaris 11](#installing-on-solaris-11).
 
 Both are the same program and work the same way.
