@@ -28,8 +28,13 @@ extern long int numverses;
 extern long int numchapters;
 
 /* A guess at the length of the longest verse in bytes plus a little
-** more just in case we guessed wrong */
-#define LONGESTVERSE 700
+** more just in case we guessed wrong. (Longer verses are cut short.
+** Translations from other sources have verses of over 2000.) */
+#ifdef COCO
+#	define LONGESTVERSE 700
+#else
+#	define LONGESTVERSE 4000
+#endif
 
 #ifdef RAMDISK
 	struct TEMPFILE
@@ -40,8 +45,9 @@ extern long int numchapters;
 
 	struct TEMPFILE *tmpopen P((void));
 #else
-/* size of array to store list of all the verses */
-#	define ALLVERSE 31103
+/* size of an array to store a list of all the verses: the translation's
+   number of verses, plus one for the 0 that ends a list */
+#	define ALLVERSE ((size_t) numverses + 1)
 #endif
 
 struct bcv_array_type

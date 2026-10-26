@@ -280,6 +280,7 @@ int scr_resize_fd(void)
 **          app). It sends a private escape sequence, "ESC ] 7766 ; name
 **          BEL", that the page watches for. Screens:
 **            menu     main menu          trans    choose a translation
+**            transenter  the same, with more than 9: a number and Enter
 **            passage  reading a passage  list     list of search results
 **            anykey   "Press any key"    input    typing a book or number
 **            search   typing a search

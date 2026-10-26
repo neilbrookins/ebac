@@ -36,7 +36,12 @@ FILE *book_list, *book_file, *cvarray_file, *bvarray_file, *chapter_file,
 int a_new_translation = FALSE;
 
 /* number of allowable translations in trans file is two less than this */
-#define    MAXTRANS 20
+/* how many translations 'trans' may list (fewer on the CoCo, for memory) */
+#ifdef COCO
+#	define    MAXTRANS 20
+#else
+#	define    MAXTRANS 200
+#endif
 char trans[MAXTRANS][80]; /* room for 80 char description of translation */
 
 /* extended three letter acronym, such as NIV or NRSV */
@@ -61,6 +66,7 @@ int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
 static void open_new_trans P((void));
 static long int getcvarraydat P((short int sequ_verse_number));
 static char *read_word P((FILE *file_ptr));
+static int verse_number P((char *s, int len));
 static long int lookup P((long int start, long int end, char *word));
 #ifdef UNIXV
 static void set_raw_tty P((void));
@@ -528,6 +534,17 @@ FILE *trans_file;
         {
         	char *p = trans[i];
 
+        	/* a description too long for trans[i]: keep its start, end it
+        	   with a newline, and read over the rest of the line */
+        	if (find_char(trans[i], '\n') == NULL && !feof(trans_file))
+        	{
+        		int c;
+
+        		while ((c = fgetc(trans_file)) != '\n' && c != EOF)
+        			;
+        		trans[i][78] = '\n';
+        		trans[i][79] = '\0';
+        	}
         	while (*p == ' ' || *p == '\t')
         		++p;
         	if (*p != '#' && *p != '\n' && *p != '\r' && *p != '\0')
@@ -645,6 +662,17 @@ static void open_new_trans(void)
         references_file = mfopen("references.dat", READMODE);
 }
 
+/*
+** Purpose: let the user choose a translation from those 'trans' lists.
+**          With up to 9, a single key (its number) chooses, as always. With
+**          more, they are shown a screenful at a time, each on one line, and
+**          the user types a number and presses Enter (q to p type 1 to 0, as
+**          on the chapter and verse prompts); space or n shows the next page,
+**          p the previous one (p after a digit is 0), and x, Esc, or Enter
+**          alone, goes back. The screen is announced as "trans" or, when a
+**          number needs Enter, "transenter" (for the Home Assistant app's
+**          gestures; see scr_mode()).
+*/
 void change_translations(void)
 {
 #ifdef MSDOS
@@ -652,22 +680,137 @@ void change_translations(void)
 #else
 #	define SLASH '/'
 #endif
+	static char digit_letters[] = "qwertyuiop"; /* stand for 1-9, 0 */
 	int i = -1;
 	int c; /* character the user types */
 	int n; /* number the user selects */
+	int count; /* how many translations there are */
+	int per_page, first, k, typed, w;
+	char *digit;
 	char new_dir[MAX_ETLA + 4]; /* example: ../nrsv */
 
-	cls();
-	printf("Please select the number of the translation desired:\n\n");
 	while (trans[++i][0] != '\0')
-		printf("%d) %s", i + 1, trans[i]);
-	scr_mode("trans");
-	c = ugetchar();
-	if (!isdigit(c))
-		return;
-	n = c - '0';
-	if (n < 1 || n > i)
-		return;
+		;
+	count = i;
+	first = 0;              /* the first translation on the page shown */
+	typed = 0;              /* digits typed so far */
+	n = 0;
+	for(;;)
+	{
+		cls();
+		/* (a shorter heading in a narrow window, so it stays on one line) */
+		if (count <= 9 || s_cols - 1 >= 53)
+			printf("Please select the number of the translation desired:\n\n");
+		else
+			printf("Choose a translation:\n\n");
+		if (count <= 9)
+		{
+			for (i = 0; i < count; i++)
+				printf("%d) %s", i + 1, trans[i]);
+			scr_mode("trans");
+			c = ugetchar();
+			if (!isdigit(c) && (digit = find_char(digit_letters, tolower(c))) != NULL)
+				c = "1234567890"[digit - digit_letters];
+			if (!isdigit(c))
+				return;
+			n = c - '0';
+			if (n < 1 || n > count)
+				return;
+			break;
+		}
+		/* a page: as many as fit between the heading and the prompt */
+		per_page = s_lines - 4;
+		if (per_page < 1)
+			per_page = 1;
+		if (first >= count)
+			first = count - 1;
+		first -= first % per_page;
+		for (i = first; i < count && i < first + per_page; i++)
+		{
+			printf("%2d) ", i + 1);
+			/* one line each: cut to the window's width */
+			for (k = 0, w = 4; trans[i][k] != '\n' && trans[i][k] != '\0' &&
+			     w < s_cols - 1; k++, w++)
+				putchar(trans[i][k]);
+			putchar('\n');
+		}
+		printf("\n");
+		if (s_cols - 1 >= 62)
+			printf("Type a number and Enter (space, p: next, previous page; x: back): ");
+		else
+			printf("Number, Enter (space/p: page; x: back): ");
+		fflush(stdout);
+		typed = 0;
+		n = 0;
+		scr_mode("transenter");
+		for(;;)
+		{
+			redraw_on_resize = TRUE;
+			c = ugetchar();
+			redraw_on_resize = FALSE;
+			if (c == KEY_REDRAW)
+				break;                  /* the same page, for the new size */
+			if (typed == 0 && (c == ' ' || c == 'n' || c == 'N' || c == 0x16))
+			{
+				if (first + per_page < count)
+				{
+					first += per_page;
+					break;
+				}
+				putchar('\7');
+				fflush(stdout);
+				continue;
+			}
+			if (typed == 0 && (c == 'p' || c == 'P' || c == 0x1a))
+			{
+				if (first > 0)
+				{
+					first -= per_page;
+					break;
+				}
+				putchar('\7');
+				fflush(stdout);
+				continue;
+			}
+			if (c == 'x' || c == 'X' || c == 0x1b)
+				return;
+			if (c == '\n' || c == '\r')
+			{
+				if (typed == 0)
+					return;         /* Enter alone: back */
+				if (n >= 1 && n <= count)
+					break;
+				putchar('\7');         /* no such number: try again */
+				for (; typed > 0; typed--)
+					printf("\b \b");
+				n = 0;
+				fflush(stdout);
+				continue;
+			}
+			if ((c == '\b' || c == '\177') && typed > 0)
+			{
+				printf("\b \b");
+				typed--;
+				n /= 10;
+				fflush(stdout);
+				continue;
+			}
+			if (!isdigit(c) && (digit = find_char(digit_letters, tolower(c))) != NULL)
+				c = "1234567890"[digit - digit_letters];
+			if (isdigit(c) && typed < 3)
+			{
+				putchar(c);
+				typed++;
+				n = n * 10 + (c - '0');
+				fflush(stdout);
+				continue;
+			}
+			putchar('\7');
+			fflush(stdout);
+		}
+		if ((c == '\n' || c == '\r') && n >= 1 && n <= count)
+			break;
+	}
         --n;
         i = 0;
         while (!isspace(UCHAR(trans[n][i])) && trans[n][i] != '\0' &&
@@ -720,10 +863,38 @@ int verse_to_book(short int sequ_verse_number)
         return(i - 1);
 }
 
+#define MAXWORD 80
+
+/*
+** A verse number only counts at the start of a line, as every verse starts
+** one: a reference in the text ("Psa. 2:7"), or on a line it wraps onto
+** (which starts with a space), isn't one. read_word() sets line_start for
+** the word it reads; after a seek to a verse, the word is at a line start.
+*/
+static int line_start = FALSE;
+static int after_seek = FALSE;
+static int ended_line = FALSE;  /* the last word read ended its line */
+
+/* Purpose: whether the len characters at s are a verse number, such as
+            1:1: digits, a colon, digits. */
+static int verse_number(char *s, int len)
+{
+        int i = 0, digits;
+
+        for (digits = 0; i < len && isdigit(UCHAR(s[i])); i++)
+                digits++;
+        if (digits == 0 || i >= len || s[i] != ':')
+                return (FALSE);
+        for (i++, digits = 0; i < len && isdigit(UCHAR(s[i])); i++)
+                digits++;
+        return (digits > 0 && i == len);
+}
+
 static char *read_word(FILE *file_ptr)
 {
 int i = 0; /* index */
-static char word[80];
+int c;
+static char word[MAXWORD];
 
 #ifdef VMS
         clearerr(file_ptr);
@@ -740,19 +911,43 @@ static char word[80];
 #ifdef MSDOS
         clearerr(file_ptr);
 #endif
-/* Skip over leading white space */
+/* Skip over leading white space, noting whether it ended a line */
+line_start = after_seek || ended_line;
+after_seek = FALSE;
 do{
     word[i] = (char) fgetc(file_ptr);
+    if (word[i] == '\n')
+        line_start = TRUE;
+    else if (word[i] == ' ')
+        line_start = FALSE;
 }while (word[i] == ' ' || word[i] == '\n');
 
-/* Read until a delimeter is found, or EOF */
-do{
-    word[++i] = (char) fgetc(file_ptr);
-}while (word[i] != ' ' && word[i] != '\n' && !(feof(file_ptr)));
-
-word[i] = '\0';  /* Need to terminate the string */
+/* Read until a delimeter is found, or EOF. A word too long for word[] is
+   cut short, but all of it is read. */
+for(;;)
+{
+    c = fgetc(file_ptr);
+    if (c == ' ' || c == '\n' || feof(file_ptr))
+    {
+        ended_line = (c == '\n');      /* so the next word starts a line */
+        break;
+    }
+    if (i < MAXWORD - 2)
+        word[++i] = (char) c;
+}
+word[++i] = '\0';  /* Need to terminate the string */
 if (word[0] == 0x1a) /* We have reached EOF */
         fgetc(file_ptr); /* This makes feof(file_ptr) be TRUE */
+/*
+** A verse number may be in square brackets, [1:1], as in texts from
+** other sources: take them off. ([was], a word in brackets, stays.)
+*/
+if (word[0] == '[' && i > 2 && word[i - 1] == ']' && verse_number(&word[1], i - 2))
+{
+        for (c = 0; c < i - 2; c++)
+                word[c] = word[c + 1];
+        word[i - 2] = '\0';
+}
 i = -1;
 while (word[++i])
 {
@@ -852,6 +1047,7 @@ struct bcv_array_type *get_verse(short int sequ_verse_number)
                         printf("FSEEK failed on file: %s\n", filename);
                         exit_program(1);
                 }
+                after_seek = TRUE;      /* a verse starts a line */
                 word = read_word(file_ptr);
         }
         a_new_translation = FALSE;
@@ -869,10 +1065,15 @@ struct bcv_array_type *get_verse(short int sequ_verse_number)
         sprintf(bcv_arrays.chapt_array, "%d", wordtochapt(word));
         sprintf(bcv_arrays.verse_array, "%d", wordtoverse(word));
         word = read_word(file_ptr);
-        while (!(new_verse(word) || feof(file_ptr)))
+        while (!((new_verse(word) && line_start) || feof(file_ptr)))
         {
-                strcat(bcv_arrays.data_array, word);
-                strcat(bcv_arrays.data_array, " ");
+                /* (a verse too long for data_array is cut short) */
+                if (strlen(bcv_arrays.data_array) + strlen(word) + 2 <=
+                    sizeof(bcv_arrays.data_array))
+                {
+                        strcat(bcv_arrays.data_array, word);
+                        strcat(bcv_arrays.data_array, " ");
+                }
                 word = read_word(file_ptr);
         }
         svn_previous = sequ_verse_number;
@@ -1048,13 +1249,20 @@ short int *find_word(char *word)
 #else
  int i = 0;
  static short int *refs_list = NULL;
+ static size_t refs_size = 0;   /* how many refs_list holds */
 
- if (refs_list == NULL) /* only malloc once; never free() */
-  if ((refs_list = (short int *) malloc(ALLVERSE * sizeof(short int))) == NULL)
+ /* kept from one search to the next; made bigger if a translation with
+    more verses has been chosen since */
+ if (refs_list == NULL || refs_size < ALLVERSE)
+ {
+  free(refs_list);
+  refs_size = ALLVERSE;
+  if ((refs_list = (short int *) malloc(refs_size * sizeof(short int))) == NULL)
   {
         printf("Out of RAM\n");
         exit_program(1);
   }
+ }
 #endif
         refs_offset = lookup((long) 0, (long) sizeofwordsdat, word);
 /*
@@ -1098,7 +1306,7 @@ short int *find_word(char *word)
 /* i == 0 here always */
                 refs_list[i++] = fgeti(references_file);
                 do{
-                        if (i > (MAXREF - 1))
+                        if ((size_t) i > refs_size - 1)
                         {
                                 printf("Array out of bounds!\n");
                                 exit_program(1);

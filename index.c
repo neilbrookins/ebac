@@ -19,7 +19,15 @@ the indices which are text files.
 FILE *book_list, *book_file, *cvarray_file, *bvarray_file, *chapter_file,
      *words_file, *common_file, *references_file;
 char book_name[80];
-char word[80];                          /* current word being processed */
+#define MAXWORD 80
+char word[MAXWORD];                     /* current word being processed */
+int raw_length;                         /* its length as it was in the book,
+                                           before punctuation was removed */
+int ended_line = FALSE;                 /* the last word ended its line */
+int line_start;                         /* whether it starts a line: a verse
+                                           number only counts there, so that
+                                           a reference in the text ("Psa.
+                                           2:7") isn't taken for one */
 short int sequence = 0;                 /* sequential verse number */
 short int chapter = 0;
 struct tree
@@ -131,18 +139,35 @@ static FILE *mfopen(char *string, char *mode)
 static void read_word(FILE *book_file)
 {
 int i = 0; /* index */
+int c;
 
-/* Skip over leading white space */
+/* Skip over leading white space, noting whether it ended a line (the first
+   word of the book starts one too) */
+line_start = (ftell(book_file) == 0 || ended_line);
 do{
     word[i] = (char) fgetc(book_file);
+    if (word[i] == '\n')
+        line_start = TRUE;
+    else if (word[i] == ' ')
+        line_start = FALSE;
 }while (word[i] == ' ' || word[i] == '\n');
 
-/* Read until a delimeter is found, or EOF */
-do{
-    word[++i] = (char) fgetc(book_file);
-}while (word[i] != ' ' && word[i] != '\n' && !(feof(book_file)));
-
-word[i] = '\0';  /* Need to terminate the string */
+/* Read until a delimeter is found, or EOF. A word too long for word[] is
+   cut short, but all of it is read, and counted in raw_length. */
+raw_length = 1;
+for(;;)
+{
+    c = fgetc(book_file);
+    if (c == ' ' || c == '\n' || feof(book_file))
+    {
+        ended_line = (c == '\n');      /* so the next word starts a line */
+        break;
+    }
+    raw_length++;
+    if (i < MAXWORD - 2)
+        word[++i] = (char) c;
+}
+word[++i] = '\0';  /* Need to terminate the string */
 if (word[0] == 0x1a) /* We have reached EOF */
 {
         fgetc(book_file); /* This makes feof(book_file) be TRUE */
@@ -460,7 +485,8 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
                 break;
         if (word[0] == '\0')
                 continue;
-        if (new_verse())
+        if (new_verse() && line_start)  /* (new_verse() first: it also keeps
+                                           track of {notes}) */
         {
                 sequence++;
                 if (new_chapter())
@@ -468,8 +494,19 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
                         chapter++;
                         fputi(sequence, chapter_file);
                 }
+                if (sequence == 32767)
+                {
+                        fprintf(stderr, "%s has more verses than EBaC can hold (32767).\n",
+                                book_name);
+                        exit(1);
+                }
+/*
+** Where the verse number starts in the book: the word as it was there,
+** such as [1:1] with its brackets, not as it is after its punctuation was
+** removed.
+*/
                 offset = ftell(book_file);
-                offset -= (long) strlen(word);
+                offset -= (long) raw_length;
                 fputl(--offset,cvarray_file);
         }else
                 node = store_word(node);
