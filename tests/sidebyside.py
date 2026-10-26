@@ -83,7 +83,19 @@ SCENARIOS = [
     ("line editing",            ["s", "lovx\x7fe\x02\x02\x02\x06\x06\x06 hate\x180 \x12 0\r", "x", "e"]),
     ("invalid: blank",          ["s", "\r", "e"]),
     ("invalid: operator first", ["s", "love 0\r", " ", "e"]),
-    ("invalid: no operator",    ["s", "love hate\r", " ", "s", "love\r", "x", "e"]),
+    ("invalid: no operator",    ["s", "in the @gen\r", " ", "s", "love\r", "x", "e"]),
+    # Phrases (EBaC 2.1): words alone, ".", [bracketed] words left out or
+    # in, across verses and books; +N, -N, ~N; and their errors
+    ("phrase, words alone",     ["s", "in the beginning\r", " ", "x", "e"]),
+    ("phrase with dots",        ["s", "in the . beginning .\r", "x", "s", "love hate\r", "x", "e"]),
+    ("phrase and brackets",     ["s", "darkness upon the face\r", "x", "s", "darkness was upon\r", "x", "e"]),
+    ("phrase across books",     ["s", "curse the book of\r", "1", "x", "x", "e"]),
+    ("phrase in a book",        ["s", "in the . beginning . @gen 0\r", "x", "s", "the lord , @mal 0\r", "x", "e"]),
+    ("very common phrase",      ["s", "of the\r", " ", " ", "p", "x", "e"]),
+    ("exactly N apart",         ["s", "cain abel +1\r", "x", "s", "abel cain -1\r", "x",
+                                 "s", "jesus wept ~1\r", "x", "s", "love hate +0\r", "x", "e"]),
+    ("invalid: phrase",         ["s", "love hate 0 god .\r", " ", "s", "in the beginning . .\r", " ",
+                                 "s", "@gen in .\r", " ", "s", "in .\r", " ", "e"]),
     ("invalid: unknown book",   ["s", "amen @zzz 0\r", " ", "e"]),
     ("change translation",      ["c", "1", "s", "amen\r", "x", "e"]),
     # Keys that send ESC sequences (TERM=xterm, so terminfo gives ESC O x),
@@ -146,13 +158,26 @@ def run(binary, keys, home, bibleroot):
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
     out = bytearray()
 
+    def waiting():
+        """Whether the program is asleep (waiting for a key), not working:
+        its state in /proc on Linux. Elsewhere, taken to be so."""
+        try:
+            with open("/proc/%d/stat" % pid) as f:
+                return f.read().rsplit(")", 1)[1].split()[0] in ("S", "Z")
+        except (OSError, IndexError):
+            return True
+
     def drain(quiet, limit):
-        """Read until nothing arrives for `quiet` seconds, or EOF."""
+        """Read until nothing arrives for `quiet` seconds while the program
+        waits for a key (so that the next key isn't typed while it is still
+        busy, which would change what it draws), or EOF."""
         end = time.time() + limit
         while time.time() < end:
             r, _, _ = select.select([fd], [], [], quiet)
             if not r:
-                return True
+                if waiting():
+                    return True
+                continue
             try:
                 chunk = os.read(fd, 65536)
             except OSError:          # child exited and the pty closed

@@ -18,7 +18,7 @@
 ** or from version.txt in a downloaded archive), as EBAC_COMMIT, and a
 ** package such as the Home Assistant app can name itself in EBAC_PACKAGE.
 */
-#define EBAC_RELEASE "2.0"
+#define EBAC_RELEASE "2.1"
 #ifndef EBAC_COMMIT
 #       define EBAC_COMMIT ""
 #endif
@@ -1392,14 +1392,13 @@ printf("CTRL-a or CTRL-x  beginning            CTRL-e or CTRL-r  end\n");
 printf("CTRL-u  undo line                      CTRL-d  delete\n");
 #endif
 printf("\nPrefix bookname with \"@\", as in: @Genesis\n");
-printf("Use postfix, (reverse polish) notation to combine\n");
-printf("multiple words with the following logical operators:\n");
-printf("        0  (and)\n");
-printf("        ,  (or)\n");
-printf("        -  (and not)\n");
-printf("Any number may be used instead of 0 for a proximity search.\n");
-printf("For example, to search the book of Matthew for \"love\" and\n");
-printf("\"hate\" within two verses of each other type:\n");
+printf("Words alone are a phrase, as in: in the beginning\n");
+printf("Use postfix (reverse Polish) notation to combine words with operators:\n");
+printf("   0  and (same verse)     N  within N verses      ,  or\n");
+printf("   -  and not             +N  exactly N after      .  phrase: next word\n");
+printf("                          -N  exactly N before\n");
+printf("                          ~N  exactly N apart\n");
+printf("For example, \"love\" and \"hate\" within two verses in Matthew:\n");
 printf("        love hate 2 @Mat 0\n\n");
 printf("Enter Search word(s) here:\n");
                         verse_list = process_words();

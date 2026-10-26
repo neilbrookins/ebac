@@ -21,8 +21,10 @@ char count_word[MAXCOUNTWORD] = "";
         struct stackptr
         {
                 long int *node;
+                int width;      /* VERSES or OCCURRENCES (see bible.h) */
                 struct stackptr *next;
         };
+        static int popped_width; /* the width of the list pop() returned */
         struct stackptr *top = NULL;
 #endif
 
@@ -32,6 +34,11 @@ static int compare P((long int first, long int second, int prox));
 static void not_oper P((void));
 static void or_oper P((void));
 static void and_oper P((int prox));
+static int adjacent P((long int a_end, long int a_full, long int a_plain,
+                       long int b_svn, long int b_full, long int b_plain));
+static void phrase_oper P((void));
+static void exact_oper P((long int n, int mode));
+static int is_exact P((char *arg));
 static void add_rev P((char *word));
 static int del_rev P((void));
 static void store_book P((int bnumber));
@@ -41,9 +48,14 @@ static char *next_term P((char **pos));
 #ifdef RAMDISK
 static void push P((struct TEMPFILE *verse_list));
 static struct TEMPFILE *pop P((void));
+static void pop_verses P((struct TEMPFILE *out));
+static void shift_match P((struct TEMPFILE *x, struct TEMPFILE *y, long int shift));
+static int read_entry P((FILE *file, long int *e));
 #else
-static void push P((long int *verse_list));
+static void push P((long int *verse_list, int width));
 static long int *pop P((void));
+static long int *pop_verses P((void));
+static void shift_match P((long int *x, long int *y, long int shift));
 #endif
 
 char LOGFILE[256];
@@ -400,17 +412,20 @@ static void push(struct TEMPFILE *verse_list)
 {
         tempfile[TFtop].fname = verse_list->fname;
         strcpy(tempfile[TFtop].sname, verse_list->sname);
+        tempfile[TFtop].width = verse_list->width;
         ++TFtop;
 }
 #else
-static void push(long int *verse_list)
+/* push a copy of a list: width numbers per entry, ending with an entry
+   whose first number is 0 */
+static void push(long int *verse_list, int width)
 {
-        int count = 0, i = 0;
+        size_t count, i;
         struct stackptr *stack;
 
-        do{
-                count++; /* How many verses are there? */
-        }while (verse_list[i++] != 0);
+        for (count = 0; verse_list[count] != 0; count += width)
+                ;
+        count++;        /* the 0 */
 
         if ((stack = (struct stackptr *) malloc (sizeof (struct stackptr))) ==
                                                                         NULL)
@@ -424,13 +439,12 @@ static void push(long int *verse_list)
              printf("Out of RAM\n");
              exit_program(1);
         }
+        stack->width = width;
         stack->next = top;
         top = stack;
 
-        i = 0;
-        do{
+        for (i = 0; i < count; i++)
                 stack->node[i] = verse_list[i];
-        }while (verse_list[i++] != 0);
 }
 #endif
 
@@ -461,9 +475,106 @@ static long int *pop(void)
         }
         off = top;
         verse_list = top->node;
+        popped_width = top->width;
         top = top->next;
         free (off);
         return ((long int *) verse_list);
+}
+#endif
+
+/*
+** Purpose: pop a list as a verse list, for the operators other than "."
+**          (and for the list of verses found): an occurrence list (of a
+**          word, or a phrase, in a search with phrases) is made into a
+**          verse list first. Each occurrence gives every verse from where
+**          it starts to its last word (a phrase may run from one verse into
+**          the next). The occurrences are in order of their last verse, so
+**          those verses less 0, those less 1, and so on, are each in order:
+**          they are made into lists, and combined with OR.
+*/
+#ifdef RAMDISK
+static void pop_verses(struct TEMPFILE *out)
+{
+        struct TEMPFILE *list;
+        long int e[OCCURRENCES], prev, span, maxspan = 0, count = 0;
+
+        *out = *pop();
+        if (out->width != OCCURRENCES)
+                return;
+        rewind(out->fname);
+        while (read_entry(out->fname, e))
+                if (e[1] - e[0] > maxspan)
+                        maxspan = e[1] - e[0];
+        for (span = 0; span <= maxspan; span++)
+        {
+                list = tmpopen();
+                rewind(out->fname);
+                prev = 0;
+                count = 0;
+                while (read_entry(out->fname, e))
+                        if (e[1] - e[0] >= span && e[1] - span != prev)
+                        {
+                                prev = e[1] - span;
+                                fputl(prev, list->fname);
+                                count++;
+                        }
+                fputl(0L, list->fname);
+                push(list);
+        }
+        mfclose(out->fname, out->sname);
+        unlink(out->sname);
+        for (span = 1; span <= maxspan; span++)
+                or_oper();
+        if (maxspan == 0)
+                num_verses = count;
+        *out = *pop();
+}
+
+/* Purpose: read an occurrence list's next entry into e[].
+   Returns: FALSE at the end of the list. */
+static int read_entry(FILE *file, long int *e)
+{
+        int i;
+
+        if ((e[0] = fgetl(file)) == 0)
+                return (FALSE);
+        for (i = 1; i < OCCURRENCES; i++)
+                e[i] = fgetl(file);
+        return (TRUE);
+}
+#else
+static long int *pop_verses(void)
+{
+        long int *occ, *list, prev, span, maxspan = 0;
+        size_t i, j, n;
+
+        occ = pop();
+        if (popped_width != OCCURRENCES)
+                return (occ);
+        for (n = 0; occ[n] != 0; n += OCCURRENCES)
+                if (occ[n + 1] - occ[n] > maxspan)
+                        maxspan = occ[n + 1] - occ[n];
+        if ((list = (long int *) malloc((n / OCCURRENCES + 1) * sizeof(long int))) == NULL)
+        {
+                printf("Out of RAM\n");
+                exit_program(1);
+        }
+        for (span = 0; span <= maxspan; span++)
+        {
+                prev = 0;
+                for (i = j = 0; occ[i] != 0; i += OCCURRENCES)
+                        if (occ[i + 1] - occ[i] >= span && occ[i + 1] - span != prev)
+                                list[j++] = prev = occ[i + 1] - span;
+                list[j] = 0;
+                push(list, VERSES);
+                if (maxspan == 0)
+                        num_verses = (long int) j;
+        }
+        free(list);
+        free(occ);
+        for (span = 1; span <= maxspan; span++)
+                or_oper();
+        return (pop());
 }
 #endif
 
@@ -483,13 +594,17 @@ static long int *pop(void)
 static void not_oper(void)
 {
         struct TEMPFILE *result;
-        struct TEMPFILE *rfile;
-        struct TEMPFILE *kfile;
+        struct TEMPFILE *rfile, rcopy;
+        struct TEMPFILE *kfile, kcopy;
         long int remove, keep;
 
+        /* (the lists first: making one into a verse list opens files, and
+           tmpopen() gives the same structure each time) */
+        pop_verses(&rcopy);
+        rfile = &rcopy;
+        pop_verses(&kcopy);
+        kfile = &kcopy;
         result = tmpopen();
-        rfile = pop();
-        kfile = pop();
 
         rewind(rfile->fname);
         remove = fgetl(rfile->fname);
@@ -540,8 +655,8 @@ static void not_oper(void)
              printf("Out of RAM\n");
              exit_program(1);
         }
-        r = remove = pop();
-        k = keep = pop();
+        r = remove = pop_verses();
+        k = keep = pop_verses();
         num_verses = -1;
         while (*remove != 0 && *keep != 0)
         {
@@ -567,7 +682,7 @@ static void not_oper(void)
         }while (*keep++ != 0);
         free (r);
         free (k);
-        push (result);
+        push(result, VERSES);
         free (result);
 }
 #endif
@@ -581,13 +696,15 @@ static void not_oper(void)
 static void or_oper(void)
 {
         struct TEMPFILE *result;
-        struct TEMPFILE *sec_file;
-        struct TEMPFILE *fir_file;
+        struct TEMPFILE *sec_file, sec_copy;
+        struct TEMPFILE *fir_file, fir_copy;
         long int second, first;
 
+        pop_verses(&sec_copy);  /* (the lists first, as in not_oper()) */
+        sec_file = &sec_copy;
+        pop_verses(&fir_copy);
+        fir_file = &fir_copy;
         result = tmpopen();
-        sec_file = pop();
-        fir_file = pop();
 
         rewind(sec_file->fname);
         second = fgetl(sec_file->fname);
@@ -648,8 +765,8 @@ static void or_oper(void)
              printf("Out of RAM\n");
              exit_program(1);
         }
-        s = second = pop();
-        f = first = pop();
+        s = second = pop_verses();
+        f = first = pop_verses();
         num_verses = -1;
         while (*second != 0 && *first != 0)
         {
@@ -685,7 +802,7 @@ static void or_oper(void)
 
         free (s);
         free (f);
-        push (result);
+        push(result, VERSES);
         free (result);
 }
 #endif
@@ -726,24 +843,23 @@ static void and_oper(int prox)
     struct TEMPFILE *result;
     struct TEMPFILE *sec_file;
     struct TEMPFILE *fir_file;
-    struct TEMPFILE protect_file;
+    struct TEMPFILE sec_copy, fir_copy;
     struct TEMPFILE *swap_file;
     long int second, first;
     char second_time = FALSE;
     int diff;
 
-    result = tmpopen();
-    sec_file = pop();
-
 /*
-** the memory location which pop() returns here is overwritten by the
-** call to push() near the end of this module. We protect the structure
-** by copying it to a local struct, then point to it.
+** The memory location which pop() returns is overwritten by the call to
+** push() near the end of this module: the lists are copied to local
+** structs, and pointed to. (And first: making one into a verse list
+** opens files, and tmpopen() gives the same structure each time.)
 */
-    fir_file = pop();
-    protect_file.fname = fir_file->fname;
-    strcpy(protect_file.sname, fir_file->sname);
-    fir_file = &protect_file;
+    pop_verses(&sec_copy);
+    sec_file = &sec_copy;
+    pop_verses(&fir_copy);
+    fir_file = &fir_copy;
+    result = tmpopen();
 
     rewind(sec_file->fname);
     second = fgetl(sec_file->fname);
@@ -870,14 +986,14 @@ static void and_oper(int prox)           /* proximity */
          printf("Out of RAM\n");
          exit_program(1);
     }
-    s = second = pop();
-    f = first = pop();
+    s = second = pop_verses();
+    f = first = pop_verses();
     if ((*second == 0) || (*first == 0))
     {
         result[0] = 0;
         free (s);
         free (f);
-        push(result);
+        push(result, VERSES);
         free(result);
         num_verses = 0;
         return;
@@ -932,7 +1048,7 @@ static void and_oper(int prox)           /* proximity */
         if (second_time)
                 break;
         second_time = TRUE;
-        push (result);
+        push(result, VERSES);
 /*
 ** Swap the two lists to run through the above algorithm a second time.
 */
@@ -950,7 +1066,7 @@ static void and_oper(int prox)           /* proximity */
     }
     free (s);
     free (f);
-    push (result);
+    push(result, VERSES);
     free (result);
 /*
 ** The results so far consist of two lists of numbers. Since the AND
@@ -958,6 +1074,260 @@ static void and_oper(int prox)           /* proximity */
 ** lists with an OR operation.
 */
     or_oper();
+}
+#endif
+
+/*
+** Purpose: whether word B comes right after word A in a phrase (see
+**          readme.architecture): in the same verse, B's full position is
+**          A's plus 1, or neither is in brackets and B's plain position is
+**          A's plus 1; or B is in the next verse (by sequential verse
+**          number: the next chapter or book too), A is its verse's last
+**          word (LAST_POSITION on its full position) and B its first, or
+**          neither is in brackets, A is the last such word, and B the first.
+**          a_end is the verse of A; b_svn the verse of B.
+*/
+static int adjacent(long int a_end, long int a_full, long int a_plain,
+                    long int b_svn, long int b_full, long int b_plain)
+{
+        long int af = a_full & ~LAST_POSITION, ap = a_plain & ~LAST_POSITION;
+        long int bf = b_full & ~LAST_POSITION, bp = b_plain & ~LAST_POSITION;
+
+        if (a_end == b_svn)
+                return (bf == af + 1 || (ap != 0 && bp != 0 && bp == ap + 1));
+        if (a_end + 1 == b_svn)
+                return (((a_full & LAST_POSITION) && bf == 1) ||
+                        (ap != 0 && bp != 0 && (a_plain & LAST_POSITION) && bp == 1));
+        return (FALSE);
+}
+
+/*
+** Purpose: the "." operator. Pops two occurrence lists, B (a word) and A
+**          (a word, or a phrase), and pushes the occurrence list of each B
+**          right after an A: with A's start, and B's verse and positions,
+**          so that it can be followed by another word. Both lists are in
+**          order of their last verse and position, so the A's in B's verse
+**          or the one before are found going through A once, alongside B.
+** Example: given that A ("in") = 1:1/1, ... and B ("the") = 1:2/2, ...
+**                then A B . includes 1:1 (1 to 1, "the" at 2)
+*/
+#ifdef RAMDISK
+static void phrase_oper(void)
+{
+        struct TEMPFILE a, b, *result;
+        long int ae[OCCURRENCES], be[OCCURRENCES], window = 0;
+        long int last_start = 0, last_end = 0, last_full = 0;
+        long int entry = OCCURRENCES * 4L; /* bytes per entry */
+
+        b = *pop();
+        a = *pop();
+        result = tmpopen();
+        result->width = OCCURRENCES;
+        rewind(b.fname);
+        num_verses = 0;
+        while (read_entry(b.fname, be))
+        {
+                /* past the A's ending before the verse before B's */
+                for (;;)
+                {
+                        if (fseek(a.fname, window, 0) != 0)
+                        {
+                                printf("fseek failed!!\n");
+                                exit_program(1);
+                        }
+                        if (!read_entry(a.fname, ae) || ae[1] >= be[0] - 1)
+                                break;
+                        window += entry;
+                }
+                if (fseek(a.fname, window, 0) != 0)
+                {
+                        printf("fseek failed!!\n");
+                        exit_program(1);
+                }
+                while (read_entry(a.fname, ae) && ae[1] <= be[0])
+                        if (adjacent(ae[1], ae[2], ae[3], be[0], be[2], be[3]) &&
+                            !(ae[0] == last_start && be[1] == last_end &&
+                              be[2] == last_full))
+                        {
+                                fputl(ae[0], result->fname);
+                                fputl(be[1], result->fname);
+                                fputl(be[2], result->fname);
+                                fputl(be[3], result->fname);
+                                last_start = ae[0];
+                                last_end = be[1];
+                                last_full = be[2];
+                                ++num_verses;
+                        }
+        }
+        fputl(0L, result->fname);
+        mfclose(b.fname, b.sname);
+        unlink(b.sname);
+        mfclose(a.fname, a.sname);
+        unlink(a.sname);
+        push(result);
+}
+#else
+static void phrase_oper(void)
+{
+        long int *a, *b, *result;
+        size_t ai = 0, bi, k, n = 0, room;
+
+        b = pop();
+        a = pop();
+        for (room = 0; b[room] != 0; room += OCCURRENCES)
+                ;
+        room += 1;
+        if ((result = (long int *) malloc(room * sizeof(long int))) == NULL)
+        {
+                printf("Out of RAM\n");
+                exit_program(1);
+        }
+        num_verses = 0;
+        for (bi = 0; b[bi] != 0; bi += OCCURRENCES)
+        {
+                /* past the A's ending before the verse before B's */
+                while (a[ai] != 0 && a[ai + 1] < b[bi] - 1)
+                        ai += OCCURRENCES;
+                for (k = ai; a[k] != 0 && a[k + 1] <= b[bi]; k += OCCURRENCES)
+                        if (adjacent(a[k + 1], a[k + 2], a[k + 3], b[bi], b[bi + 2], b[bi + 3]) &&
+                            !(n > 0 && result[n - OCCURRENCES] == a[k] &&
+                              result[n - 3] == b[bi + 1] && result[n - 2] == b[bi + 2]))
+                        {
+                                if (n + OCCURRENCES >= room)    /* (more A's than B's) */
+                                {
+                                        room *= 2;
+                                        if ((result = (long int *) realloc(result, room * sizeof(long int))) == NULL)
+                                        {
+                                                printf("Out of RAM\n");
+                                                exit_program(1);
+                                        }
+                                }
+                                result[n++] = a[k];
+                                result[n++] = b[bi + 1];
+                                result[n++] = b[bi + 2];
+                                result[n++] = b[bi + 3];
+                                ++num_verses;
+                        }
+        }
+        result[n] = 0;
+        free(a);
+        free(b);
+        push(result, OCCURRENCES);
+        free(result);
+}
+#endif
+
+/*
+** Purpose: the operators +N, -N and ~N: verses exactly N apart. Pops two
+**          verse lists, second and first, and pushes the verses of each
+**          that are exactly N verses from one of the other: with +, the
+**          second's verse N after the first's; with -, N before; with ~,
+**          either. (N alone, and_oper(), is within N, either way.)
+**          Made of lists of the verses x of one list such that x + shift
+**          is in the other (shift_match()), combined with OR.
+** Example: given that first = 1, 5, 9, 0
+**                 and second = 2, 5, 8, 0
+**                then first second +1 is 1, 2, 0
+**                 and first second ~1 is 1, 2, 8, 9, 0
+*/
+static void exact_oper(long int n, int mode)
+{
+        int lists = 0;
+#ifdef RAMDISK
+        struct TEMPFILE first, second;
+
+        pop_verses(&second);
+        pop_verses(&first);
+        if (mode == '+' || mode == '~')
+        {
+                shift_match(&first, &second, n);
+                shift_match(&second, &first, -n);
+                lists += 2;
+        }
+        if (mode == '-' || mode == '~')
+        {
+                shift_match(&first, &second, -n);
+                shift_match(&second, &first, n);
+                lists += 2;
+        }
+        mfclose(second.fname, second.sname);
+        unlink(second.sname);
+        mfclose(first.fname, first.sname);
+        unlink(first.sname);
+#else
+        long int *first, *second;
+
+        second = pop_verses();
+        first = pop_verses();
+        if (mode == '+' || mode == '~')
+        {
+                shift_match(first, second, n);
+                shift_match(second, first, -n);
+                lists += 2;
+        }
+        if (mode == '-' || mode == '~')
+        {
+                shift_match(first, second, -n);
+                shift_match(second, first, n);
+                lists += 2;
+        }
+        free(second);
+        free(first);
+#endif
+        while (--lists > 0)
+                or_oper();
+}
+
+/*
+** Purpose: push the list of the verses x in list x such that x + shift is
+**          in list y. Both are in order, so they are gone through once,
+**          together.
+*/
+#ifdef RAMDISK
+static void shift_match(struct TEMPFILE *x, struct TEMPFILE *y, long int shift)
+{
+        struct TEMPFILE *result;
+        long int xv, yv;
+
+        result = tmpopen();
+        rewind(x->fname);
+        rewind(y->fname);
+        yv = fgetl(y->fname);
+        while ((xv = fgetl(x->fname)) != 0)
+        {
+                while (yv != 0 && yv < xv + shift)
+                        yv = fgetl(y->fname);
+                if (yv == 0)
+                        break;
+                if (yv == xv + shift)
+                        fputl(xv, result->fname);
+        }
+        fputl(0L, result->fname);
+        push(result);
+}
+#else
+static void shift_match(long int *x, long int *y, long int shift)
+{
+        long int *result;
+        size_t i = 0;
+
+        if ((result = (long int *) malloc(ALLVERSE * sizeof(long int))) == NULL)
+        {
+                printf("Out of RAM\n");
+                exit_program(1);
+        }
+        for (; *x != 0; x++)
+        {
+                while (*y != 0 && *y < *x + shift)
+                        y++;
+                if (*y == 0)
+                        break;
+                if (*y == *x + shift)
+                        result[i++] = *x;
+        }
+        result[i] = 0;
+        push(result, VERSES);
+        free(result);
 }
 #endif
 
@@ -1037,25 +1407,57 @@ static void store_book(int bnumber)
                 *cur_node++ = i;
         }
         *cur_node = 0; /* terminate the list */
+        stack->width = VERSES;
         stack->next = top;
         top = stack;
 #endif
 }
 
-/* Purpose: TRUE if arg is one of the search operators: - ! | , or a number */
+/*
+** Purpose: TRUE if arg is one of the operators +N, -N or ~N (a +, - or ~
+**          and digits): verses exactly N apart (see exact_oper()).
+*/
+static int is_exact(char *arg)
+{
+        int i;
+
+        if ((arg[0] != '+' && arg[0] != '-' && arg[0] != '~') || arg[1] == '\0')
+                return (FALSE);
+        for (i = 1; arg[i] != '\0'; i++)
+                if (!isdigit(UCHAR(arg[i])))
+                        return (FALSE);
+        return (TRUE);
+}
+
+/* Purpose: TRUE if arg is one of the search operators: - ! | , . a number,
+            or +N, -N or ~N */
 static int is_operator(char *arg)
 {
         return (strcmp (arg, "-") == 0 || strcmp (arg, "!") == 0 ||
                 strcmp (arg, "|") == 0 || strcmp (arg, ",") == 0 ||
+                strcmp (arg, ".") == 0 || is_exact(arg) ||
                 isdigit (UCHAR(*arg)));
 }
+
+/*
+** Set by valid_search() for process_words(): whether the search has
+** phrases (so its words are looked up with their positions), and whether
+** it is words alone, with no operators or books: a phrase, as if "." came
+** after every word but the first.
+*/
+static int phrase_search = FALSE;
+static int plain_phrase = FALSE;
 
 /*
 ** Purpose: check a search line before evaluating it. A postfix expression
 **          needs exactly one more word (or @book) than it has operators,
 **          and every operator needs two results before it. Without this
 **          check a mistake emptied the stack and ended the program, or
-**          left stale results behind to corrupt the next search.
+**          left stale results behind to corrupt the next search. The "."
+**          operator joins a word, or a phrase, to a word after it: so the
+**          kind of each result is followed too (kind[]: 'w' a word, 'p' a
+**          phrase, 's' any other list of verses). Words alone, two or more
+**          with no operators and no books, are a phrase.
 ** Returns: TRUE if the line can be evaluated. Otherwise it explains the
 **          problem, waits for a key, and returns FALSE.
 */
@@ -1063,9 +1465,12 @@ static int valid_search(char *line)
 {
         static char copy[MAXSEARCHLEN];
         char *arg, *pos;
+        char kind[MAXHIGHWORDS + 1];
         int depth = 0;    /* number of results the stack would hold */
         int operands = 0; /* number of words and books */
+        int operators = 0, books = 0;
 
+        phrase_search = plain_phrase = FALSE;
         strcpy(copy, line);
         pos = copy;
         for (arg = next_term(&pos); arg != NULL; arg = next_term(&pos))
@@ -1077,6 +1482,28 @@ static int valid_search(char *line)
                                 printf("\nThe operator \"%s\" needs two words or books before it.\n", arg);
                                 break;
                         }
+                        operators++;
+                        if (strcmp(arg, ".") == 0)
+                        {
+                                if (kind[depth - 1] != 'w')
+                                {
+                                        printf("\nThe operator \".\" needs a word just before it: the next word of\n");
+                                        printf("the phrase. (For example:  in the . beginning .)\n");
+                                        depth = -1;
+                                        break;
+                                }
+                                if (kind[depth - 2] == 's')
+                                {
+                                        printf("\nThe operator \".\" joins words and phrases: not a book, or what\n");
+                                        printf("another operator found.\n");
+                                        depth = -1;
+                                        break;
+                                }
+                                phrase_search = TRUE;
+                                kind[depth - 2] = 'p';
+                        }
+                        else
+                                kind[depth - 2] = 's';
                         depth--;
                         continue;
                 }
@@ -1095,6 +1522,7 @@ static int valid_search(char *line)
                         }
                         if (depth < 0)
                                 break;
+                        books++;
                 }
                 if (++operands >= MAXHIGHWORDS)
                 {
@@ -1102,7 +1530,7 @@ static int valid_search(char *line)
                         depth = -1;
                         break;
                 }
-                depth++;
+                kind[depth++] = (*arg == '@') ? 's' : 'w';
         }
         if (arg == NULL) /* reached the end of the line without an error */
         {
@@ -1110,6 +1538,11 @@ static int valid_search(char *line)
                         return FALSE;
                 if (depth == 1)
                         return TRUE;
+                if (operators == 0 && books == 0)       /* words alone: a phrase */
+                {
+                        phrase_search = plain_phrase = TRUE;
+                        return TRUE;
+                }
                 printf("\nThere are %d more words or books than operators can combine.\n",
                        depth - 1);
                 printf("Put an operator after each pair, for example:  love hate 0\n");
@@ -1154,6 +1587,7 @@ static char *next_term(char **pos)
 struct TEMPFILE *process_words(void)
 {
         struct TEMPFILE *verse_list;
+        static struct TEMPFILE result_list;
 #else
 long int *process_words(void)
 {
@@ -1199,6 +1633,10 @@ long int *process_words(void)
                 }
                 else if ((strcmp (arg, "|") == 0) || (strcmp (arg, ",") == 0))
                         or_oper();
+                else if (strcmp (arg, ".") == 0)
+                        phrase_oper();
+                else if (is_exact(arg))         /* +N, -N or ~N */
+                        exact_oper(atol(&arg[1]), arg[0]);
                 else if (isdigit (UCHAR(*arg))) /* only looks at first digit */
                         and_oper(atoi(arg));
                 else if (*arg == '@')
@@ -1226,8 +1664,17 @@ long int *process_words(void)
                                 strncpy(count_word, arg, MAXCOUNTWORD - 1);
                                 count_word[MAXCOUNTWORD - 1] = '\0';
                         }
-                        verse_list = find_word(arg);
+#ifdef RAMDISK
+                        verse_list = find_word(arg, phrase_search);
                         push(verse_list);
+#else
+                        verse_list = find_word(arg, phrase_search);
+                        push(verse_list, phrase_search ? OCCURRENCES : VERSES);
+#endif
+                        /* words alone: each after the first joins the
+                           phrase, as if "." came after it */
+                        if (plain_phrase && terms > 1)
+                                phrase_oper();
                 }
 
                 if (end_of_list)
@@ -1240,10 +1687,12 @@ long int *process_words(void)
         }
         if (terms != 1)
                 count_word[0] = '\0'; /* a count of one word would mislead */
-        verse_list = pop();
 #ifdef RAMDISK
-        return((struct TEMPFILE *) verse_list);
+        /* (a static copy: the stack's place is used again) */
+        pop_verses(&result_list);
+        return(&result_list);
 #else
+        verse_list = pop_verses();
         return((long int *) verse_list);
 #endif
 }

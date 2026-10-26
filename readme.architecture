@@ -199,8 +199,8 @@ compared. (Any flag keeps the first byte of the number below 0xFF.)
 For example, Genesis 1:2 in the King James Version:
 
   And the earth was without form, and void; and darkness [was] upon ...
-  full:   1   2   3    4   5      6    7    8   9         10    11
-  plain:  1   2   3    4   5      6    7    8   9         0     10
+  full:  1   2   3     4   5       6     7    8     9   10       11    12
+  plain: 1   2   3     4   5       6     7    8     9   10        0    11
 
 Word B comes right after word A, in a phrase, when either
 
@@ -317,10 +317,17 @@ the existing operators):
 
   - "." needs two operands before it, like every operator; so do +N,
     -N and ~N.
-  - "." can only combine words, or phrases made with "."; not the result
-    of 0, ",", "-" or an @book: "The operator "." needs words or
-    phrases before it." So "love hate 0 god ." is an error, and so is
-    "@gen in .".
+  - "." joins a word, or a phrase made with ".", to the word just
+    before it (its right-hand operand is always a single word): so
+    phrases are built from left to right, "in the . beginning .", as
+    words alone are. "in the beginning . ." (a phrase on the right) is an
+    error: "The operator "." needs a word just before it". (Allowing it
+    would need the first word's positions as well as the last's in every
+    entry, and lists that could no longer be kept in order on disk.)
+  - "." can't join the result of 0, ",", "-", +N, -N, ~N or an @book:
+    "The operator "." joins words and phrases: not a book, or what
+    another operator found." So "love hate 0 god ." is an error, and so
+    is "@gen in .".
   - Too many or too few operators, as before.
 
 Highlighting. As before, every word searched for is shown in reverse

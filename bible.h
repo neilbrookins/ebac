@@ -36,11 +36,21 @@ extern long int numchapters;
 #	define LONGESTVERSE 4000
 #endif
 
+/*
+** The lists of a search (see readme.architecture): a verse list has one
+** number per entry, a verse; an occurrence list four: the verse where a
+** word or phrase starts, the verse of its last word, and that word's full
+** and plain positions. Either ends with an entry whose first number is 0.
+*/
+#define VERSES 1
+#define OCCURRENCES 4
+
 #ifdef RAMDISK
 	struct TEMPFILE
 	{
 		FILE *fname;
 		char sname[35];
+		int width;      /* numbers per entry: VERSES or OCCURRENCES */
 	};
 
 	struct TEMPFILE *tmpopen P((void));
@@ -131,9 +141,9 @@ void change_translations P((void));
 int verse_to_book P((long int sequ_verse_number));
 struct bcv_array_type *get_verse P((long int sequ_verse_number));
 #ifdef RAMDISK
-struct TEMPFILE *find_word P((char *word));
+struct TEMPFILE *find_word P((char *word, int positions));
 #else
-long int *find_word P((char *word));
+long int *find_word P((char *word, int positions));
 #endif
 
 /* process.c */

@@ -21,7 +21,7 @@ EBaC is a fast, text-mode Bible reader and concordance. It has two main jobs:
 - **Bible:** type a book, chapter and verse, and read from there, paging forward or back a verse, a screen, or a book at a time.
 - **Concordance:** type a word and get every verse that contains it, with the word highlighted. Then pick any verse to read it in context.
 
-Unlike a printed concordance, EBaC shows complete verses. It indexes every word, even common ones like *I* and *am*. Searches can combine words and books with AND, OR, AND NOT and proximity ("within 2 verses"). The King James (Authorized) Version is included.
+Unlike a printed concordance, EBaC shows complete verses. It indexes every word, even common ones like *I* and *am*. Searches find phrases ("in the beginning"), and can combine words and books with AND, OR, AND NOT and distances ("within 2 verses", "the next verse"). The King James (Authorized) Version is included.
 
 ## Installing in Home Assistant
 
@@ -209,13 +209,18 @@ Searches use postfix (reverse Polish) notation. Put the operator after the two t
 | Search | Finds |
 |---|---|
 | `amen` | every verse containing "amen" |
+| `in the beginning` | the phrase "in the beginning" (words alone are a phrase) |
+| `in the . beginning . @gen 0` | the phrase, in Genesis |
 | `love hate 0` | verses with both "love" and "hate" |
 | `love hate 2` | "love" and "hate" within 2 verses of each other |
+| `cain abel +1` | "abel" in the verse after one with "cain" (and both verses) |
 | `amen @rev 0` | "amen" in the book of Revelation |
 | `food @gen -` | "food" anywhere except Genesis |
 | `@mat @mar , @lu , @joh , blessed 0` | "blessed" in the four Gospels |
 
-Operators: a number for AND (`0` = same verse; `2` = within two verses), `,` for OR, `-` for AND NOT. Books are written `@` plus enough of the name to be unique. If a search is malformed, EBaC tells you what is wrong. While typing a search, **Up** and **Down** (or CTRL-G and CTRL-V) recall earlier searches, which are kept in `~/.ebac_log`. **Left**, **Right**, **Home**, **End** and **Delete** edit the line. CTRL-B, CTRL-F, CTRL-A or CTRL-X, CTRL-E or CTRL-R, and CTRL-D do the same.
+Operators: a number for AND (`0` = same verse; `2` = within two verses, either way), `+2`, `-2` and `~2` for exactly two verses after, before, or apart either way, `,` for OR, `-` for AND NOT, and `.` for a phrase: the word just before it comes next. Books are written `@` plus enough of the name to be unique.
+
+Phrases find words next to each other, in order, whatever the punctuation between them, and they run on from the end of one verse into the start of the next (so a phrase broken by a verse number is still found), across chapters and books too. Words in [square brackets] (in the King James Version, the words its translators supplied, in italics in printed Bibles) may be left out or included: `darkness upon the face` and `darkness was upon` both find Genesis 1:2, "darkness [was] upon the face of the deep". In a search with other operators, build a phrase with `.` after each word but the first: `in the . beginning .`. How the index makes this possible is in [readme.architecture](readme.architecture). If a search is malformed, EBaC tells you what is wrong. While typing a search, **Up** and **Down** (or CTRL-G and CTRL-V) recall earlier searches, which are kept in `~/.ebac_log`. **Left**, **Right**, **Home**, **End** and **Delete** edit the line. CTRL-B, CTRL-F, CTRL-A or CTRL-X, CTRL-E or CTRL-R, and CTRL-D do the same.
 
 The top of the list says how many verses were found. For a search of one word alone it also says how many times the word occurs, which can be more, since a verse may have it twice: "56 verses, grass 62 times", with the word highlighted as it is in the verses.
 

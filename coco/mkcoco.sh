@@ -27,7 +27,8 @@ if command -v nawk > /dev/null 2>&1; then AWK=nawk; else AWK=awk; fi
 out=$1
 [ -n "$out" ] || { echo "usage: sh coco/mkcoco.sh OUTDIR" >&2; exit 2; }
 for f in AV/bvarray.dat AV/chapter.dat AV/cvarray.dat \
-         AV/references.dat AV/words.dat AV/format.dat; do
+         AV/references.dat AV/words.dat AV/position.dat AV/plainpos.dat \
+         AV/format.dat; do
         [ -f "$f" ] || { echo "mkcoco.sh: $f is missing; run make first" >&2; exit 1; }
 done
 

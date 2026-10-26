@@ -32,7 +32,7 @@
 #endif
 
 FILE *book_list, *book_file, *cvarray_file, *bvarray_file, *chapter_file,
-     *words_file, *references_file;
+     *words_file, *references_file, *position_file, *plainpos_file;
 int a_new_translation = FALSE;
 
 /* number of allowable translations in trans file is two less than this */
@@ -744,6 +744,8 @@ static void open_new_trans(void)
 ** common.dat. Every word is indexed now, as was planned here long ago.)
 */
         references_file = mfopen("references.dat", READMODE);
+        position_file = mfopen("position.dat", READMODE);
+        plainpos_file = mfopen("plainpos.dat", READMODE);
 }
 
 /*
@@ -950,6 +952,8 @@ void change_translations(void)
         mfclose(cvarray_file, "cvarray.dat");
         mfclose(words_file, "words.dat");
         mfclose(references_file, "references.dat");
+        mfclose(position_file, "position.dat");
+        mfclose(plainpos_file, "plainpos.dat");
 
 /*
 ** This is a flag which forces the closing, and opening of text files
@@ -1372,38 +1376,40 @@ struct TEMPFILE *tmpopen(void)
         sprintf(tf.sname, "%sTMP%d.%d", t_path, getpid(), ++i);
 #endif
         tf.fname = mfopen(tf.sname, WRITE_UPDATE);
+        tf.width = VERSES;      /* a verse list, unless the caller says */
         return (&tf);
 }
+#endif
 
-struct TEMPFILE *find_word(char *word)
+/*
+** Purpose: look a word up in the index, and make its list.
+**          With positions FALSE, a verse list: each verse it is in, once
+**          (references.dat only). With positions TRUE (a search with
+**          phrases), an occurrence list: each occurrence, with its verse
+**          as the start and end, and its full and plain positions, read
+**          at the same offset from position.dat and plainpos.dat. (See
+**          readme.architecture.)
+*/
+#ifdef RAMDISK
+struct TEMPFILE *find_word(char *word, int positions)
 {
 #else
-long int *find_word(char *word)
+long int *find_word(char *word, int positions)
 {
 #endif
  long int refs_offset;
- long int svn, last;
+ long int svn, last, full, plain;
+ int width = positions ? OCCURRENCES : VERSES;
 #ifdef RAMDISK
  struct TEMPFILE *tempfile;
 
  tempfile = tmpopen();
+ tempfile->width = width;
 #else
- int i = 0;
+ size_t i = 0;
  static long int *refs_list = NULL;
- static size_t refs_size = 0;   /* how many refs_list holds */
-
- /* kept from one search to the next; made bigger if a translation with
-    more verses has been chosen since */
- if (refs_list == NULL || refs_size < ALLVERSE)
- {
-  free(refs_list);
-  refs_size = ALLVERSE;
-  if ((refs_list = (long int *) malloc(refs_size * sizeof(long int))) == NULL)
-  {
-        printf("Out of RAM\n");
-        exit_program(1);
-  }
- }
+ static size_t refs_size = 0;   /* how many numbers refs_list holds */
+ size_t need;
 #endif
         refs_offset = lookup((long) 0, (long) sizeofwordsdat, word);
 /*
@@ -1413,37 +1419,82 @@ long int *find_word(char *word)
         num_found = 0;
         if (refs_offset >= 0) /* Word IS in index */
         {
-                if (fseek(references_file, refs_offset, 0) == EOF)
+                if (fseek(references_file, refs_offset, 0) == EOF ||
+                    (positions &&
+                     (fseek(position_file, refs_offset, 0) == EOF ||
+                      fseek(plainpos_file, refs_offset, 0) == EOF)))
                 {
                         fprintf(stderr, "fseek failed on references file!\n");
                         exit_program(1);
                 }
                 /* the word's record: its count, then the verse of each
                    occurrence (all 4 bytes), then EOR. A verse the word is
-                   in more than once repeats: it is listed once here. */
+                   in more than once repeats: in a verse list, it is listed
+                   once. position.dat and plainpos.dat are laid out alike. */
                 num_found = fgetl(references_file);
-                last = 0;
-                while (next_number(references_file, &svn))
+                if (positions)
                 {
-                        if (svn == last)
-                                continue;
-                        last = svn;
-#ifdef RAMDISK
-                        fputl(svn, tempfile->fname);
-                        if (ferror(tempfile->fname)) {
-                                printf("Out of space on RAM disk!\n");
-                                exit_program(1);
-                        }
-#else
-                        if ((size_t) i >= refs_size - 1)
-                        {
-                                printf("Array out of bounds!\n");
-                                exit_program(1);
-                        }
-                        refs_list[i++] = svn;
-#endif
-                        ++num_verses;
+                        fgetl(position_file);
+                        fgetl(plainpos_file);
                 }
+        }
+#ifndef RAMDISK
+        /* kept from one search to the next; made bigger if needed */
+        need = positions ? (size_t) num_found * OCCURRENCES + 1 : ALLVERSE;
+        if (refs_list == NULL || refs_size < need)
+        {
+                free(refs_list);
+                refs_size = need;
+                if ((refs_list = (long int *) malloc(refs_size * sizeof(long int))) == NULL)
+                {
+                        printf("Out of RAM\n");
+                        exit_program(1);
+                }
+        }
+#endif
+        last = 0;
+        while (refs_offset >= 0 && next_number(references_file, &svn))
+        {
+                if (positions)
+                {
+                        if (!next_number(position_file, &full) ||
+                            !next_number(plainpos_file, &plain))
+                        {
+                                printf("position.dat or plainpos.dat doesn't match references.dat\n");
+                                exit_program(1);
+                        }
+                }
+                else if (svn == last)
+                        continue;
+                if (svn != last)
+                        ++num_verses;
+                last = svn;
+#ifdef RAMDISK
+                fputl(svn, tempfile->fname);
+                if (positions)
+                {
+                        fputl(svn, tempfile->fname);
+                        fputl(full, tempfile->fname);
+                        fputl(plain, tempfile->fname);
+                }
+                if (ferror(tempfile->fname)) {
+                        printf("Out of space on RAM disk!\n");
+                        exit_program(1);
+                }
+#else
+                if (i + width >= refs_size)
+                {
+                        printf("Array out of bounds!\n");
+                        exit_program(1);
+                }
+                refs_list[i++] = svn;
+                if (positions)
+                {
+                        refs_list[i++] = svn;
+                        refs_list[i++] = full;
+                        refs_list[i++] = plain;
+                }
+#endif
         }
 #ifdef RAMDISK
         fputl(0L, tempfile->fname);     /* Mark End of list */

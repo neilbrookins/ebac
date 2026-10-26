@@ -38,8 +38,8 @@
 # stay as they are. Verse numbers keep their brackets: EBaC reads [1:1] as
 # well as 1:1.
 #
-# Translations with more verses than EBaC can number (32767), such as those
-# with the Apocrypha, aren't offered.
+# Every English translation there is offered, those with the Apocrypha too
+# (before EBaC 2.1, they had more verses than it could number: 32,767).
 #
 # EBaC runs this itself when A)dd a translation is chosen from its main menu,
 # as "sh add-translation.sh --from-ebac PROGRAM NAME": PROGRAM is how to
@@ -63,9 +63,6 @@ set -f                  # no file-name patterns: a typed * stays a *
 
 SOURCE=https://raw.githubusercontent.com/scrollmapper/bible_databases/master
 LIST_PATH=docs/main_readme/translation_list.md
-MAX_VERSES=32767        # EBaC numbers verses with 16 bits
-# More verses than that (they include the Apocrypha); not offered for now
-TOO_LARGE="KJVA DRC CPDV"
 
 here=$(cd "$(dirname "$0")" && pwd)
 
@@ -198,13 +195,11 @@ fetch() {
 # The English translations, one per line in $tmp/list: name, tab, title.
 english_translations() {
         fetch "$LIST_PATH" "$tmp/list.md" || return 1
-        $AWK -v too_large=" $TOO_LARGE " "$PLAIN"'
+        $AWK "$PLAIN"'
         # - **BSB (en)**: BSB: Berean Standard Bible
         /^- \*\*[^ \t]+ \(en\)\*\*: / {
                 name = substr($0, 5)
                 name = substr(name, 1, index(name, " ") - 1)
-                if (index(too_large, " " name " ") > 0)
-                        next
                 title = substr($0, index($0, "**: ") + 4)
                 sub(/^[^ \t]+: /, "", title)        # the short name again
                 print name "\t" plain(title)
@@ -252,11 +247,13 @@ index_program() {
         return 0
 }
 
-# How many verses the index found: the last number in bvarray.dat.
+# How many verses the index found: bvarray.dat ends with the number of the
+# last verse (4 bytes, most significant first) and the number of chapters
+# (4 bytes). (Before EBaC 2.1, 2 bytes each.)
 index_verses() {
         od -An -tu1 "$1/bvarray.dat" |
         $AWK '{ for (i = 1; i <= NF; i++) b[++n] = $i }
-              END { print b[n - 3] * 256 + b[n - 2] }'
+              END { print ((b[n - 7] * 256 + b[n - 6]) * 256 + b[n - 5]) * 256 + b[n - 4] }'
 }
 
 # add NAME TITLE: add one translation; on failure, leave no half-made folder
@@ -320,7 +317,7 @@ add_to() {
         # Read the text once to check it, and to plan the books: for each
         # book with text, its number among the headings and its file name.
         # Prints the plan, then "ok BOOKS VERSES", or "problem MESSAGE".
-        $AWK -v max="$MAX_VERSES" "$PLAIN"'
+        $AWK "$PLAIN"'
         function book_name(name,    word, limit, n, other) {
                 word = name
                 gsub(/[^A-Za-z0-9]/, "", word)
@@ -376,8 +373,6 @@ add_to() {
                         }
                 if (kept == 0)
                         fail("it has no text")
-                if (total > max)
-                        fail("it has " total " verses, more than EBaC can number (" max ")")
                 for (b = 1; b <= books; b++)
                         if (text[b] && bad[b] != "")
                                 fail(heading[b] " " bad[b])
@@ -619,8 +614,6 @@ choose() {
                         found=$(lookup "$word")
                         if [ -n "$found" ]; then
                                 chosen="$chosen +$found"
-                        elif too_large "$word"; then
-                                unknown="$unknown, $word (too big for EBaC)"
                         else
                                 unknown="$unknown, $word"
                         fi
@@ -638,13 +631,6 @@ choose() {
                 fi
                 return 0
         done
-}
-
-too_large() {
-        for big in $TOO_LARGE; do
-                [ "$(printf '%s\n' "$1" | tr 'a-z' 'A-Z')" = "$big" ] && return 0
-        done
-        return 1
 }
 
 usage() {
@@ -714,7 +700,6 @@ for word in $names; do         # (by name: numbers are only for the list)
         found=$($AWK -F '\t' -v w="$word" 'tolower($1) == tolower(w) { print $1; exit }' "$tmp/list")
         if [ -z "$found" ]; then
                 printf '%s: not in the list of English translations.\n' "$word"
-                too_large "$word" && echo "    (It has more verses than EBaC can number.)"
                 failed=$((failed + 1))
         else
                 chosen="$chosen $sign$found"

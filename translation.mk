@@ -25,7 +25,7 @@ $(error $(notdir $(CURDIR))/booklist names books with no file in $(notdir $(CURD
 endif
 
 # The files index writes. These names are fixed by the program.
-DATS = bvarray.dat chapter.dat cvarray.dat references.dat words.dat format.dat
+DATS = bvarray.dat chapter.dat cvarray.dat references.dat words.dat position.dat plainpos.dat format.dat
 
 all: $(DATS)
 	@:
@@ -33,7 +33,7 @@ all: $(DATS)
 # One run of index writes all the files. The rule is written as a pattern
 # ("%" stands for the ".") because make treats all the targets of a pattern
 # rule as made together by one run of its recipe.
-bvarray%dat chapter%dat cvarray%dat references%dat words%dat format%dat: booklist $(BOOKS) $(INDEX)
+bvarray%dat chapter%dat cvarray%dat references%dat words%dat position%dat plainpos%dat format%dat: booklist $(BOOKS) $(INDEX)
 	@echo "Indexing $(notdir $(CURDIR))..."
 	$(INDEX) -y > /dev/null
 

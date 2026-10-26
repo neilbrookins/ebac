@@ -53,6 +53,13 @@
 #define INDEX_FORMAT "EBaC index format 2"
 
 /*
+** In position.dat and plainpos.dat, the flag on the position of the last
+** word of a verse (and of its last word not in brackets): so that a phrase
+** can run on from it into the next verse. (See readme.architecture.)
+*/
+#define LAST_POSITION 0x40000000L
+
+/*
 ** VMS has the binary "b" mode like the Macintosh, but when I tested it,
 ** it behaved the same as the non-binary mode. I couldn't tell any difference.
 ** MSDOS requires binary to not convert CR/LF <---> LF

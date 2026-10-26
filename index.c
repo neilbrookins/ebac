@@ -18,10 +18,12 @@ the indices which are text files.
 #endif
 
 FILE *book_list, *book_file, *cvarray_file, *bvarray_file, *chapter_file,
-     *words_file, *references_file, *format_file;
+     *words_file, *references_file, *position_file, *plainpos_file,
+     *format_file;
 char book_name[80];
 #define MAXWORD 80
 char word[MAXWORD];                     /* current word being processed */
+char raw_word[MAXWORD];                 /* the same, as it was in the book */
 int raw_length;                         /* its length as it was in the book,
                                            before punctuation was removed */
 int ended_line = FALSE;                 /* the last word ended its line */
@@ -31,6 +33,18 @@ int line_start;                         /* whether it starts a line: a verse
                                            2:7") isn't taken for one */
 long int sequence = 0;                  /* sequential verse number */
 long int chapter = 0;
+/*
+** Positions in the verse (see readme.architecture): the full position
+** counts every word, the plain one only words not in [brackets] or
+** {braces} (0 for a word in them). The last word of a verse has its full
+** position flagged LAST, and the last word not in brackets its plain one.
+*/
+long int full_position = 0;            /* the word's full position */
+long int plain_count = 0;              /* words not in brackets so far */
+long int plain_position = 0;           /* the word's plain position */
+int in_brackets = FALSE;                /* within [ ... ] or { ... } */
+struct list *last_word = NULL;          /* the verse's last word so far */
+struct list *last_plain = NULL;         /* and last not in brackets */
 struct tree
 {
         char *item;                     /* one word */
@@ -43,6 +57,8 @@ struct tree
 struct list
 {
         long int number;                /* verse number */
+        long int full;                  /* full position in the verse */
+        long int plain;                 /* plain position (0: bracketed) */
         struct list *next;              /* points to next element of list */
 };
 
@@ -61,12 +77,15 @@ static void remove_head_punctuation(void);
 static void remove_tail_punctuation(void);
 static void make_into_lowercase(void);
 static struct tree *store_word(struct tree *node);
+static void note_last(struct list *occurrence);
 static int new_verse(void);
 static int new_chapter(void);
 static void inorder_traversal(struct tree *node);
 static long int l_bit_twiddle(long int number);
 static void visit_node(struct tree *node);
 static void print_list(struct list *listptr);
+static void end_verse(void);
+static void note_brackets(void);
 
 /*
 Purpose: similar to the fputc function, but it works with long int
@@ -162,6 +181,7 @@ while (word[++i])
         if (word[i] == '}')
                 disable_newverse = 1;
 }
+strcpy(raw_word, word);
 remove_head_punctuation();
 remove_tail_punctuation();
 make_into_lowercase();
@@ -244,7 +264,10 @@ struct list *newnumber;
                         exit(1);
                 }
                 newnumber->number = sequence;
+                newnumber->full = full_position;
+                newnumber->plain = plain_position;
                 newnumber->next = NULL;
+                note_last(newnumber);
                 node->verse_head = node->verse_tail = newnumber;
                 node->count = 1;
                 return(node);
@@ -268,7 +291,10 @@ struct list *newnumber;
             node->verse_tail->next = newnumber;
             node->verse_tail = newnumber;
             node->verse_tail->number = sequence;
+            node->verse_tail->full = full_position;
+            node->verse_tail->plain = plain_position;
             node->verse_tail->next = NULL;
+            note_last(newnumber);
             return(node);
         }
         if (n < 0)
@@ -391,14 +417,81 @@ static void visit_node(struct tree *node)
         fputc(EOR, words_file);
 
         fputl(node->count, references_file);
+        fputl(node->count, position_file);
+        fputl(node->count, plainpos_file);
         print_list(node->verse_head);
         fputc(EOR, references_file);
+        fputc(EOR, position_file);
+        fputc(EOR, plainpos_file);
 }
 
+/*
+** The occurrences: their verses in references.dat, and their positions,
+** at the same offsets, in position.dat and plainpos.dat (the three files
+** are laid out alike: see readme.architecture).
+*/
 static void print_list(struct list *listptr)
 {
         for (; listptr != NULL; listptr = listptr->next)
+        {
                 fputl(listptr->number, references_file);
+                fputl(listptr->full, position_file);
+                fputl(listptr->plain, plainpos_file);
+        }
+}
+
+/*
+** Purpose: note an occurrence just stored as the verse's last word so far,
+**          and, unless it is in brackets, its last plain word so far.
+*/
+static void note_last(struct list *occurrence)
+{
+        last_word = occurrence;
+        if (occurrence->plain != 0)
+                last_plain = occurrence;
+}
+
+/*
+** Purpose: at the end of a verse (a new verse begins, or a book or the
+**          text ends): flag its last word's full position, and its last
+**          plain word's plain position, LAST; and start counting again.
+*/
+static void end_verse(void)
+{
+        if (last_word != NULL)
+                last_word->full |= LAST_POSITION;
+        if (last_plain != NULL)
+                last_plain->plain |= LAST_POSITION;
+        last_word = last_plain = NULL;
+        full_position = plain_count = plain_position = 0;
+        in_brackets = FALSE;
+}
+
+/*
+** Purpose: the positions of the word about to be stored (from raw_word, as
+**          it was in the book): whether it is in [brackets] or {braces}
+**          (a [ or { at its start opens them, a ] or } at its end, before
+**          any punctuation after it, closes them), and its full and plain
+**          positions.
+*/
+static void note_brackets(void)
+{
+        int bracketed, i;
+
+        if (raw_word[0] == '[' || raw_word[0] == '{')
+                in_brackets = TRUE;
+        bracketed = in_brackets;
+        for (i = strlen(raw_word) - 1; i >= 0 && !isalnum((unsigned char) raw_word[i]); i--)
+                if (raw_word[i] == ']' || raw_word[i] == '}')
+                {
+                        in_brackets = FALSE;
+                        break;
+                }
+        full_position++;
+        if (bracketed)
+                plain_position = 0;
+        else
+                plain_position = ++plain_count;
 }
 
 int main(int argc, char **argv)
@@ -440,6 +533,7 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
         if (new_verse() && line_start)  /* (new_verse() first: it also keeps
                                            track of {notes}) */
         {
+                end_verse();            /* the verse before it ends */
                 sequence++;
                 if (new_chapter())
                 {
@@ -455,8 +549,12 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
                 offset -= (long) raw_length;
                 fputl(--offset,cvarray_file);
         }else
+        {
+                note_brackets();
                 node = store_word(node);
+        }
   }
+  end_verse();                          /* the book's last verse ends */
   mfclose(book_file, book_name);
 }
 fputl(sequence, bvarray_file); /* Added, so that we see where the end of */
@@ -469,11 +567,15 @@ mfclose(chapter_file, "chapter.dat");
 
 words_file = mfopen("words.dat", WRITEMODE);
 references_file = mfopen("references.dat", WRITEMODE);
+position_file = mfopen("position.dat", WRITEMODE);
+plainpos_file = mfopen("plainpos.dat", WRITEMODE);
 
 inorder_traversal(node);
 
 mfclose(words_file, "words.dat");
 mfclose(references_file, "references.dat");
+mfclose(position_file, "position.dat");
+mfclose(plainpos_file, "plainpos.dat");
 
 /* which format the index files are in, for EBaC to check */
 format_file = mfopen("format.dat", WRITEMODE);
