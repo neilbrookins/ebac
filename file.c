@@ -32,7 +32,7 @@
 #endif
 
 FILE *book_list, *book_file, *cvarray_file, *bvarray_file, *chapter_file,
-     *words_file, *common_file, *references_file;
+     *words_file, *references_file;
 int a_new_translation = FALSE;
 
 /* number of allowable translations in trans file is two less than this */
@@ -48,7 +48,7 @@ char trans[MAXTRANS][80]; /* room for 80 char description of translation */
 #define   MAX_ETLA 20
 char etla[MAX_ETLA];/*global variable with name of current translation in use*/
 long int numverses, numchapters, numbooks, sizeofwordsdat;
-int num_found;  /* Number of matches in a word search */
+long int num_found;  /* Number of matches in a word search */
 char *bible_root = "";  /* the folder EBaC's files are in (BIBLEROOT) */
 char *start_trans = NULL; /* the translation to start with, from "bible BSB" */
 #ifdef UNIXV
@@ -58,13 +58,19 @@ char *start_trans = NULL; /* the translation to start with, from "bible BSB" */
    link into the app's image; ".." from there is the image's folder.) */
 static char root_dir[1024] = "";
 #endif
-int num_verses;  /* Number of verses in item on stack */
+long int num_verses;  /* Number of verses in item on stack */
+/*
+** The books (from bvarray.dat), and pach[]: the sequential verse number of
+** each chapter's first verse (from chapter.dat). Verse numbers are long:
+** 32 bits, as a translation may have more than 32,767 verses (with the
+** Apocrypha), and an int is 16 bits on the CoCo.
+*/
 #ifndef COCO
-        struct bva *book;
-        short int *pach;
+        struct bva *book = NULL;
+        long int *pach = NULL;
 #else
         struct bva book[67];
-	short int pach[1190];
+	long int pach[1190];
 #endif
 long int offset; /* number of bytes offset from the beginning of a book that
                     a particular verse begins at. */
@@ -72,7 +78,9 @@ int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
 
 /* functions used only in this file */
 static void open_new_trans P((void));
-static long int getcvarraydat P((short int sequ_verse_number));
+static int index_format_ok P((char *name));
+static int next_number P((FILE *file, long int *n));
+static long int getcvarraydat P((long int sequ_verse_number));
 static char *read_word P((FILE *file_ptr));
 static int verse_number P((char *s, int len));
 static long int lookup P((long int start, long int end, char *word));
@@ -618,9 +626,45 @@ FILE *trans_file;
         	printf("Can't chdir to %s\n", etla);
         	exit_program(0);
         }
+        if (!index_format_ok(etla))
+        	exit_program(1);
 	open_new_trans();
 }
         
+/*
+** Purpose: whether the index in the current folder (translation name) is
+**          in the format this EBaC reads: format.dat, which the index
+**          program writes, starts with the line INDEX_FORMAT. An index
+**          made by an older EBaC has no format.dat. If not, says so.
+*/
+static int index_format_ok(char *name)
+{
+        FILE *format_file;
+        char line[80];
+        int ok = FALSE;
+
+        if ((format_file = fopen("format.dat", "r")) != NULL)
+        {
+                if (fgets(line, sizeof(line), format_file) != NULL &&
+                    strncmp(line, INDEX_FORMAT, strlen(INDEX_FORMAT)) == 0 &&
+                    (line[strlen(INDEX_FORMAT)] == '\n' ||
+                     line[strlen(INDEX_FORMAT)] == '\0'))
+                        ok = TRUE;
+                fclose(format_file);
+        }
+        if (!ok)
+        {
+                printf("\nThe index of the translation %s was made by another\n", name);
+                printf("version of EBaC (or is missing). Make it again: run\n");
+                printf("\"make\" in the EBaC folder (%s).\n", bible_root);
+        }
+        return (ok);
+}
+
+/*
+** The index files: their formats, and why, are in readme.architecture.
+** Every number in bvarray.dat and chapter.dat is 4 bytes.
+*/
 static void open_new_trans(void)
 {
         int i;
@@ -633,7 +677,8 @@ static void open_new_trans(void)
             exit_program(0);
         }
         numbooks = ftell(bvarray_file);
-        numbooks /= 4L;
+        numbooks /= 8L;         /* a verse number and a chapter count each */
+        free(book);             /* (the last translation's) */
     if ((book=(struct bva *) malloc(numbooks * sizeof(struct bva))) == NULL)
         {
                 printf("Out of RAM\n");
@@ -646,16 +691,17 @@ static void open_new_trans(void)
 #endif
         for (i = 0; i <= numbooks; i++)
         {
-                book[i].verse = fgeti(bvarray_file);
-                book[i].chapt = fgeti(bvarray_file);
+                book[i].verse = fgetl(bvarray_file);
+                book[i].chapt = fgetl(bvarray_file);
         }
         mfclose(bvarray_file, "bvarray.dat");
 
         chapter_file = mfopen("chapter.dat", READMODE);
 #ifndef COCO
         fseek(chapter_file, 0L, 2);
-        numchapters = ftell(chapter_file) / 2L;
-    if ((pach = (short int *) malloc (numchapters * sizeof(short int))) == NULL)        {
+        numchapters = ftell(chapter_file) / 4L;
+        free(pach);             /* (the last translation's) */
+    if ((pach = (long int *) malloc (numchapters * sizeof(long int))) == NULL)        {
                 printf("Out of RAM\n");
                 exit_program(1);
         }
@@ -665,7 +711,7 @@ static void open_new_trans(void)
         numchapters = 1189;
 #endif
         for (i = 0; i <= numchapters; i++)
-                pach[i] = fgeti(chapter_file);
+                pach[i] = fgetl(chapter_file);
         mfclose(chapter_file, "chapter.dat");
 
         book_list = mfopen("booklist", "r");
@@ -694,17 +740,8 @@ static void open_new_trans(void)
         rewind(words_file);
 
 /*
-** My original plans were to use the data in this file somehow...
-** This file contains "common" words that occur too often to be indexed.
-** The format of the file is, the word stored in ASCII, followed
-** immidiately by the number of times the word occurs, in binary,
-** followed by an End Of Record character, FF.
-** Current plans are to eliminate this file by indexing ALL the words.
-** This would mean that the index generator would need 9 meg RAM
-** to run, and the references.dat file it creates would be over 1000K.
-*/
-/*
-**      common_file = mfopen("common.dat", READMODE);
+** (Before EBaC 2.1, words occurring too often to be indexed were listed in
+** common.dat. Every word is indexed now, as was planned here long ago.)
 */
         references_file = mfopen("references.dat", READMODE);
 }
@@ -889,6 +926,25 @@ void change_translations(void)
         	ugetchar();
         	return;
         }
+        if (!index_format_ok(name))     /* an index EBaC can't read: back */
+        {
+#ifdef UNIXV
+        	if (root_dir[0] != '\0')
+        		sprintf(new_dir, "%s%c%s", root_dir, SLASH, etla);
+        	else
+#endif
+        	sprintf(new_dir, "..%c%s", SLASH, etla);
+        	if (chdir(new_dir) != 0)
+        	{
+        		printf("Can't chdir to %s\n", new_dir);
+        		exit_program(1);
+        	}
+        	printf("Press any key to carry on with %s.\n", etla);
+        	fflush(stdout);
+        	scr_mode("anykey");
+        	ugetchar();
+        	return;
+        }
         strcpy(etla, name);
 
         mfclose(cvarray_file, "cvarray.dat");
@@ -905,20 +961,20 @@ void change_translations(void)
 	open_new_trans();
 }
 
-static long int getcvarraydat(short int sequ_verse_number)
+static long int getcvarraydat(long int sequ_verse_number)
 {
 /*
 ** printf("sequ is: %d seek to: %ld\n",
 **     sequ_verse_number, ((long int) sequ_verse_number - 1) * 4);
 */
-    if (fseek(cvarray_file, ((long int) sequ_verse_number - 1L) * 4L, 0) == EOF)    {
+    if (fseek(cvarray_file, (sequ_verse_number - 1L) * 4L, 0) == EOF)    {
             printf("FSEEK failed on cvarray_file!\n");
             exit_program(1);
     }
     return(fgetl(cvarray_file));
 }
 
-int verse_to_book(short int sequ_verse_number)
+int verse_to_book(long int sequ_verse_number)
 {
         int i;
         for(i = 1; i < numbooks; i++)
@@ -1041,7 +1097,7 @@ return((char *) word);
 **                      inside this function to avoid accessing the disk drives
 **                      too often. This must be adjustable.
 */
-struct bcv_array_type *get_verse(short int sequ_verse_number)
+struct bcv_array_type *get_verse(long int sequ_verse_number)
 {
         static struct bcv_array_type bcv_arrays;
         long int offset;
@@ -1052,7 +1108,7 @@ struct bcv_array_type *get_verse(short int sequ_verse_number)
 /* last word processed is saved for the next time function is called */
         static char *word;
 /* stores argument from previous function invocation */
-        static short int svn_previous = -1;
+        static long int svn_previous = -1;
 
 /*
 ** printf("start svn is: %d\n", sequ_verse_number);
@@ -1259,6 +1315,27 @@ printf("random found the word we were looking for: %ld\n", refs_offset);
         return(lookup(ftell(words_file), end, word));        /* recursive */
 }
 
+/*
+** Purpose: read the next number of a word's record in references.dat (a
+**          verse, or with EBaC 2.1, in position.dat or plainpos.dat, a
+**          position): 4 bytes, most significant first. The record ends
+**          with EOR (0xFF), which no number starts with.
+** Returns: FALSE at the end of the record (having read only the EOR, as
+**          the last record ends the file), else TRUE, with the number in *n.
+*/
+static int next_number(FILE *file, long int *n)
+{
+        int c;
+
+        if ((c = getc(file)) == EOF || c == EOR)
+                return (FALSE);
+        *n = c;
+        *n = (*n << 8) | (0xff & getc(file));
+        *n = (*n << 8) | (0xff & getc(file));
+        *n = (*n << 8) | (0xff & getc(file));
+        return (TRUE);
+}
+
 #ifdef RAMDISK
 struct TEMPFILE *tmpopen(void)
 {
@@ -1301,18 +1378,18 @@ struct TEMPFILE *tmpopen(void)
 struct TEMPFILE *find_word(char *word)
 {
 #else
-short int *find_word(char *word)
+long int *find_word(char *word)
 {
 #endif
  long int refs_offset;
+ long int svn;
 #ifdef RAMDISK
  struct TEMPFILE *tempfile;
- short int tsi; /* temporary short int */
 
  tempfile = tmpopen();
 #else
  int i = 0;
- static short int *refs_list = NULL;
+ static long int *refs_list = NULL;
  static size_t refs_size = 0;   /* how many refs_list holds */
 
  /* kept from one search to the next; made bigger if a translation with
@@ -1321,7 +1398,7 @@ short int *find_word(char *word)
  {
   free(refs_list);
   refs_size = ALLVERSE;
-  if ((refs_list = (short int *) malloc(refs_size * sizeof(short int))) == NULL)
+  if ((refs_list = (long int *) malloc(refs_size * sizeof(long int))) == NULL)
   {
         printf("Out of RAM\n");
         exit_program(1);
@@ -1333,54 +1410,45 @@ short int *find_word(char *word)
 ** printf("Word is at offset: %ld\n", refs_offset);
 */
         num_verses = 0;
-        if (refs_offset < 0) /* Word not in index! */
+        num_found = 0;
+        if (refs_offset >= 0) /* Word IS in index */
         {
-                num_found = 0;
-#ifdef RAMDISK
-                fputi(0, tempfile->fname);
-#else
-                refs_list[0] = 0;
-#endif
-        }else{ /* Word IS in index */
                 if (fseek(references_file, refs_offset, 0) == EOF)
                 {
                         fprintf(stderr, "fseek failed on references file!\n");
                         exit_program(1);
                 }
-                num_found = i_bit_reset(fgeti(references_file));
+                /* the word's record: its count, then its verses (all 4
+                   bytes), then EOR */
+                num_found = fgetl(references_file);
+                while (next_number(references_file, &svn))
+                {
 #ifdef RAMDISK
-                tsi = fgeti(references_file);
-                do{
+                        fputl(svn, tempfile->fname);
                         if (ferror(tempfile->fname)) {
                                 printf("Out of space on RAM disk!\n");
                                 exit_program(1);
                         }
-                        fputi(i_bit_reset(tsi), tempfile->fname);
-                        ++num_verses;
-                        tsi = fgeti(references_file);
-                }while((tsi & 0xff00) != 0xff00);
-                fputi(0, tempfile->fname);
-                if (ferror(tempfile->fname)) {
-                        printf("Out of space on RAM disk!\n");
-                        exit_program(1);
-                }
-        }
-        return((struct TEMPFILE *) tempfile);
 #else
-/* i == 0 here always */
-                refs_list[i++] = fgeti(references_file);
-                do{
-                        if ((size_t) i > refs_size - 1)
+                        if ((size_t) i >= refs_size - 1)
                         {
                                 printf("Array out of bounds!\n");
                                 exit_program(1);
                         }
-                        refs_list[i - 1] = i_bit_reset(refs_list[i - 1]);
-                	++num_verses;
-                        refs_list[i++] = fgeti(references_file);
-                }while((refs_list[i - 1] & 0xff00) != 0xff00);
-                refs_list[i - 1] = 0; /* Mark End of list */
+                        refs_list[i++] = svn;
+#endif
+                        ++num_verses;
+                }
         }
-        return((short int *) refs_list);
+#ifdef RAMDISK
+        fputl(0L, tempfile->fname);     /* Mark End of list */
+        if (ferror(tempfile->fname)) {
+                printf("Out of space on RAM disk!\n");
+                exit_program(1);
+        }
+        return((struct TEMPFILE *) tempfile);
+#else
+        refs_list[i] = 0; /* Mark End of list */
+        return(refs_list);
 #endif
 }

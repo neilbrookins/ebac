@@ -9,6 +9,7 @@ Requires list of books of the Bible in file "booklist" in the current
 working directory. Program reads files in this list and creates a binary
 tree in memory of each word. An inorder traversal is used to generate
 the indices which are text files.
+(The index files, their format and why: see readme.architecture.)
 */
 
 #include "both.h"
@@ -17,7 +18,7 @@ the indices which are text files.
 #endif
 
 FILE *book_list, *book_file, *cvarray_file, *bvarray_file, *chapter_file,
-     *words_file, *common_file, *references_file;
+     *words_file, *references_file, *format_file;
 char book_name[80];
 #define MAXWORD 80
 char word[MAXWORD];                     /* current word being processed */
@@ -28,8 +29,8 @@ int line_start;                         /* whether it starts a line: a verse
                                            number only counts there, so that
                                            a reference in the text ("Psa.
                                            2:7") isn't taken for one */
-short int sequence = 0;                 /* sequential verse number */
-short int chapter = 0;
+long int sequence = 0;                  /* sequential verse number */
+long int chapter = 0;
 struct tree
 {
         char *item;                     /* one word */
@@ -37,17 +38,11 @@ struct tree
         struct tree *right;
         struct list *verse_head;        /* first verse that word appears in */
         struct list *verse_tail;
-/*
-** There is a problem with this being just 2 bytes. Some words occur so many
-** times that the high bit gets set! We have reserved the high bit here
-** to indicate that the low order byte was FF and conflicted with the
-** recognition of EOR which is also FF 
-*/
-        unsigned short int count;           /* number of times word occurs */
+        long int count;                 /* number of times word occurs */
 };
 struct list
 {
-        short int number;               /* verse number */
+        long int number;                /* verse number */
         struct list *next;              /* points to next element of list */
 };
 
@@ -59,7 +54,6 @@ int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
 
 /* functions in this file */
 static void fputl(long int offset, FILE *fileptr);
-static void fputi(short int offset, FILE *fileptr);
 static void mfclose(FILE *fileptr, char *string);
 static FILE *mfopen(char *string, char *mode);
 static void read_word(FILE *book_file);
@@ -67,11 +61,9 @@ static void remove_head_punctuation(void);
 static void remove_tail_punctuation(void);
 static void make_into_lowercase(void);
 static struct tree *store_word(struct tree *node);
-static void free_node(struct list *listptr);
 static int new_verse(void);
 static int new_chapter(void);
 static void inorder_traversal(struct tree *node);
-static short int i_bit_twiddle(short int number);
 static long int l_bit_twiddle(long int number);
 static void visit_node(struct tree *node);
 static void print_list(struct list *listptr);
@@ -86,17 +78,6 @@ static void fputl(long int offset, FILE *fileptr)
         fputc((char) ((long) offset >> 24), fileptr);
         fputc((char) ((long) offset >> 16), fileptr);
         fputc((char) ((long) offset >> 8), fileptr);
-        fputc((char) offset, fileptr);
-}
-
-/*
-** Purpose: similar to the fputc function, but it works with short int
-**          instead of char. This should take the most significant byte
-**          of the short int first and write it out to the file.
-*/
-static void fputi(short int offset, FILE *fileptr)
-{
-        fputc((char) ((short) offset >> 8), fileptr);
         fputc((char) offset, fileptr);
 }
 
@@ -248,7 +229,7 @@ struct list *newnumber;
                 newitem = (char *) malloc (strlen(word) + 1);
                 if (newitem == NULL)
                 {
-                        printf ("malloc failed! Is 2MAXREF too large?\n");
+                        printf ("malloc failed! (a word)\n");
                         exit(1);
                 }
                 strcpy(newitem, word);
@@ -259,7 +240,7 @@ struct list *newnumber;
                 newnumber = (struct list *) malloc (sizeof(struct list));
                 if (newnumber == NULL)
                 {
-                        printf ("malloc failed! Is 3MAXREF too large?\n");
+                        printf ("malloc failed! (a verse)\n");
                         exit(1);
                 }
                 newnumber->number = sequence;
@@ -271,26 +252,21 @@ struct list *newnumber;
         n = strcmp(word, node->item);
         if (n == 0) /* Word is already in tree. Add new verse to list. */
         {
-            if (node->count++ == MAXREF) /* Word is common */
+            /* (every word is indexed, however often it occurs: before
+               EBaC 2.1, one occurring 65,000 times or more wasn't) */
+            node->count++;
+            if (node->verse_tail->number == sequence)
+                    return(node); /* Avoid storing same number twice */
+            newnumber = (struct list *) malloc (sizeof(struct list));
+            if (newnumber == NULL)
             {
-                free_node(node->verse_head); /* return memory to OS */
-                node->verse_head = NULL;
+                    printf ("malloc failed! (a verse)\n");
+                    exit(1);
             }
-            if (node->count <= MAXREF)
-            {
-                if (node->verse_tail->number == sequence)
-                        return(node); /* Avoid storing same number twice */
-                newnumber = (struct list *) malloc (sizeof(struct list));
-                if (newnumber == NULL)
-                {
-                        printf ("malloc failed! Is 4MAXREF too large?\n");
-                        exit(1);
-                }
-                node->verse_tail->next = newnumber;
-                node->verse_tail = newnumber;
-                node->verse_tail->number = sequence;
-                node->verse_tail->next = NULL;
-            }
+            node->verse_tail->next = newnumber;
+            node->verse_tail = newnumber;
+            node->verse_tail->number = sequence;
+            node->verse_tail->next = NULL;
             return(node);
         }
         if (n < 0)
@@ -305,17 +281,6 @@ struct list *newnumber;
         }
         printf("This sentence is NEVER printed to the screen.\n");
         return(node);
-}
-
-static void free_node(struct list *listptr)
-{
-        if (listptr->next != NULL)
-                free_node(listptr->next); /* resursive */
-#ifdef OSK
-        _lfree(listptr, (unsigned long) sizeof (struct list));
-#else
-        free(listptr);
-#endif
 }
 
 static int new_verse(void)
@@ -377,17 +342,6 @@ static void inorder_traversal(struct tree *node)
         inorder_traversal(node->right); /* resursive */
 }
 
-static short int i_bit_twiddle(short int number)
-{
-        if ((number & EOR) == EOR)
-        {
-                number |= 0x8000;
-                number &= 0xff00; /* Clear low byte. The 00 can be anything
-                                     except EOR and the code will work. */
-        }
-        return(number);
-}
-
 static long int l_bit_twiddle(long int number)
 {
         if ((number & (long) EOR) == (long) EOR)
@@ -411,42 +365,38 @@ static long int l_bit_twiddle(long int number)
         return(number);
 }
 
+/*
+** The word's record in references.dat: its count, then its verses, then
+** EOR. Every number is 4 bytes; none starts with the byte EOR (0xFF), as
+** none comes near 0xFF000000, so they need no bit twiddling, unlike the
+** offsets in words.dat. (Before EBaC 2.1, 2 bytes, twiddled.)
+*/
 static void visit_node(struct tree *node)
 {
         long int offset;
-        if (node->verse_head != NULL)
-        { /* Not a common word */
-                fprintf(words_file, "%s", node->item);
+
+        fprintf(words_file, "%s", node->item);
 /* Store current file position of the references_file into the words_file */
-                offset = ftell(references_file);
+        offset = ftell(references_file);
 /*
 ** printf("current ref offset is: %ld\n", offset);
 */
-                offset = l_bit_twiddle(offset);
+        offset = l_bit_twiddle(offset);
 /*
 ** printf("bit twiddle ref offset is: %ld\n", offset);
 */
-                fputl(offset, words_file);
-                fputc(EOR, words_file);
+        fputl(offset, words_file);
+        fputc(EOR, words_file);
 
-                node->count = i_bit_twiddle(node->count);
-                fputi(node->count, references_file);
-                print_list(node->verse_head);
-                fputc(EOR, references_file);
-        }else{ /* Common word */
-                fprintf(common_file, "%s", node->item);
-                node->count = i_bit_twiddle(node->count);
-                fputi(node->count, common_file);
-                fputc(EOR, common_file);
-        }
+        fputl(node->count, references_file);
+        print_list(node->verse_head);
+        fputc(EOR, references_file);
 }
 
 static void print_list(struct list *listptr)
 {
-        listptr->number = i_bit_twiddle(listptr->number);
-        fputi(listptr->number, references_file);
-        if (listptr->next != NULL)
-                print_list(listptr->next); /* resursive */
+        for (; listptr != NULL; listptr = listptr->next)
+                fputl(listptr->number, references_file);
 }
 
 int main(int argc, char **argv)
@@ -461,7 +411,7 @@ int main(int argc, char **argv)
 if (argc < 2 || strcmp(argv[1], "-y") != 0)
 {
     printf("Are you sure you want to re-generate the Bible index?\n");
-    printf("This will overwite the six files, *.dat, in your current\n");
+    printf("This will overwite the index files, *.dat, in your current\n");
     printf("working directory.\n\n");
     printf("Press \"y\" to continue, or \"n\" to abort\n");
     if (getchar() != (int) 'y')
@@ -476,8 +426,8 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
 {
   book_name[strlen(book_name) - 1] = '\0';
   book_file = mfopen(book_name, "r");
-  fputi(sequence, bvarray_file);
-  fputi(chapter, bvarray_file);
+  fputl(sequence, bvarray_file);
+  fputl(chapter, bvarray_file);
   printf("Reading from book: %s\n", book_name);
   for(;;){
         read_word(book_file);
@@ -492,13 +442,7 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
                 if (new_chapter())
                 {
                         chapter++;
-                        fputi(sequence, chapter_file);
-                }
-                if (sequence == 32767)
-                {
-                        fprintf(stderr, "%s has more verses than EBaC can hold (32767).\n",
-                                book_name);
-                        exit(1);
+                        fputl(sequence, chapter_file);
                 }
 /*
 ** Where the verse number starts in the book: the word as it was there,
@@ -513,23 +457,26 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
   }
   mfclose(book_file, book_name);
 }
-fputi(sequence, bvarray_file); /* Added, so that we see where the end of */
-fputi(chapter, bvarray_file);  /* Revelation is. */
-fputi(++sequence, chapter_file);
+fputl(sequence, bvarray_file); /* Added, so that we see where the end of */
+fputl(chapter, bvarray_file);  /* Revelation is. */
+fputl(++sequence, chapter_file);
 mfclose(book_list, "booklist");
 mfclose(bvarray_file, "bvarray.dat");
 mfclose(cvarray_file, "cvarray.dat");
 mfclose(chapter_file, "chapter.dat");
 
 words_file = mfopen("words.dat", WRITEMODE);
-common_file = mfopen("common.dat", WRITEMODE);
 references_file = mfopen("references.dat", WRITEMODE);
 
 inorder_traversal(node);
 
 mfclose(words_file, "words.dat");
-mfclose(common_file, "common.dat");
 mfclose(references_file, "references.dat");
+
+/* which format the index files are in, for EBaC to check */
+format_file = mfopen("format.dat", WRITEMODE);
+fprintf(format_file, "%s\n", INDEX_FORMAT);
+mfclose(format_file, "format.dat");
 #ifdef OSK
 	system("attr *.dat -pr"); /* permit public read access */
 #endif

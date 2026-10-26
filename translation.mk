@@ -5,7 +5,7 @@
 # One copy serves every translation, so a new translation folder needs no
 # makefile of its own: just its text files and its 'booklist'.
 #
-# The six .dat files are the index, made by the index program from the
+# The .dat files are the index (see readme.architecture), made by the index program from the
 # books named in 'booklist'. They are made again whenever one of them is
 # missing, or is older than 'booklist', any book, or the index program.
 #
@@ -25,15 +25,15 @@ $(error $(notdir $(CURDIR))/booklist names books with no file in $(notdir $(CURD
 endif
 
 # The files index writes. These names are fixed by the program.
-DATS = bvarray.dat chapter.dat common.dat cvarray.dat references.dat words.dat
+DATS = bvarray.dat chapter.dat cvarray.dat references.dat words.dat format.dat
 
 all: $(DATS)
 	@:
 
-# One run of index writes all six files. The rule is written as a pattern
+# One run of index writes all the files. The rule is written as a pattern
 # ("%" stands for the ".") because make treats all the targets of a pattern
 # rule as made together by one run of its recipe.
-bvarray%dat chapter%dat common%dat cvarray%dat references%dat words%dat: booklist $(BOOKS) $(INDEX)
+bvarray%dat chapter%dat cvarray%dat references%dat words%dat format%dat: booklist $(BOOKS) $(INDEX)
 	@echo "Indexing $(notdir $(CURDIR))..."
 	$(INDEX) -y > /dev/null
 

@@ -58,15 +58,17 @@ struct bcv_array_type
         char data_array[LONGESTVERSE];
 };
 
+/* a book: the sequential verse number its first verse follows, and the
+   number of chapters before it (from bvarray.dat), and its name */
 struct bva
 {
-        short int verse;
-        short int chapt;
+        long int verse;
+        long int chapt;
         char name[MAXBOOKNAME];
 };
 
 /* The number of times a word occurs in the bible. Set during word searching */
-extern int num_found;
+extern long int num_found;
 /* the word searched for, when the search was that one word alone (so the
 ** list's header can say how many times it occurs), else ""; process.c */
 #define MAXCOUNTWORD 41
@@ -75,7 +77,7 @@ extern char *bible_root;
 /* the search history file; process.c */
 extern char LOGFILE[];
 extern char count_word[MAXCOUNTWORD];
-extern int num_verses;
+extern long int num_verses;
 
 #define NORMAL_MODE 0
 #define DIGITS_MODE 1
@@ -104,18 +106,16 @@ extern char etla[]; /* name of current translation in use*/
 
 /* bible.c */
 long int fgetl P((FILE *fileptr));
-short int fgeti P((FILE *fileptr));
 #ifdef RAMDISK
-void fputi P((short int offset, FILE *fileptr));
+void fputl P((long int number, FILE *fileptr));
 #endif
 char *find_char P((char *s, int c));
 int new_verse P((char *word));
 int new_chapter P((char *word));
 int wordtochapt P((char *word));
 int wordtoverse P((char *word));
-short int i_bit_reset P((short int number));
 long int l_bit_reset P((long int l_number));
-short int bcv_search P((struct bcv_type *bcvptr));
+long int bcv_search P((struct bcv_type *bcvptr));
 
 /* file.c */
 void exit_program P((int errnum));
@@ -128,12 +128,12 @@ void tty_suspend P((void));
 void tty_resume P((void));
 #endif
 void change_translations P((void));
-int verse_to_book P((short int sequ_verse_number));
-struct bcv_array_type *get_verse P((short int sequ_verse_number));
+int verse_to_book P((long int sequ_verse_number));
+struct bcv_array_type *get_verse P((long int sequ_verse_number));
 #ifdef RAMDISK
 struct TEMPFILE *find_word P((char *word));
 #else
-short int *find_word P((char *word));
+long int *find_word P((char *word));
 #endif
 
 /* process.c */
@@ -142,7 +142,7 @@ char *get_line P((int mode));
 #ifdef RAMDISK
 struct TEMPFILE *process_words P((void));
 #else
-short int *process_words P((void));
+long int *process_words P((void));
 #endif
 
 /* userint.c */

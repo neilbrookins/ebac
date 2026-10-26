@@ -20,27 +20,20 @@ long int fgetl(FILE *fileptr)
         return(offset);
 }
 
-short int fgeti(FILE *fileptr)
-{
-        short int offset;
-        offset = fgetc(fileptr);
-        offset <<= 8;
-        offset |= (0xff & fgetc(fileptr));
-        if((feof(fileptr)) && ((0xff00 & offset) != 0xff00))
-                printf("Fatal error! EOF reached\n");
-        return(offset);
-}
-
 #ifdef RAMDISK
 /*
-** Purpose: similar to the fputc function, but it works with short int
+** Purpose: similar to the fputc function, but it works with long int
 **          instead of char. This should take the most significant byte
-**          of the short int first and write it out to the file.
+**          of the long int first and write it out to the file. (The
+**          RAMDISK build's lists of verses, in temporary files: a verse
+**          number is 4 bytes.)
 */
-void fputi(short int offset, FILE *fileptr)
+void fputl(long int number, FILE *fileptr)
 {
-        fputc((char) ((short) offset >> 8), fileptr);
-        fputc((char) offset, fileptr);
+        fputc((char) (number >> 24), fileptr);
+        fputc((char) (number >> 16), fileptr);
+        fputc((char) (number >> 8), fileptr);
+        fputc((char) number, fileptr);
 }
 #endif
 
@@ -135,16 +128,6 @@ int wordtoverse(char *word)
         return(verse);
 }
 
-short int i_bit_reset(short int number)
-{
-        if (number & 0x8000) /* High bit set? */
-        {
-                number &= 0x7fff; /* Clear high bit */
-                number |= 0x00ff; /* Set low byte. */
-        }
-        return(number);
-}
-
 long int l_bit_reset(long int l_number)
 {
         if (l_number & 0x20000000L)
@@ -165,13 +148,13 @@ long int l_bit_reset(long int l_number)
         return((long) l_number);
 }
 
-short int bcv_search(struct bcv_type *bcvptr)
+long int bcv_search(struct bcv_type *bcvptr)
 {
 #ifndef COCO
-    extern short int *pach;
+    extern long int *pach;
     extern struct bva *book;
 #else
-    extern short int pach[];
+    extern long int pach[];
     extern struct bva book[];
 #endif
 long int seq_chapter, seq_verse;
@@ -188,13 +171,13 @@ seq_chapter += (long) bcvptr->chapter_number - 1;
 if (seq_chapter < 0)
         return(0);
 if (seq_chapter > numchapters) /* pach[numchapters] is the end mark */
-        return((short int) (numverses + 1));
+        return(numverses + 1);
 
 seq_verse = pach[seq_chapter] + (long) bcvptr->verse_number - 1;
 if (seq_verse < 0)
         seq_verse = 0;
 if (seq_verse > numverses + 1)
         seq_verse = numverses + 1;
-return((short int) seq_verse);
+return(seq_verse);
 }
 

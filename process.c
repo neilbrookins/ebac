@@ -20,7 +20,7 @@ char count_word[MAXCOUNTWORD] = "";
 #else
         struct stackptr
         {
-                short int *node;
+                long int *node;
                 struct stackptr *next;
         };
         struct stackptr *top = NULL;
@@ -28,7 +28,7 @@ char count_word[MAXCOUNTWORD] = "";
 
 /* functions used only in this file */
 static char *fgets_cr P((char *s, int n, FILE *iop));
-static int compare P((short int first, short int second, int prox));
+static int compare P((long int first, long int second, int prox));
 static void not_oper P((void));
 static void or_oper P((void));
 static void and_oper P((int prox));
@@ -42,8 +42,8 @@ static char *next_term P((char **pos));
 static void push P((struct TEMPFILE *verse_list));
 static struct TEMPFILE *pop P((void));
 #else
-static void push P((short int *verse_list));
-static short int *pop P((void));
+static void push P((long int *verse_list));
+static long int *pop P((void));
 #endif
 
 char LOGFILE[256];
@@ -403,7 +403,7 @@ static void push(struct TEMPFILE *verse_list)
         ++TFtop;
 }
 #else
-static void push(short int *verse_list)
+static void push(long int *verse_list)
 {
         int count = 0, i = 0;
         struct stackptr *stack;
@@ -419,7 +419,7 @@ static void push(short int *verse_list)
              exit_program(1);
         }
 /* allocate room for each verse */
-        if ((stack->node = (short int *) malloc (count * sizeof(short int))) == NULL)
+        if ((stack->node = (long int *) malloc (count * sizeof(long int))) == NULL)
         {
              printf("Out of RAM\n");
              exit_program(1);
@@ -446,9 +446,9 @@ static struct TEMPFILE *pop(void)
         return ((struct TEMPFILE *) &tempfile[TFtop]);
 }
 #else
-static short int *pop(void)
+static long int *pop(void)
 {
-        short int *verse_list; /* list of verses to be returned */
+        long int *verse_list; /* list of verses to be returned */
         struct stackptr *off;  /* item popped 'off' the stack */
 
 /* We need better error handling than this for when the user types too many
@@ -463,7 +463,7 @@ static short int *pop(void)
         verse_list = top->node;
         top = top->next;
         free (off);
-        return ((short int *) verse_list);
+        return ((long int *) verse_list);
 }
 #endif
 
@@ -485,41 +485,41 @@ static void not_oper(void)
         struct TEMPFILE *result;
         struct TEMPFILE *rfile;
         struct TEMPFILE *kfile;
-        short int remove, keep;
+        long int remove, keep;
 
         result = tmpopen();
         rfile = pop();
         kfile = pop();
 
         rewind(rfile->fname);
-        remove = fgeti(rfile->fname);
+        remove = fgetl(rfile->fname);
 
         rewind(kfile->fname);
-        keep = fgeti(kfile->fname);
+        keep = fgetl(kfile->fname);
         
         num_verses = 0;
         while (remove != 0 && keep != 0)
         {
                 if (keep > remove)
                 {
-                        remove = fgeti(rfile->fname);
+                        remove = fgetl(rfile->fname);
                         continue;
                 }
                 if (keep < remove)
                 {
-                        fputi(keep, result->fname);
+                        fputl(keep, result->fname);
                         ++num_verses;
-                        keep = fgeti(kfile->fname);
+                        keep = fgetl(kfile->fname);
                         continue;
                 }
-                keep = fgeti(kfile->fname);
-                remove = fgeti(rfile->fname);
+                keep = fgetl(kfile->fname);
+                remove = fgetl(rfile->fname);
         }
-        fputi(keep, result->fname);
+        fputl(keep, result->fname);
         while(keep != 0)
         {
-                keep = fgeti(kfile->fname);
-                fputi(keep, result->fname);
+                keep = fgetl(kfile->fname);
+                fputl(keep, result->fname);
                 ++num_verses;
         }
         mfclose(rfile->fname, rfile->sname);
@@ -531,11 +531,11 @@ static void not_oper(void)
 #else
 static void not_oper(void)
 {
-        short int *result;
-        short int *remove, *r, *keep, *k;
+        long int *result;
+        long int *remove, *r, *keep, *k;
         int i = 0;
 
-  if ((result = (short int *) malloc(ALLVERSE * sizeof(short int))) == NULL)
+  if ((result = (long int *) malloc(ALLVERSE * sizeof(long int))) == NULL)
         {
              printf("Out of RAM\n");
              exit_program(1);
@@ -583,51 +583,51 @@ static void or_oper(void)
         struct TEMPFILE *result;
         struct TEMPFILE *sec_file;
         struct TEMPFILE *fir_file;
-        short int second, first;
+        long int second, first;
 
         result = tmpopen();
         sec_file = pop();
         fir_file = pop();
 
         rewind(sec_file->fname);
-        second = fgeti(sec_file->fname);
+        second = fgetl(sec_file->fname);
 
         rewind(fir_file->fname);
-        first = fgeti(fir_file->fname);
+        first = fgetl(fir_file->fname);
         
         num_verses = 0;
         while (second != 0 && first != 0)
         {
                 if (first > second)
                 {
-                        fputi(second, result->fname);
+                        fputl(second, result->fname);
                         ++num_verses;
-                        second = fgeti(sec_file->fname);
+                        second = fgetl(sec_file->fname);
                         continue;
                 }
                 if (first < second)
                 {
-                        fputi(first, result->fname);
+                        fputl(first, result->fname);
                         ++num_verses;
-                        first = fgeti(fir_file->fname);
+                        first = fgetl(fir_file->fname);
                         continue;
                 }
-                fputi(first, result->fname);
+                fputl(first, result->fname);
                 ++num_verses;
-                first = fgeti(fir_file->fname);
-                second = fgeti(sec_file->fname);
+                first = fgetl(fir_file->fname);
+                second = fgetl(sec_file->fname);
         }
         while(first != 0)
         {
-                fputi(first, result->fname);
+                fputl(first, result->fname);
                 ++num_verses;
-                first = fgeti(fir_file->fname);
+                first = fgetl(fir_file->fname);
         }
-        fputi(second, result->fname);
+        fputl(second, result->fname);
         while(second != 0)
         {
-                second = fgeti(sec_file->fname);
-                fputi(second, result->fname);
+                second = fgetl(sec_file->fname);
+                fputl(second, result->fname);
                 ++num_verses;
         }
         mfclose(sec_file->fname, sec_file->sname);
@@ -639,11 +639,11 @@ static void or_oper(void)
 #else
 static void or_oper(void)
 {
-        short int *result;
-        short int *second, *s, *first, *f;
+        long int *result;
+        long int *second, *s, *first, *f;
         int i = 0;
 
-  if ((result = (short int *) malloc(ALLVERSE * sizeof(short int))) == NULL)
+  if ((result = (long int *) malloc(ALLVERSE * sizeof(long int))) == NULL)
         {
              printf("Out of RAM\n");
              exit_program(1);
@@ -690,7 +690,7 @@ static void or_oper(void)
 }
 #endif
 
-static int compare(short int first, short int second, int prox)
+static int compare(long int first, long int second, int prox)
 {
         if (first == second)
                 return (0);
@@ -728,7 +728,7 @@ static void and_oper(int prox)
     struct TEMPFILE *fir_file;
     struct TEMPFILE protect_file;
     struct TEMPFILE *swap_file;
-    short int second, first;
+    long int second, first;
     char second_time = FALSE;
     int diff;
 
@@ -746,16 +746,16 @@ static void and_oper(int prox)
     fir_file = &protect_file;
 
     rewind(sec_file->fname);
-    second = fgeti(sec_file->fname);
+    second = fgetl(sec_file->fname);
     rewind(fir_file->fname);
-    first = fgeti(fir_file->fname);
+    first = fgetl(fir_file->fname);
 /*
 ** A special case where the second of two words being "anded" together
 ** was not found in the index.
 */
     if ((second == 0) || (first == 0))
     {
-        fputi(0, result->fname);
+        fputl(0L, result->fname);
         mfclose(sec_file->fname, sec_file->sname);
         unlink(sec_file->sname);
         mfclose(fir_file->fname, fir_file->sname);
@@ -770,32 +770,34 @@ static void and_oper(int prox)
         {
                 result = tmpopen();
                 rewind(sec_file->fname);
-                second = fgeti(sec_file->fname);
+                second = fgetl(sec_file->fname);
                 rewind(fir_file->fname);
-                first = fgeti(fir_file->fname);
+                first = fgetl(fir_file->fname);
         }
         while (first != 0)
         {
                 if ((diff = compare (first, second, prox)) == 0)
-                        fputi(first, result->fname);
+                        fputl(first, result->fname);
                 if (diff < 0)
                 {
                     for(;;)
                     {
-                            if (ftell(sec_file->fname) > 2)
+                            if (ftell(sec_file->fname) > 4) /* past the first */
                             {
-                                if (fseek(sec_file->fname, -4L, 1) != 0)
+                                /* back to the number before the one just
+                                   read: two numbers of 4 bytes */
+                                if (fseek(sec_file->fname, -8L, 1) != 0)
                                 {
                                         printf("fseek failed!!\n");
                                         exit_program(1);
                                 }
-                                second = fgeti(sec_file->fname);
+                                second = fgetl(sec_file->fname);
                             }
                             else
                                 break;
                             if ((diff = compare (first, second, prox)) == 0)
                             {
-                                    fputi(first, result->fname);
+                                    fputl(first, result->fname);
                                     break;
                             }
                             if (diff > 0)
@@ -806,30 +808,31 @@ static void and_oper(int prox)
                 {
                     for(;;)
                     {
-                            second = fgeti(sec_file->fname);
+                            second = fgetl(sec_file->fname);
                             if (second == 0) /* past last element */
                             {
-                                if (fseek(sec_file->fname, -4L, 1) != 0)
+                                /* back to the last number (4 bytes each) */
+                                if (fseek(sec_file->fname, -8L, 1) != 0)
                                 {
                                         printf("fseek failed!!\n");
                                         exit_program(1);
                                 }
-                                second = fgeti(sec_file->fname);
+                                second = fgetl(sec_file->fname);
                                 break;
                             }
                             if ((diff = compare (first, second, prox)) == 0)
                             {
-                                    fputi(first, result->fname);
+                                    fputl(first, result->fname);
                                     break;
                             }
                             if (diff < 0)
                                     break;
                     }
                 }
-                first = fgeti(fir_file->fname);
+                first = fgetl(fir_file->fname);
         }
 
-        fputi(0, result->fname); /* terminate this list */
+        fputl(0L, result->fname); /* terminate this list */
         if (second_time)
                 break;
         second_time = TRUE;
@@ -856,13 +859,13 @@ static void and_oper(int prox)
 #else
 static void and_oper(int prox)           /* proximity */
 {
-    short int *result;
-    short int *second, *s, *first, *f, *swap;
+    long int *result;
+    long int *second, *s, *first, *f, *swap;
     int i = 0;
     char second_time = FALSE;
     int diff;
 
-    if ((result = (short int *) malloc(ALLVERSE * sizeof(short int))) == NULL)
+    if ((result = (long int *) malloc(ALLVERSE * sizeof(long int))) == NULL)
     {
          printf("Out of RAM\n");
          exit_program(1);
@@ -982,14 +985,14 @@ static void store_book(int bnumber)
 {
 #ifdef RAMDISK
         struct TEMPFILE *book_file;
-        short int cur_node;
+        long int cur_node;
 #else
         struct stackptr *stack;
-        short int *cur_node;
-        short int i;
+        long int *cur_node;
+        long int i;
 #endif
         struct bcv_type bcv;
-        short int first_verse, last_verse;
+        long int first_verse, last_verse;
 
         bcv.book_number = bnumber;
         bcv.chapter_number = 1;
@@ -1012,9 +1015,9 @@ static void store_book(int bnumber)
         book_file = tmpopen();
         for (cur_node = first_verse; cur_node <= last_verse; cur_node++)
         {
-                fputi(cur_node, book_file->fname);
+                fputl(cur_node, book_file->fname);
         }
-        fputi(0, book_file->fname); /* terminate the list */
+        fputl(0L, book_file->fname); /* terminate the list */
         push(book_file);
 #else
         if ((stack = (struct stackptr *) malloc (sizeof (struct stackptr))) ==
@@ -1023,7 +1026,7 @@ static void store_book(int bnumber)
              printf("Out of RAM\n");
              exit_program(1);
         }
-        if ((cur_node = stack->node = (short int *) malloc(sizeof(short int) *
+        if ((cur_node = stack->node = (long int *) malloc(sizeof(long int) *
                                 (last_verse - first_verse + 2))) == NULL)
         {
              printf("Out of RAM\n");
@@ -1152,9 +1155,9 @@ struct TEMPFILE *process_words(void)
 {
         struct TEMPFILE *verse_list;
 #else
-short int *process_words(void)
+long int *process_words(void)
 {
-        short int *verse_list;
+        long int *verse_list;
 #endif
         char *arg;  /* Points to argument within search line */
         int i;
@@ -1241,7 +1244,7 @@ short int *process_words(void)
 #ifdef RAMDISK
         return((struct TEMPFILE *) verse_list);
 #else
-        return((short int *) verse_list);
+        return((long int *) verse_list);
 #endif
 }
 

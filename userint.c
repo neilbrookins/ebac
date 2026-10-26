@@ -92,16 +92,16 @@ static void dis_one_line P((char *strg));
 static void dis_verse P((char *strg, int indent, int firstTime));
 static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
                           int verIndent, int top_of_screen));
-static int calculate_fv P((int last_verse));
-static int scrolled_top P((int last_shown));
+static long int calculate_fv P((long int last_verse));
+static long int scrolled_top P((long int last_shown));
 static void rev_printf P((char *string));
-static int check_limits P((int cur_verse));
-static void view_in_context P((int cur_verse));
+static int check_limits P((long int cur_verse));
+static void view_in_context P((long int cur_verse));
 #ifdef RAMDISK
-static short int vlist P((struct TEMPFILE *tf, int rnum));
+static long int vlist P((struct TEMPFILE *tf, long int rnum));
 static void view_match_list P((struct TEMPFILE *verse_list));
 #else
-static void view_match_list P((short int *verse_list));
+static void view_match_list P((long int *verse_list));
 #endif
 static void prog_info P((void));
 static void prog_diagnostics P((void));
@@ -579,7 +579,7 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
         strcpy(previous_book, bcv_arrays->book_array);
 }
 
-static int calculate_fv(int last_verse)
+static long int calculate_fv(long int last_verse)
 {
         int num_lines = s_lines;
         char top_of_screen = TRUE; /* I don't think this is right */
@@ -607,10 +607,10 @@ static int calculate_fv(int last_verse)
 **          verse from which the verses through last_shown fit above the
 **          bottom line.
 */
-static int scrolled_top(int last_shown)
+static long int scrolled_top(long int last_shown)
 {
         int num_lines = s_lines - 1;  /* the bottom line holds the cursor */
-        int verse = last_shown;
+        long int verse = last_shown;
         struct bcv_array_type *bcv_arrays;
 
         /* count_lines() compares each verse's book with the previous one
@@ -640,7 +640,7 @@ static void rev_printf(char *string)
         standend();
 }
 
-static int check_limits(int cur_verse)
+static int check_limits(long int cur_verse)
 {
         if (cur_verse >= (numverses + 1))
                 return (FALSE);
@@ -657,9 +657,10 @@ static int check_limits(int cur_verse)
 ** book or a verse from Genesis 1:1, on a book or a screen from the end)
 ** beeps and leaves the screen as it is.
 */
-static void view_in_context(int cur_verse)
+static void view_in_context(long int cur_verse)
 {
-        int first_verse, num_lines, start;
+        long int first_verse, start;
+        int num_lines;
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;
 
@@ -836,15 +837,17 @@ get_command:    scr_mode("passage");
 }
 
 #ifdef RAMDISK
-static short int vlist(struct TEMPFILE *tf, /* temp file */
-                       int rnum)         /* record number in file */
+static long int vlist(struct TEMPFILE *tf, /* temp file */
+                      long int rnum)    /* record number in file */
 {
-	if (fseek(tf->fname, (long) rnum * sizeof(short int), 0) == -1)
+	/* (a verse number in the file is 4 bytes: not sizeof(long int),
+	   which is 8 on some systems) */
+	if (fseek(tf->fname, rnum * 4L, 0) == -1)
 	{
 		printf("fseek failed on RAM DISK!\n");
 		exit_program(1);
 	}
-	return (fgeti(tf->fname));
+	return (fgetl(tf->fname));
 }
 #endif
 
@@ -852,13 +855,14 @@ static short int vlist(struct TEMPFILE *tf, /* temp file */
 static void view_match_list(struct TEMPFILE *verse_list)
 {
 #else
-static void view_match_list(short int *verse_list)
+static void view_match_list(long int *verse_list)
 {
 #endif
-        int i = 0, first_i, num_lines, tag, n, j;
+        long int i = 0, first_i, j;     /* entries in the list */
+        int num_lines, tag, n;
 	int ui; /* User Input */
         char count[24 + MAXCOUNTWORD], times[24 + MAXCOUNTWORD];
-        short int cur_verse;
+        long int cur_verse;
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;
         do{
@@ -876,12 +880,12 @@ static void view_match_list(short int *verse_list)
 */
 #define HEAD_TEXT       "--Beginning of list--"
                         rev_printf(HEAD_TEXT);
-                        sprintf(count, " %d verse%s", num_verses,
+                        sprintf(count, " %ld verse%s", num_verses,
                                 num_verses == 1 ? "" : "s");
                         fputs(count, stdout);
                         if (count_word[0] != '\0')
                         {
-                                sprintf(times, " %d time%s", num_found,
+                                sprintf(times, " %ld time%s", num_found,
                                         num_found == 1 ? "" : "s");
                                 /* ", " word times: up to the last column, as
                                    modern terminals (xterm and the like) take a
@@ -1331,9 +1335,9 @@ int main(int argc, char **argv)
 #ifdef RAMDISK
 	struct TEMPFILE *verse_list;
 #else
-        short int *verse_list;
+        long int *verse_list;
 #endif
-        short int cur_verse;
+        long int cur_verse;
         struct bcv_type *point_bcv;
         set_program_path(argc > 0 ? argv[0] : NULL);
         if (argc > 1)

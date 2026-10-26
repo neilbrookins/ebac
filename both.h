@@ -46,10 +46,11 @@
 
 
 /*
-** If a word occurs more than this number of times we do not store its
-** verse locations; but we do count how many times it occurs.
+** The first line of format.dat, which the index program writes with the
+** index files: EBaC reads a translation's index only if it is this format.
+** (Format 1, before EBaC 2.1, had no format.dat. See readme.architecture.)
 */
-#define MAXREF 65000
+#define INDEX_FORMAT "EBaC index format 2"
 
 /*
 ** VMS has the binary "b" mode like the Macintosh, but when I tested it,
