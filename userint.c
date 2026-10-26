@@ -152,6 +152,52 @@ static int main_menu(void)
         return(screen_key());   /* KEY_REDRAW if the window is resized */
 }
 
+/*
+** Purpose: the value of the Roman numeral at the start of a book's name, as
+**          the 2 of "IIKings"; 0 if it has none. The numeral must be
+**          followed by a capital letter, so the "I" of "Isaiah" is not one.
+**          *rest is set to the rest of the name ("Kings").
+*/
+static int roman_start(char *name, char **rest)
+{
+        int i, value = 0, digit, next;
+
+        for (i = 0; name[i] == 'I' || name[i] == 'V' || name[i] == 'X'; i++)
+                ;
+        if (i == 0 || !isupper(UCHAR(name[i])))
+                return (0);
+        *rest = &name[i];
+        while (--i >= 0)        /* from the right: IV is 4, VI is 6 */
+        {
+                digit = (name[i] == 'I') ? 1 : (name[i] == 'V') ? 5 : 10;
+                next = (name[i + 1] == 'I') ? 1 : (name[i + 1] == 'V') ? 5 :
+                       (name[i + 1] == 'X') ? 10 : 0;
+                value += (digit < next) ? -digit : digit;
+        }
+        return (value);
+}
+
+/*
+** Purpose: does a partial bookname typed with a number at the start ("2th",
+**          in lower case) match a name with a Roman numeral there
+**          ("IIThessalonians")? (A number in the name itself, as in
+**          "2Thessalonians", is matched as ordinary letters are.)
+*/
+static int number_matches(char *typed, char *name)
+{
+        int number = 0, i = 0, j;
+        char *rest = name;
+
+        while (isdigit(UCHAR(typed[i])) && number < 1000)
+                number = number * 10 + (typed[i++] - '0');
+        if (i == 0 || number == 0 || roman_start(name, &rest) != number)
+                return (FALSE);
+        for (j = 0; typed[i + j] != '\0'; j++)
+                if (tolower(UCHAR(rest[j])) != typed[i + j])
+                        return (FALSE);         /* (rest[j] '\0' too) */
+        return (TRUE);
+}
+
 /* Purpose: Takes a partial, or complete, bookname and sees how many
             books begin with that string. Prints partial string to the
             screen, or if match is unique prints complete name.
@@ -166,6 +212,13 @@ static int main_menu(void)
             The string "ex" will return 2 because it only matches one book
             and that book, Exodus, is the second book of the Bible. "Exodus"
             will be printed.
+
+            A number typed at the start also matches a Roman numeral of the
+            same value at the start of a name, as the translation writes it:
+            "2th" matches IIThessalonians, and "3" IIIJohn. (So the same
+            typing works in a translation with "2Thessalonians" and one
+            with "IIThessalonians".) Only that way round: "i" matches only
+            an I, so in the AV "is" is still Isaiah alone.
 */
 int match_it(char *book_str,
              int update_screen)          /* boolean */
@@ -197,7 +250,8 @@ int match_it(char *book_str,
 /*
 **printf("%s--%s--%d--%s\n", book[i].name, lower_name, len_str, book_str);
 */
-                        if (!(strncmp(lower_name, book_str, strlen(book_str))))
+                        if (!(strncmp(lower_name, book_str, strlen(book_str))) ||
+                            number_matches(book_str, book[i].name))
                         {
                                 count++;
                                 savei = i;
