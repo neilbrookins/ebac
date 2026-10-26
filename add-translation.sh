@@ -459,6 +459,29 @@ typing_mode() {
         return 0
 }
 
+# Before going back to EBaC: wait for a key, so that what was written can be
+# read first. (On a phone, in the Home Assistant app, a tap is the key, as
+# on EBaC's own "Press any key" screens.) The whole key is read, so that
+# the rest of one such as an arrow key doesn't reach EBaC's menu.
+press_any_key() {
+        printf '\nPress any key to go back to EBaC. '
+        [ -n "${EBAC_GESTURES:-}" ] && printf '\033]7766;anykey\007'
+        if [ -t 0 ] && command -v dd > /dev/null 2>&1 &&
+           saved=$(stty -g 2> /dev/null); then
+                stty -icanon -echo min 1 time 0 2> /dev/null
+                dd bs=1 count=1 > /dev/null 2>&1
+                # the rest of the key, if any: until nothing comes for 0.1 s
+                stty min 0 time 1 2> /dev/null
+                while [ "$(dd bs=64 count=1 2> /dev/null | wc -c)" -gt 0 ]; do
+                        :
+                done
+                stty "$saved" 2> /dev/null
+        else
+                read -r answer
+        fi
+        echo
+}
+
 screen_size() {
         rows=$(stty size 2> /dev/null < /dev/tty)
         cols=${rows#* }
@@ -667,9 +690,7 @@ trap 'resized=1' WINCH 2> /dev/null     # the window changed size (see read_line
 if ! english_translations; then
         printf 'add-translation: %s\n' "$problem"
         if [ -n "$from_ebac" ]; then
-                printf '\nPress Enter to go back to EBaC. '
-                typing_mode
-                read -r answer
+                press_any_key
                 back_to_ebac
         fi
         exit 1
@@ -728,10 +749,9 @@ for action in $chosen; do
 done
 
 if [ -n "$from_ebac" ]; then
-        if [ $failed -gt 0 ]; then
-                printf '\nPress Enter to go back to EBaC. '
-                typing_mode
-                read -r answer
+        # (straight back if nothing was chosen: there is nothing to read)
+        if [ -n "$chosen" ] || [ $failed -gt 0 ]; then
+                press_any_key
         fi
         back_to_ebac
 fi
