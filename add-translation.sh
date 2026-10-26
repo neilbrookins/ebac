@@ -17,7 +17,8 @@
 #      BSB), and writes the folder's booklist: the books, in order;
 #   3. builds its concordance index (runs EBaC's index program in it), and
 #      checks that the index has every verse;
-#   4. adds it to 'trans', so that EBaC offers it under C)hange translation.
+#   4. adds it to the top of 'trans', so that EBaC offers it under C)hange
+#      translation, and starts with it from now on.
 #
 # Book names are the translation's own, with spaces and punctuation left out
 # (EBaC's book prompt, its @book searches and the makefile take one word),
@@ -398,8 +399,11 @@ add_to() {
                 return 1
         fi
 
+        # at the top of trans, so that EBaC starts with it from now on
         if ! is_listed "$name"; then
-                printf '%-11s %s\n' "$name" "$title" >> "$here/trans"
+                { printf '%-11s %s\n' "$name" "$title"
+                  cat "$here/trans" 2> /dev/null; } > "$tmp/trans" &&
+                        cat "$tmp/trans" > "$here/trans"   # (keeps its owner and mode)
         fi
         printf '%s: done. %s is ready: start EBaC and press C to choose it.\n' "$name" "$title"
         return 0
@@ -445,25 +449,28 @@ choose() {
                 clear_screen
                 $AWK -F '\t' -v first="$first" -v per_page="$per_page" \
                     -v pages="$pages" -v cols="$cols" -v note="$note" -v back="$back" '
-                FNR == NR { added[$0] = 1; next }
+                FILENAME == ARGV[1] { added[$0] = 1; next }
                 {
                         name[FNR] = $1
                         title[FNR] = $2
+                        if ($1 in added)
+                                any = 1
                 }
                 END {
                         heading = "Add a translation to EBaC"
                         if (pages > 1)
                                 heading = heading " (page " (int(first / per_page) + 1) " of " pages ")"
                         print substr(heading, 1, cols - 1)
-                        print ""
+                        print any ? "* = added already" : ""
+                        # those already added are marked with a * before the number
                         for (i = first + 1; i <= first + per_page && i <= FNR; i++) {
-                                mark = (name[i] in added) ? "  (added)" : ""
-                                line = sprintf("%3d) %-12s", i, name[i])
+                                line = sprintf("%s%2d) %-12s", (name[i] in added) ? "*" : " ",
+                                               i, name[i])
                                 t = title[i]
-                                room = cols - 1 - length(line) - length(mark)
+                                room = cols - 1 - length(line)
                                 if (length(t) > room)
                                         t = (room > 3) ? substr(t, 1, room - 3) "..." : ""
-                                print substr(line t mark, 1, cols - 1)
+                                print substr(line t, 1, cols - 1)
                         }
                         print substr(note, 1, cols - 1)
                         if (cols - 1 >= 66)
@@ -574,8 +581,9 @@ if [ $list_only = yes ]; then
         echo "English translations that can be added to EBaC:"
         echo
         listed_translations > "$tmp/listed"
-        $AWK -F '\t' 'FNR == NR { added[$0] = 1; next }
-                { printf "%3d) %-12s %s%s\n", FNR, $1, $2, ($1 in added) ? "  (added)" : "" }' \
+        $AWK -F '\t' 'FILENAME == ARGV[1] { added[$0] = 1; next }
+                { printf "%s%2d) %-12s %s\n", ($1 in added) ? "*" : " ", FNR, $1, $2 }
+                END { print "\n* = added already" }' \
                 "$tmp/listed" "$tmp/list"
         exit 0
 fi
