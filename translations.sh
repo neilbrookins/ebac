@@ -18,7 +18,8 @@
 #     (always an error: it can't be indexed), and
 #   - a folder that trans doesn't mention at all (a warning, or an error
 #     with --strict), so a new translation isn't forgotten.
-# Folders whose names start with '.' (such as .git) are ignored.
+# Folders whose names start with '.' (such as .git) are ignored, and so is
+# __pycache__, which Python may make for add-translation.py.
 
 cd "$(dirname "$0")" || exit 1
 
@@ -76,6 +77,7 @@ fi
 for d in */; do
     [ -d "$d" ] || continue         # no folders at all
     d=${d%/}
+    [ "$d" = __pycache__ ] && continue
     if ! mentioned "$d"; then
         echo "$level: folder $d is not mentioned in 'trans'. If it is a translation," >&2
         echo "  add a line for it; if not, add a comment line:  # $d  (what it is)" >&2

@@ -225,7 +225,26 @@ See [`docs`](docs) for more examples.
 
 ## Adding other translations
 
-Each translation is a folder (`AV` is the King James Version) holding one text file per book, plus a `booklist` file naming those books in order, one per line. A translation can cover only some books, such as just the New Testament: its `booklist` lists only those.
+### Downloading a translation
+
+`add-translation.py` downloads English translations and adds them to EBaC. In the EBaC folder, type:
+
+```sh
+cd ~/ebac
+python3 add-translation.py
+```
+
+It lists the translations it can add, with those already added marked, and asks which you want: type their numbers or short names (such as `6` or `BSB`, or several, such as `BSB LEB YLT`). Or name them straight away: `python3 add-translation.py BSB`. For each one it downloads the text, splits it into a file per book in a folder of its own (such as `BSB`) with its `booklist`, builds its concordance index with `make`, checks that the index has every verse, and adds it to `trans`. It takes a few seconds per translation. Start EBaC and press **C** to choose it.
+
+The 31 translations it offers include the American Standard Version, the Berean Standard Bible, the Lexham English Bible, Young's Literal Translation, Darby, Webster, the Geneva Bible of 1599, the Bible in Basic English, the New Heart English Bible, the Open English Bible, Tyndale, and several New Testaments. They come from the plain-text Bibles of the [bible_databases](https://github.com/scrollmapper/bible_databases) project, made from [CrossWire](https://crosswire.org/sword/modules/ModDisp.jsp?modType=Bibles)'s modules; CrossWire has a few more that aren't available as text there. Three with the Apocrypha (KJVA, Douay-Rheims and the Catholic Public Domain Version) have more verses than EBaC can number yet, so they aren't offered.
+
+Each translation keeps its own book names, as one word (EBaC's book prompt and `@book` searches take one word), shortened to fit the list of search results: `I Samuel` becomes `ISamuel`, so type `isam` for it. Curly quotes and dashes become plain ones, as in EBaC's own text, so that searches find the words beside them. Verse numbers keep the brackets they have there, `[1:1]`: EBaC reads both `[1:1]` and `1:1`.
+
+With more than nine translations, the **C** screen shows them a page at a time: type a number and press Enter (**space** and **p** turn the page, **x** goes back). Adding a translation changes `trans`; if a later `git pull` then says `Your local changes ... would be overwritten`, see [If something goes wrong](#if-something-goes-wrong). It needs Python 3, which Linux, macOS (with the Command Line Tools) and WSL have.
+
+### Adding one by hand
+
+Each translation is a folder (`AV` is the King James Version) holding one text file per book, plus a `booklist` file naming those books in order, one per line. A translation can cover only some books, such as just the New Testament: its `booklist` lists only those. In a book's file, each verse starts a line with its chapter and verse number, `1:1` or `[1:1]`; a verse may go on over the following lines, which start with a space.
 
 To add one, for example the NIV:
 

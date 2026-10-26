@@ -15,3 +15,4 @@
 *.dat
 /version.stamp
 /version.stamp.new
+__pycache__/

@@ -18,7 +18,8 @@ Usage:
 or by hand:
     python3 tests/sidebyside.py NORAMDISK_BINARY RAMDISK_BINARY [BIBLEROOT]
 
-BIBLEROOT defaults to the top of this repository. Needs Python 3 and a
+BIBLEROOT defaults to a folder made for the test, listing only the
+AV of this repository (so that added translations change nothing). Needs Python 3 and a
 UNIX-like system with pseudo-terminals (Linux, BSD, macOS). Exit status
 is 0 if every scenario is identical, 1 otherwise.
 
@@ -210,6 +211,17 @@ def main():
             sys.exit("%s binary not found: %s" % (tag, b))
 
     tmp = tempfile.mkdtemp(prefix="ebac-test-")
+    if len(sys.argv) <= 3:
+        # The scenarios use the King James (AV) alone, whatever translations
+        # have been added (add-translation.py) to this copy of EBaC: run
+        # them in a folder of their own whose 'trans' lists only AV.
+        repo, bibleroot = bibleroot, os.path.join(tmp, "root")
+        os.makedirs(bibleroot)
+        with open(os.path.join(repo, "trans")) as f:
+            av = [l for l in f if l.split()[:1] == ["AV"]]
+        with open(os.path.join(bibleroot, "trans"), "w") as f:
+            f.writelines(av)
+        os.symlink(os.path.join(repo, "AV"), os.path.join(bibleroot, "AV"))
     fails = 0
     try:
         for name, keys in SCENARIOS:
