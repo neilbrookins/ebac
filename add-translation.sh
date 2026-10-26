@@ -405,6 +405,14 @@ add_to() {
         return 0
 }
 
+# Tell the web page EBaC runs in, in the Home Assistant app, that the user
+# is typing a line (see scr_mode() in curses.c): a tap brings up the phone's
+# keyboard, and a swipe left erases a character.
+typing_mode() {
+        [ -n "${EBAC_GESTURES:-}" ] && printf '\033]7766;input\007'
+        return 0
+}
+
 screen_size() {
         rows=$(stty size 2> /dev/null < /dev/tty)
         cols=${rows#* }
@@ -472,6 +480,7 @@ choose() {
                         [ $pages -gt 1 ] && pg="n/p: page; "
                         printf '(%sEnter: %s): ' "$pg" "$back"
                 fi
+                typing_mode
                 answer=""
                 read -r answer || answer=""
                 answer=$(printf '%s\n' "$answer" | tr ',' ' ')
@@ -554,6 +563,7 @@ if ! english_translations; then
         printf 'add-translation: %s\n' "$problem"
         if [ -n "$from_ebac" ]; then
                 printf '\nPress Enter to go back to EBaC. '
+                typing_mode
                 read -r answer
                 back_to_ebac
         fi
@@ -598,6 +608,7 @@ done
 if [ -n "$from_ebac" ]; then
         if [ $failed -gt 0 ]; then
                 printf '\nPress Enter to go back to EBaC. '
+                typing_mode
                 read -r answer
         fi
         back_to_ebac
