@@ -51,6 +51,13 @@ long int numverses, numchapters, numbooks, sizeofwordsdat;
 int num_found;  /* Number of matches in a word search */
 char *bible_root = "";  /* the folder EBaC's files are in (BIBLEROOT) */
 char *start_trans = NULL; /* the translation to start with, from "bible BSB" */
+#ifdef UNIXV
+/* BIBLEROOT as a full path, found once EBaC is in it, so that a translation
+   is found as root_dir/NAME. (Not ../NAME: a translation folder may be a
+   link to a folder elsewhere, as in the Home Assistant app, whose AV is a
+   link into the app's image; ".." from there is the image's folder.) */
+static char root_dir[1024] = "";
+#endif
 int num_verses;  /* Number of verses in item on stack */
 #ifndef COCO
         struct bva *book;
@@ -543,6 +550,10 @@ FILE *trans_file;
         	exit_program(0);
         }
 #endif
+#ifdef UNIXV
+        if (getcwd(root_dir, sizeof(root_dir) - MAX_ETLA - 2) == NULL)
+                root_dir[0] = '\0';    /* (then ../NAME, as before) */
+#endif
         initscreen();
 	initlogname();
 /*
@@ -723,7 +734,8 @@ void change_translations(void)
 	int count; /* how many translations there are */
 	int per_page, first, k, typed, w;
 	char *digit;
-	char new_dir[MAX_ETLA + 4]; /* example: ../nrsv */
+	char new_dir[1024 + MAX_ETLA + 2]; /* example: ../nrsv */
+	char name[MAX_ETLA];    /* the translation chosen */
 
 	while (trans[++i][0] != '\0')
 		;
@@ -852,10 +864,32 @@ void change_translations(void)
         while (!isspace(UCHAR(trans[n][i])) && trans[n][i] != '\0' &&
                (i < MAX_ETLA - 1))
         {
-        	etla[i] = trans[n][i]; /* default to first trans in list */
+        	name[i] = trans[n][i];
         	++i;
         }
-        etla[i] = '\0';
+        name[i] = '\0';
+
+/*
+** Go to its folder first: if it can't be found, say so and carry on with
+** the translation in use. (A failed chdir() leaves the folder as it was.)
+*/
+#ifdef UNIXV
+	if (root_dir[0] != '\0')
+		sprintf(new_dir, "%s%c%s", root_dir, SLASH, name);
+	else
+#endif
+	sprintf(new_dir, "..%c%s", SLASH, name);
+        if (chdir(new_dir) != 0)
+        {
+        	printf("\nCan't open %s: there is no folder %s in %s.\n",
+        	       name, name, bible_root);
+        	printf("Press any key to carry on with %s.\n", etla);
+        	fflush(stdout);
+        	scr_mode("anykey");
+        	ugetchar();
+        	return;
+        }
+        strcpy(etla, name);
 
         mfclose(cvarray_file, "cvarray.dat");
         mfclose(words_file, "words.dat");
@@ -868,12 +902,6 @@ void change_translations(void)
 ** "genesis" in the AV directory...
 */
 	a_new_translation = TRUE;
-	sprintf(new_dir, "..%c%s", SLASH, etla);
-        if (chdir(new_dir) != 0)
-        {
-        	printf("Can't chdir to %s\n", new_dir);
-        	exit_program(0);
-        }
 	open_new_trans();
 }
 
