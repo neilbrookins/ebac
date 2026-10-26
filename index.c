@@ -36,8 +36,8 @@ struct tree
         char *item;                     /* one word */
         struct tree *left;              /* pointer to child */
         struct tree *right;
-        struct list *verse_head;        /* first verse that word appears in */
-        struct list *verse_tail;
+        struct list *verse_head;        /* the word's occurrences: their */
+        struct list *verse_tail;        /* verses, in order */
         long int count;                 /* number of times word occurs */
 };
 struct list
@@ -255,8 +255,10 @@ struct list *newnumber;
             /* (every word is indexed, however often it occurs: before
                EBaC 2.1, one occurring 65,000 times or more wasn't) */
             node->count++;
-            if (node->verse_tail->number == sequence)
-                    return(node); /* Avoid storing same number twice */
+            /* every occurrence is stored, so a verse number repeats when
+               the word is in that verse more than once (before EBaC 2.1,
+               each verse once): so that each occurrence can have its
+               position in the verse, in position.dat and plainpos.dat */
             newnumber = (struct list *) malloc (sizeof(struct list));
             if (newnumber == NULL)
             {

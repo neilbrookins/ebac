@@ -1382,7 +1382,7 @@ long int *find_word(char *word)
 {
 #endif
  long int refs_offset;
- long int svn;
+ long int svn, last;
 #ifdef RAMDISK
  struct TEMPFILE *tempfile;
 
@@ -1418,11 +1418,16 @@ long int *find_word(char *word)
                         fprintf(stderr, "fseek failed on references file!\n");
                         exit_program(1);
                 }
-                /* the word's record: its count, then its verses (all 4
-                   bytes), then EOR */
+                /* the word's record: its count, then the verse of each
+                   occurrence (all 4 bytes), then EOR. A verse the word is
+                   in more than once repeats: it is listed once here. */
                 num_found = fgetl(references_file);
+                last = 0;
                 while (next_number(references_file, &svn))
                 {
+                        if (svn == last)
+                                continue;
+                        last = svn;
 #ifdef RAMDISK
                         fputl(svn, tempfile->fname);
                         if (ferror(tempfile->fname)) {
