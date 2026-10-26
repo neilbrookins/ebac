@@ -129,7 +129,7 @@ static int main_menu(void)
         printf("C)hange to a different translation\n\n");
 #ifdef UNIXV
         if (importer[0] != '\0')
-                printf("A)dd a translation (download one)\n\n");
+                printf("A)dd or remove a translation\n\n");
 #endif
         printf("V)iew by:   Bookname Chapter:Verse\n\n");
         printf("S)earch by: Keyword(s)\n\n");

@@ -1,9 +1,11 @@
 #!/bin/sh
-# add-translation.sh -- download a Bible translation and add it to EBaC.
+# add-translation.sh -- download a Bible translation and add it to EBaC
+#                        (or remove one added before).
 #
 #   sh add-translation.sh             list the English translations, and
-#                                     ask which to add
+#                                     ask which to add or remove
 #   sh add-translation.sh BSB LEB     add these (by short name)
+#   sh add-translation.sh --remove BSB  remove this one
 #   sh add-translation.sh --list      just list them
 #
 # The translations come from the plain-text Bibles of the bible_databases
@@ -19,6 +21,12 @@
 #      checks that the index has every verse;
 #   4. adds it to the top of 'trans', so that EBaC offers it under C)hange
 #      translation, and starts with it from now on.
+#
+# Choosing a translation already added does the same again: a fresh copy,
+# and at the top of 'trans'. Removing one deletes its folder and its line
+# in 'trans'. In the list, a number adds that translation and r and a
+# number (r6) removes it; several can be given at once ("r10 11 13"), and
+# are done in that order.
 #
 # Book names are the translation's own, with spaces and punctuation left out
 # (EBaC's book prompt, its @book searches and the makefile take one word),
@@ -267,6 +275,41 @@ add() {
         return 0
 }
 
+# trans without the line of translation NAME
+without_line() {
+        [ -f "$here/trans" ] || return 0
+        $AWK -v n="$1" '$1 != n' "$here/trans"
+}
+
+# Whether translation NAME has been added: trans lists it, or its folder
+# is here (not a link: the Home Assistant app's own translations are links)
+is_added() {
+        is_listed "$1" || { [ -f "$here/$1/booklist" ] && [ ! -L "$here/$1" ]; }
+}
+
+# remove NAME: delete an added translation's folder and its line in trans.
+# Sets problem on failure.
+remove() {
+        name=$1
+        if [ -L "$here/$name" ]; then
+                problem="it is one of EBaC's own"
+                return 1
+        fi
+        if ! is_added "$name"; then
+                problem="it isn't added"
+                return 1
+        fi
+        without_line "$name" > "$tmp/trans"
+        if ! $AWK '$1 != "" && substr($1, 1, 1) != "#" { found = 1 } END { exit !found }' "$tmp/trans"; then
+                problem="it is the only translation in trans"
+                return 1
+        fi
+        cat "$tmp/trans" > "$here/trans" || { problem="couldn't change trans"; return 1; }
+        rm -rf "$here/$name" || { problem="couldn't delete the folder $name"; return 1; }
+        printf '%s: removed.\n' "$name"
+        return 0
+}
+
 add_to() {
         name=$1
         title=$2
@@ -399,12 +442,11 @@ add_to() {
                 return 1
         fi
 
-        # at the top of trans, so that EBaC starts with it from now on
-        if ! is_listed "$name"; then
-                { printf '%-11s %s\n' "$name" "$title"
-                  cat "$here/trans" 2> /dev/null; } > "$tmp/trans" &&
-                        cat "$tmp/trans" > "$here/trans"   # (keeps its owner and mode)
-        fi
+        # at the top of trans (moved there, if it was listed already), so that
+        # EBaC starts with it from now on
+        { printf '%-11s %s\n' "$name" "$title"
+          without_line "$name"; } > "$tmp/trans" &&
+                cat "$tmp/trans" > "$here/trans"   # (keeps its owner and mode)
         printf '%s: done. %s is ready: start EBaC and press C to choose it.\n' "$name" "$title"
         return 0
 }
@@ -457,7 +499,7 @@ choose() {
                                 any = 1
                 }
                 END {
-                        heading = "Add a translation to EBaC"
+                        heading = "Add or remove translations"
                         if (pages > 1)
                                 heading = heading " (page " (int(first / per_page) + 1) " of " pages ")"
                         print substr(heading, 1, cols - 1)
@@ -474,9 +516,9 @@ choose() {
                         }
                         print substr(note, 1, cols - 1)
                         if (cols - 1 >= 66)
-                                print "Type the numbers of the translations to add, as 6 14, and Enter."
+                                print "Type numbers to add, as 6 14, or r6 to remove 6; then Enter."
                         else
-                                print "Numbers to add (as 6 14), Enter."
+                                print "Add: 6 14, remove: r6; then Enter."
                 }' "$tmp/listed" "$tmp/list"
                 note=""
                 pg=""
@@ -505,20 +547,46 @@ choose() {
                         fi
                         ;;
                 esac
+                # each becomes +NAME (add) or -NAME (remove), in the order given
                 chosen=""
                 unknown=""
+                not_added=""
                 for word in "$@"; do
+                        case $word in
+                        [rR][0-9]*)
+                                found=""
+                                case ${word#?} in
+                                *[!0-9]*) ;;
+                                *) found=$(lookup "${word#?}") ;;
+                                esac
+                                if [ -z "$found" ]; then
+                                        unknown="$unknown, $word"
+                                elif is_added "$found"; then
+                                        chosen="$chosen -$found"
+                                else
+                                        not_added="$not_added, $word"
+                                fi
+                                continue
+                                ;;
+                        esac
                         found=$(lookup "$word")
                         if [ -n "$found" ]; then
-                                chosen="$chosen $found"
+                                chosen="$chosen +$found"
                         elif too_large "$word"; then
                                 unknown="$unknown, $word (too big for EBaC)"
                         else
                                 unknown="$unknown, $word"
                         fi
                 done
-                if [ -n "$unknown" ]; then
-                        note="Not in the list: ${unknown#, }"
+                if [ -n "$unknown" ] || [ -n "$not_added" ]; then
+                        # nothing is done: the list again, saying what was wrong
+                        if [ -n "$unknown" ] && [ -n "$not_added" ]; then
+                                note="Not in the list: ${unknown#, }; not added: ${not_added#, }"
+                        elif [ -n "$unknown" ]; then
+                                note="Not in the list: ${unknown#, }"
+                        else
+                                note="Not added: ${not_added#, }"
+                        fi
                         continue
                 fi
                 return 0
@@ -533,9 +601,10 @@ too_large() {
 }
 
 usage() {
-        echo "usage: sh add-translation.sh [--list] [--source PLACE] [NAME ...]"
-        echo "Downloads Bible translations and adds them to EBaC."
+        echo "usage: sh add-translation.sh [--list] [--source PLACE] [NAME ...] [--remove NAME ...]"
+        echo "Downloads Bible translations and adds them to EBaC, or removes them."
         echo "  NAME            short names of translations to add, such as BSB"
+        echo "  --remove NAME   remove this translation (added before)"
         echo "  --list          only list the translations"
         echo "  --source PLACE  where the translations are: a web address, or a folder"
         echo "                  with a copy of bible_databases (default: $SOURCE)"
@@ -552,6 +621,9 @@ while [ $# -gt 0 ]; do
                 [ $# -ge 2 ] || { usage >&2; exit 2; }
                 source=$2; shift ;;
         --source=*) source=${1#--source=} ;;
+        --remove)
+                [ $# -ge 2 ] || { usage >&2; exit 2; }
+                names="$names -$2"; shift ;;
         --from-ebac)
                 [ $# -ge 3 ] || { usage >&2; exit 2; }
                 from_ebac=$2; start_with=$3; shift; shift ;;
@@ -590,13 +662,15 @@ fi
 
 chosen=""
 for word in $names; do         # (by name: numbers are only for the list)
+        sign=+
+        case $word in -*) sign=-; word=${word#-} ;; esac
         found=$($AWK -F '\t' -v w="$word" 'tolower($1) == tolower(w) { print $1; exit }' "$tmp/list")
         if [ -z "$found" ]; then
                 printf '%s: not in the list of English translations.\n' "$word"
                 too_large "$word" && echo "    (It has more verses than EBaC can number.)"
                 failed=$((failed + 1))
         else
-                chosen="$chosen $found"
+                chosen="$chosen $sign$found"
         fi
 done
 if [ -z "$names" ]; then
@@ -604,13 +678,27 @@ if [ -z "$names" ]; then
         [ -n "$chosen" ] && clear_screen
 fi
 
-for name in $chosen; do
-        if add "$name" "$(title_of "$name")"; then
-                start_with=$name
-        else
-                printf '%s: not added: %s.\n' "$name" "$problem"
-                failed=$((failed + 1))
-        fi
+for action in $chosen; do
+        name=${action#?}
+        case $action in
+        -*)
+                if remove "$name"; then
+                        # (EBaC then starts with the first translation in trans)
+                        [ "$start_with" = "$name" ] && start_with=""
+                else
+                        printf '%s: not removed: %s.\n' "$name" "$problem"
+                        failed=$((failed + 1))
+                fi
+                ;;
+        *)
+                if add "$name" "$(title_of "$name")"; then
+                        start_with=$name
+                else
+                        printf '%s: not added: %s.\n' "$name" "$problem"
+                        failed=$((failed + 1))
+                fi
+                ;;
+        esac
 done
 
 if [ -n "$from_ebac" ]; then

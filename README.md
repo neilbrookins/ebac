@@ -96,7 +96,7 @@ Any time after installing, just type:
 ~/ebac/bible
 ```
 
-At the main menu press **V** to view a passage (type the start of the book's name, then the chapter and verse numbers; the letters **q w e r t y u i o p** can be typed for **1 2 3 4 5 6 7 8 9 0**, and **m** for a minus sign, so a phone's on-screen keyboard can stay on letters. Chapter and verse count on from the start of the book, so they can run past its end into the next book, and **0** or a negative number counts back: John 3:**0** is John 2:25, Exodus chapter **0** is Genesis 50, and John 3:**-3** is John 2:22. Pressing Enter alone means 1), **S** to search, **C** to change translation, **A** to [add one](#downloading-a-translation), **I** for information, or **E** to exit. In any list or passage, press **?** for the keys available there. The arrow keys and **Page Up**/**Page Down** work too: in a passage, Down and Up step one verse at a time. If the window changes size, such as when a phone's on-screen keyboard appears or goes away, a passage or a list of search results is redrawn at once to fill the new size, starting from the same verse; **CTRL-L** redraws it too.
+At the main menu press **V** to view a passage (type the start of the book's name, then the chapter and verse numbers; the letters **q w e r t y u i o p** can be typed for **1 2 3 4 5 6 7 8 9 0**, and **m** for a minus sign, so a phone's on-screen keyboard can stay on letters. Chapter and verse count on from the start of the book, so they can run past its end into the next book, and **0** or a negative number counts back: John 3:**0** is John 2:25, Exodus chapter **0** is Genesis 50, and John 3:**-3** is John 2:22. Pressing Enter alone means 1), **S** to search, **C** to change translation, **A** to [add or remove one](#downloading-a-translation), **I** for information, or **E** to exit. In any list or passage, press **?** for the keys available there. The arrow keys and **Page Up**/**Page Down** work too: in a passage, Down and Up step one verse at a time. If the window changes size, such as when a phone's on-screen keyboard appears or goes away, a passage or a list of search results is redrawn at once to fill the new size, starting from the same verse; **CTRL-L** redraws it too.
 
 ### Updating to the latest version
 
@@ -227,15 +227,18 @@ See [`docs`](docs) for more examples.
 
 ### Downloading a translation
 
-At EBaC's main menu, press **A** to add a translation. EBaC lists the English translations it can download, a screenful at a time, with a `*` before those already added: type the numbers of those you want and press Enter (such as `6`, or several, such as `6 14 31`; short names such as `BSB` work too), or press Enter alone to go back. For each one it downloads the text, splits it into a file per book in a folder of its own (such as `BSB`) with its `booklist`, builds its concordance index, checks that the index has every verse, and adds it at the top of `trans`. It takes a few seconds per translation, and then you are back at the main menu with the new translation chosen; as it is first in `trans`, EBaC starts with it from then on too (move another line to the top of `trans` to change that).
+At EBaC's main menu, press **A** to add or remove a translation. EBaC lists the English translations it can download, a screenful at a time, with a `*` before those already added: type the numbers of those you want and press Enter (such as `6`, or several, such as `6 14 31`; short names such as `BSB` work too), or press Enter alone to go back. For each one it downloads the text, splits it into a file per book in a folder of its own (such as `BSB`) with its `booklist`, builds its concordance index, checks that the index has every verse, and adds it at the top of `trans`. It takes a few seconds per translation, and then you are back at the main menu with the new translation chosen; as it is first in `trans`, EBaC starts with it from then on too (move another line to the top of `trans` to change that). Choosing one already added downloads it again, as a fresh copy, and moves it to the top.
+
+To remove a translation, type **r** and its number, such as `r6`: its folder and its line in `trans` are deleted, so it is no longer offered, and its `*` is gone. Adding and removing can be mixed in one line, done in the order typed: `r10 11 13` removes 10 and adds 11 and 13. If anything in the line is wrong (a number not in the list, or `r` for a translation that isn't added), nothing is done, and the list says what was wrong. Only downloaded translations can be removed, not the King James (AV) that comes with EBaC.
 
 The **A** choice runs `add-translation.sh`, in the EBaC folder: a shell script, which needs only the standard shell and awk, and `curl` or `wget` to download (Linux, macOS, WSL and Solaris have them, and so does the Home Assistant app). It can also be run by itself:
 
 ```sh
 cd ~/ebac
-sh add-translation.sh         # list the translations, and ask which to add
-sh add-translation.sh BSB LEB # add these
-sh add-translation.sh --list  # just list them
+sh add-translation.sh              # list the translations, and ask which to add or remove
+sh add-translation.sh BSB LEB      # add these
+sh add-translation.sh --remove BSB # remove this one
+sh add-translation.sh --list       # just list them
 ```
 
 Behind the scenes, EBaC hands over to this script (EBaC is replaced by it, so its memory is freed meanwhile), and when it is done, it starts a new EBaC, which reads `trans` again and so offers the new translation. EBaC can be started with any translation in `trans` the same way: `~/ebac/bible BSB`.
