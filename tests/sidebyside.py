@@ -213,7 +213,7 @@ def main():
     tmp = tempfile.mkdtemp(prefix="ebac-test-")
     if len(sys.argv) <= 3:
         # The scenarios use the King James (AV) alone, whatever translations
-        # have been added (add-translation.py) to this copy of EBaC: run
+        # have been added (add-translation.sh) to this copy of EBaC: run
         # them in a folder of their own whose 'trans' lists only AV.
         repo, bibleroot = bibleroot, os.path.join(tmp, "root")
         os.makedirs(bibleroot)

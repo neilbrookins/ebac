@@ -31,8 +31,8 @@ static char program_path[512] = "";
 
 #ifdef UNIXV
 /*
-** The translation importer, add-translation.py in BIBLEROOT, if it is
-** there and Python 3 can be run; otherwise "". The main menu offers A)dd a
+** The translation importer, add-translation.sh in BIBLEROOT (a shell
+** script), if it is there; otherwise "". The main menu offers A)dd a
 ** translation only when it is set.
 */
 static char importer[600] = "";
@@ -1265,10 +1265,10 @@ static int on_path(char *name)
 static void find_importer(void)
 {
         char *root = getenv("BIBLEROOT");
-        static char name[] = "/add-translation.py";
+        static char name[] = "/add-translation.sh";
 
         importer[0] = '\0';
-        if (root == NULL || *root == '\0' || !on_path("python3"))
+        if (root == NULL || *root == '\0' || !on_path("sh"))
                 return;
         if (root[0] != '/' &&
             getcwd(importer, sizeof(importer) - 2) != NULL)
@@ -1287,7 +1287,7 @@ static void find_importer(void)
 /*
 ** Purpose: A)dd a translation, from the main menu. EBaC is replaced by the
 **          translation importer, so that none of its memory stays in use
-**          while Python runs, and the importer starts a new EBaC when it is
+**          while it runs, and the importer starts a new EBaC when it is
 **          done: one that reads 'trans' again, so it lists any translation
 **          just added (and starts with it). The importer is told how to start
 **          EBaC, and which translation this one was showing.
@@ -1298,7 +1298,7 @@ static void run_importer(void)
         char *args[6];
         int fd, err;
 
-        args[0] = "python3";
+        args[0] = "sh";
         args[1] = importer;
         args[2] = "--from-ebac";
         args[3] = (program_path[0] != '\0') ? program_path : "bible";
@@ -1311,12 +1311,12 @@ static void run_importer(void)
         for (fd = 3; fd < 256; fd++)
                 fcntl(fd, F_SETFD, FD_CLOEXEC);
         tty_suspend();
-        execvp("python3", args);
+        execvp("sh", args);
 
         err = errno;                            /* still here: it failed */
         tty_resume();
         printf("\nThe translation importer couldn't be started:\n");
-        printf("Python (python3) couldn't be run: %s\n\n", strerror(err));
+        printf("sh %s: %s\n\n", importer, strerror(err));
         printf("Press any key to go back to the main menu.\n");
         fflush(stdout);
         scr_mode("anykey");

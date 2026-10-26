@@ -19,7 +19,7 @@
 #   - a folder that trans doesn't mention at all (a warning, or an error
 #     with --strict), so a new translation isn't forgotten.
 # Folders whose names start with '.' (such as .git) are ignored, and so is
-# __pycache__, which Python may make for add-translation.py.
+# __pycache__ (left by add-translation.py, the importer of earlier versions).
 
 cd "$(dirname "$0")" || exit 1
 

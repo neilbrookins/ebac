@@ -227,24 +227,24 @@ See [`docs`](docs) for more examples.
 
 ### Downloading a translation
 
-At EBaC's main menu, press **A** to add a translation. EBaC lists the English translations it can download, a screenful at a time, with those already added marked: type the numbers of those you want and press Enter (such as `6`, or several, such as `6 14 31`; short names such as `BSB` work too), or press Enter alone to go back. For each one it downloads the text, splits it into a file per book in a folder of its own (such as `BSB`) with its `booklist`, builds its concordance index with `make`, checks that the index has every verse, and adds it to `trans`. It takes a few seconds per translation, and then you are back at the main menu with the new translation chosen.
+At EBaC's main menu, press **A** to add a translation. EBaC lists the English translations it can download, a screenful at a time, with those already added marked: type the numbers of those you want and press Enter (such as `6`, or several, such as `6 14 31`; short names such as `BSB` work too), or press Enter alone to go back. For each one it downloads the text, splits it into a file per book in a folder of its own (such as `BSB`) with its `booklist`, builds its concordance index, checks that the index has every verse, and adds it to `trans`. It takes a few seconds per translation, and then you are back at the main menu with the new translation chosen.
 
-The **A** choice is shown when Python 3 is installed (Linux, macOS with the Command Line Tools, and WSL have it). It runs `add-translation.py`, in the EBaC folder, which can also be run by itself:
+The **A** choice runs `add-translation.sh`, in the EBaC folder: a shell script, which needs only the standard shell and awk, and `curl` or `wget` to download (Linux, macOS, WSL and Solaris have them, and so does the Home Assistant app). It can also be run by itself:
 
 ```sh
 cd ~/ebac
-python3 add-translation.py         # list the translations, and ask which to add
-python3 add-translation.py BSB LEB # add these
-python3 add-translation.py --list  # just list them
+sh add-translation.sh         # list the translations, and ask which to add
+sh add-translation.sh BSB LEB # add these
+sh add-translation.sh --list  # just list them
 ```
 
-Behind the scenes, EBaC hands over to this program (EBaC is replaced by it, so its memory is freed while Python runs), and when it is done, it starts a new EBaC, which reads `trans` again and so offers the new translation. EBaC can be started with any translation in `trans` the same way: `~/ebac/bible BSB`.
+Behind the scenes, EBaC hands over to this script (EBaC is replaced by it, so its memory is freed meanwhile), and when it is done, it starts a new EBaC, which reads `trans` again and so offers the new translation. EBaC can be started with any translation in `trans` the same way: `~/ebac/bible BSB`.
 
 The 31 translations it offers include the American Standard Version, the Berean Standard Bible, the Lexham English Bible, Young's Literal Translation, Darby, Webster, the Geneva Bible of 1599, the Bible in Basic English, the New Heart English Bible, the Open English Bible, Tyndale, and several New Testaments. They come from the plain-text Bibles of the [bible_databases](https://github.com/scrollmapper/bible_databases) project, made from [CrossWire](https://crosswire.org/sword/modules/ModDisp.jsp?modType=Bibles)'s modules; CrossWire has a few more that aren't available as text there. Three with the Apocrypha (KJVA, Douay-Rheims and the Catholic Public Domain Version) have more verses than EBaC can number yet, so they aren't offered.
 
 Each translation keeps its own book names, as one word (EBaC's book prompt and `@book` searches take one word), shortened to fit the list of search results: `I Samuel` becomes `ISamuel`, so type `isam` for it. Curly quotes and dashes become plain ones, as in EBaC's own text, so that searches find the words beside them. Verse numbers keep the brackets they have there, `[1:1]`: EBaC reads both `[1:1]` and `1:1`.
 
-With more than nine translations, the **C** screen shows them a page at a time: type a number and press Enter (**space** and **p** turn the page, **x** goes back). Adding a translation changes `trans`; if a later `git pull` then says `Your local changes ... would be overwritten`, see [If something goes wrong](#if-something-goes-wrong). (The Home Assistant app doesn't offer **A**: an app's files are replaced when it is updated.)
+With more than nine translations, the **C** screen shows them a page at a time: type a number and press Enter (**space** and **p** turn the page, **x** goes back). Adding a translation changes `trans`; if a later `git pull` then says `Your local changes ... would be overwritten`, see [If something goes wrong](#if-something-goes-wrong). In the Home Assistant app, added translations are kept in the app's own storage, so updates of the app keep them (and Home Assistant's backups include them).
 
 ### Adding one by hand
 
