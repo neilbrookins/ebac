@@ -149,7 +149,7 @@ static int main_menu(void)
         putchar('\r');
 #endif
         scr_mode("menu");
-        return(ugetchar());
+        return(screen_key());   /* KEY_REDRAW if the window is resized */
 }
 
 /* Purpose: Takes a partial, or complete, bookname and sees how many
@@ -1053,7 +1053,8 @@ static void view_match_list(short int *verse_list)
 }
 
 /*
-** Purpose: read a key for the passage and search-result screens. If the
+** Purpose: read a key for the main menu, and the passage and search-result
+**          screens. If the
 **          window is resized while waiting, return KEY_REDRAW at once, so
 **          the screen is drawn again for the new size.
 */
@@ -1420,6 +1421,8 @@ printf("Enter Search word(s) here:\n");
                 case 'e':
                         exit_program(0);
                         break; /* not reached */
+                case KEY_REDRAW: /* CTRL-L, or the window was resized */
+                        break;   /* (the menu is drawn again) */
                 default:
 			putchar('\7');
                         break;

@@ -81,8 +81,8 @@ extern int num_verses;
 #define DIGITS_MODE 1
 
 /*
-** CTRL-L redraws the passage and search-result screens. ugetchar() also
-** returns it when the window is resized while one of those screens is
+** CTRL-L redraws the main menu, and the passage and search-result screens.
+** ugetchar() also returns it when the window is resized while one of them is
 ** waiting for a key: they set redraw_on_resize while they wait.
 */
 #define KEY_REDRAW 0x0c
