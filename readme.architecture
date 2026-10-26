@@ -1,0 +1,384 @@
+EBaC (Electronic Bible and Concordance) -- architecture notes
+=============================================================
+
+This file records how EBaC's concordance index and search work, what
+changed between versions and why, so that the reasons are not lost.
+It is plain text, to be read with any editor.
+
+
+EBaC 2.1 compared with EBaC 2.0
+-------------------------------
+
+  EBaC 2.0   index format 1 (unchanged since EBaC 1.3.0)
+  EBaC 2.1   index format 2
+
+  1. Phrase search. A new search operator, "." (period), finds words
+     next to each other, in order: "in the . beginning ." finds
+     Genesis 1:1. A search of words alone, with no operators at all
+     ("in the beginning"), is taken as a phrase; before 2.1 it was an
+     error ("more words than operators can combine").
+
+  2. Words in [square brackets] (in the King James Version, the words
+     the translators supplied, printed in italics in printed Bibles) and
+     in {braces} (notes) may be left out of a phrase or included:
+     "darkness upon" and "darkness was upon" both find Genesis 1:2,
+     "darkness [was] upon the face of the deep".
+
+  3. Verse numbers have 32 bits instead of 16. A translation may have
+     any number of verses, not at most 32,767, so that translations
+     with the Apocrypha (about 36,000 verses) can be used.
+
+  4. Every word is indexed. Before 2.1, a word occurring 65,000 times
+     or more was left out of the index ("common", listed in
+     common.dat): "the" in the Bible in Basic English and the Jubilee
+     2000 Bible could not be searched for. common.dat is no longer
+     made.
+
+  5. The count of a word's occurrences ("«the» 31487 times") is right
+     for frequent words. It was kept in 16 bits, one of them used for
+     another purpose (see "Keeping 0xFF out" below), so a count over
+     32,767 lost its top bit: "the" occurs about 64,000 times in the
+     King James Version.
+
+  6. The index has two new files, position.dat and plainpos.dat, and a
+     marker, format.dat. Several existing files have wider fields (see
+     "Index files" below). An index made by an older EBaC must be made
+     again: "make" does so (it remakes an index whenever the index
+     program has changed), and so does the Home Assistant app when it
+     is updated. EBaC 2.1 checks format.dat, and says so plainly if a
+     translation's index is from an older EBaC.
+
+Nothing changes for searches that 2.0 could already do: they give the
+same results, on the same screens (but for the count in point 5).
+
+
+How the index is made
+---------------------
+
+The index program (index.c) is run in a translation's folder (such as
+AV). It reads the books named in booklist, in order, word by word.
+
+Verse numbers. A word of the form chapter:verse (such as 1:1, or [1:1]
+in texts from other sources) at the start of a line begins a verse.
+Every verse gets a sequential verse number (SVN): 1 for the first
+verse of the first book, counting on through the whole translation
+without starting again at a new chapter or book. All of EBaC's lists
+of verses are lists of SVNs.
+
+The binary tree. Every other word, once punctuation at its start and
+end is removed and it is made lower case, is stored in a binary tree
+in memory, ordered by the word. Each node holds the word, a linked
+list of its occurrences, and a count of them. The tree is made in one
+pass over the text.
+
+The index files. When all the books have been read, an in-order
+traversal of the tree visits the words in alphabetical order, and
+writes, for each word:
+
+  words.dat       the word, then the offset of its record in
+                  references.dat (4 bytes), then the byte 0xFF (EOR,
+                  end of record). In alphabetical order, so that a word
+                  is found by a binary search with fseek().
+
+  references.dat  the word's record: its count, then its list of SVNs,
+                  then 0xFF.
+
+  position.dat    (2.1) a record laid out exactly like the word's
+  plainpos.dat    record in references.dat, at the same offset, holding
+                  the word's positions in place of SVNs (see "Positions"
+                  below).
+
+While reading, it also writes:
+
+  bvarray.dat     for each book, the SVN its first verse follows and
+                  the number of chapters before it; and once more at
+                  the end, for the end of the last book.
+  chapter.dat     for each chapter, the SVN of its first verse; and one
+                  more at the end.
+  cvarray.dat     for each verse, the byte offset in its book's file
+                  where the verse begins, for fseek().
+  format.dat      (2.1) the text "EBaC index format 2" and a newline.
+
+All numbers are written most significant byte first, the same on every
+computer, so an index made on one system works on another.
+
+How EBaC finds a word. It does a binary search of words.dat with
+fseek() (lookup() in file.c), takes the offset stored with the word,
+and fseek()s to the word's record in references.dat (find_word()).
+How EBaC shows a verse: cvarray.dat gives the verse's offset in its
+book's file (fseek() to SVN times the width of an entry), and
+bvarray.dat which book it is in. Nothing is ever found by reading
+through a file from the start: every look-up goes through an index,
+straight to its answer. Phrase search keeps to this: position.dat and
+plainpos.dat are read at the offset words.dat gives, like
+references.dat.
+
+
+Index files: format 1 (EBaC 2.0) and format 2 (EBaC 2.1)
+--------------------------------------------------------
+
+                  format 1                     format 2
+  words.dat       word, offset 4, 0xFF          unchanged
+  references.dat  count 2, SVN 2 each, 0xFF     count 4, SVN 4 each, 0xFF
+                  (one SVN per verse the        (one SVN per occurrence:
+                  word is in)                   repeated if the word is
+                                                in a verse more than once)
+  position.dat    -                             count 4, full position 4
+                                                each, 0xFF
+  plainpos.dat    -                             count 4, plain position 4
+                                                each, 0xFF
+  bvarray.dat     SVN 2, chapters 2, per book   SVN 4, chapters 4, per book
+  chapter.dat     SVN 2 per chapter             SVN 4 per chapter
+  cvarray.dat     offset 4 per verse            unchanged
+  common.dat      words left out of the index   not made (every word is
+                                                indexed)
+  format.dat      -                             "EBaC index format 2"
+
+(The numbers are sizes in bytes.) references.dat, position.dat and
+plainpos.dat have the same length and layout: a word's record starts
+at the same offset in all three, and its n-th occurrence is at the
+same offset in each. So the one offset in words.dat serves all three,
+and no new index is needed to find positions.
+
+Keeping 0xFF out. 0xFF ends each record (EOR), so a number written
+where EBaC looks for the end must not start with 0xFF. Format 1 kept
+it out of 2-byte numbers by setting their top bit as a flag when the
+low byte was 0xFF and clearing that byte (i_bit_twiddle() and
+i_bit_reset()). That flag bit is why counts over 32,767 went wrong. In
+format 2 every number in these three files is 4 bytes, read 4 bytes at
+a time, and EBaC only looks at the first (most significant) byte for
+0xFF; no count, SVN or position comes near 0xFF000000, so they are
+written as they are, with no flag. The offsets in words.dat keep their
+own scheme (l_bit_twiddle()), unchanged.
+
+Sizes. For the King James Version, references.dat grows from about
+1.3 MB (about 636,000 verse numbers, 2 bytes each) to about 3.2 MB
+(about 791,000 occurrences, 4 bytes each), and position.dat and
+plainpos.dat are the same size: the whole index is about 10 MB,
+against about 1.5 MB before.
+
+
+Positions
+---------
+
+Each occurrence of a word has two positions in its verse:
+
+  full position    1 for the first word of the verse, 2 for the
+                   second, and so on, counting every word that is
+                   indexed. (Not the verse number, nor anything that is
+                   nothing but punctuation, such as "--".)
+
+  plain position   the same, but counting only words that are not in
+                   [square brackets] or {braces}; for a word in
+                   brackets or braces it is 0.
+
+A word is in brackets if it is inside a [ ... ] that starts at the
+beginning of a word and ends at the end of one: "[was]" in
+"darkness [was] upon", both words of "[it was]". A verse number in
+brackets, [1:1], is a verse number, not a bracketed word. The same for
+{ ... }.
+
+For example, Genesis 1:2 in the King James Version:
+
+  And the earth was without form, and void; and darkness [was] upon ...
+  full:   1   2   3    4   5      6    7    8   9         10    11
+  plain:  1   2   3    4   5      6    7    8   9         0     10
+
+Word B comes right after word A, in a phrase, when they are in the same
+verse and
+
+  B's full position is A's full position plus 1      (every word read),
+  or neither is bracketed (plain positions not 0), and
+     B's plain position is A's plain position plus 1  (bracketed words
+                                                       left out).
+
+So "darkness was upon" matches by full positions, and "darkness upon"
+by plain positions; "earth darkness" doesn't match, as other words
+come between. Punctuation never separates words in a phrase:
+"saith the lord" matches "saith the LORD," whatever the punctuation.
+
+Positions count words in the verse as stored, so a phrase can't run
+from the end of one verse into the next.
+
+
+Searching
+---------
+
+A search is written in postfix (reverse Polish) notation: the operator
+comes after the two things it combines. EBaC evaluates it with a stack
+(process.c): each word, or @book, pushes a list of verses; each
+operator pops two lists and pushes the result. The operators:
+
+  0, 1, 2, ...   AND: verses within that many verses of each other
+                 (0: the same verse)
+  , or |         OR
+  - or !         AND NOT
+  @book          (an operand, not an operator) every verse of the book
+  .              (2.1) phrase: the second word right after the first
+
+The two builds. EBaC is built two ways from the same source, and both
+must behave exactly alike ("make test" checks that their screens are
+identical, byte for byte):
+
+  NORAMDISK   lists are arrays in memory (malloc), ending with 0.
+  RAMDISK     lists are temporary files, a number at a time, ending with
+              0, for computers with little memory (the CoCo, MS-DOS),
+              where the files can be on a RAM disk.
+
+Every list handling below exists in both forms.
+
+Two kinds of list. In 2.1 a list on the stack is one of two kinds:
+
+  a verse list        SVNs, each once, in order (as in 2.0)
+  an occurrence list  entries of three numbers, SVN, full position and
+                      plain position, in order of SVN and then full
+                      position; an SVN may repeat
+
+A word gives an occurrence list only when the search uses "." (or is a
+phrase without operators); then EBaC reads position.dat and
+plainpos.dat as well as references.dat. Otherwise it reads only
+references.dat, as before, and gives a verse list, leaving out a
+repeated SVN as it reads (an SVN repeats in references.dat when the
+word is in that verse more than once). So the searches of 2.0 read the
+same file and give the same verse lists as before, and 0 , - @ work on
+verse lists exactly as before. When one of them is given an occurrence
+list (a word, or a phrase, in a search that also uses "."), the list is
+first made into a verse list, each SVN once.
+
+The "." operator pops two occurrence lists, A then B, and pushes an
+occurrence list of the entries of B that come right after an entry of
+A (see "Positions"), with B's positions: so the result carries the
+position of the last word, and can itself be the first operand of
+another ".". "in the . beginning ." works this way: "in the ." finds
+"the" right after "in"; ". beginning" then finds "beginning" right
+after that "the". Both lists are in order, so they are combined by
+going through them together once, as AND does.
+
+  Note: the definition of "." is the AND operator with 0 (the same
+  verse), with one more condition on the positions. Combining the
+  lists directly by SVN and position does both at once.
+
+At the end, a result that is an occurrence list is made into a verse
+list, for the list of verses found.
+
+Phrases without operators. A search of two or more words, with no
+operators and no @book, is a phrase: "in the beginning" is evaluated as
+"in the . beginning .". As soon as a search has any operator, it is
+taken exactly as written, and must have the right number of operators
+(one fewer than its words and books), as before.
+
+Errors (reported before the search is done, by valid_search(), as for
+the existing operators):
+
+  - "." needs two operands before it, like every operator.
+  - "." can only combine words, or phrases made with "."; not the result
+    of 0, ",", "-" or an @book: "The operator "." needs words or
+    phrases before it." So "love hate 0 god ." is an error, and so is
+    "@gen in .".
+  - Too many or too few operators, as before.
+
+Highlighting. As before, every word searched for is shown in reverse
+video wherever it appears in the verses found.
+
+
+Widths in the program
+---------------------
+
+SVNs are held in long (32 bits) everywhere in EBaC and the index
+program, not short or int: an int is only 16 bits on the CoCo. This
+covers the stack and the lists of both builds, the temporary files of
+the RAMDISK build (4 bytes per number, fputl()/fgetl(): where its AND
+steps back over a list with fseek(), a step is now 4 bytes, -8L for
+two numbers instead of -4L, and the start of the list is at 4), the
+book and chapter tables read from bvarray.dat and chapter.dat, and
+every function that takes or returns an SVN (get_verse(),
+verse_to_book(), bcv_search(), and the screens of userint.c).
+Positions are long too.
+
+
+The CoCo
+--------
+
+The CoCo build has fixed tables (66 books, 1,189 chapters) that double
+in size with 4-byte SVNs (about 5 KB more). It has not been run on a
+real CoCo; the conversion to K&R C is checked by "make coco".
+
+
+The translation importer
+------------------------
+
+add-translation.sh no longer limits a translation to 32,767 verses, and
+offers the translations with the Apocrypha (KJVA, the Douay-Rheims
+Bible and the Catholic Public Domain Version) with the rest.
+
+
+Testing
+-------
+
+  - EBaC 2.0 and 2.1 side by side: the same searches (every operator,
+    paging, viewing, errors) on the King James Version, each with its
+    own index; the screens must be identical, except the count of "the"
+    (point 5 above). This replaces the old check that the index files
+    are byte for byte those of EBaC 1.3.0, which can't hold once the
+    format changes.
+  - "make test": the NORAMDISK and RAMDISK builds of 2.1 must give
+    identical screens, with new scenarios for phrases ("in the
+    beginning", "in the . beginning .", bracketed words both ways, a
+    phrase with other operators, and each error), also with the memory
+    checkers (make test TESTSAN="-fsanitize=address,undefined").
+  - Every translation the importer offers, with and without the
+    Apocrypha, is imported and indexed, and the index's verse count
+    checked against the text.
+  - "make coco" still converts the source to K&R C.
+
+
+How the change was made
+-----------------------
+
+In three stages, each checked before the next:
+
+  1. 32-bit SVNs and counts everywhere; no "common" words. EBaC 2.0 and
+     the new program must give the same screens (but the count of
+     "the").
+  2. One SVN per occurrence in references.dat; readers leave out a
+     repeated SVN. The screens must still be the same.
+  3. position.dat and plainpos.dat, the "." operator, phrases without
+     operators, brackets, and the new tests.
+
+Then the importer, and a release of EBaC and of the Home Assistant
+app.
+
+
+Decisions, and why
+------------------
+
+These were settled in a design review (October 2026) before any code
+was written:
+
+  - Phrase search must use the index, with no reading of the text, as
+    every other search does. Positions are stored at indexing time, in
+    files parallel to references.dat, read with fseek() at the offset
+    words.dat already gives.
+  - The operator is "." (it was not in use). "0" (same verse) stays as
+    it was; "." is stricter.
+  - Only "." reads position.dat and plainpos.dat; the other operators
+    don't need them.
+  - The result of "." carries the position of its last word, so that
+    phrases of any length can be built ("in the . beginning .").
+  - Words alone, with no operators, are a phrase; any operator means
+    the search is taken exactly as written.
+  - references.dat holds every occurrence (option "a" of the review),
+    so that the position files can be exactly parallel to it; the
+    other operators leave out repeated verses as they read.
+  - Bracketed words may be left out of a phrase or included, so that a
+    search succeeds whether or not the searcher knows of the brackets;
+    hence two positions per occurrence.
+  - Punctuation does not separate words in a phrase.
+  - The common-word limit goes, and counts are 32 bits, so that "the"
+    is indexed in every translation and counted right.
+  - SVNs go to 32 bits at the same time, so that indexes are remade
+    once, not twice, and translations with the Apocrypha can be used.
+  - Every number in references.dat, position.dat and plainpos.dat is 4
+    bytes, so that the three files are laid out alike.
+  - Both builds (NORAMDISK, RAMDISK) are kept alike; that is a high
+    priority.
