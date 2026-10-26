@@ -50,6 +50,7 @@ char etla[MAX_ETLA];/*global variable with name of current translation in use*/
 long int numverses, numchapters, numbooks, sizeofwordsdat;
 int num_found;  /* Number of matches in a word search */
 char *bible_root = "";  /* the folder EBaC's files are in (BIBLEROOT) */
+char *start_trans = NULL; /* the translation to start with, from "bible BSB" */
 int num_verses;  /* Number of verses in item on stack */
 #ifndef COCO
         struct bva *book;
@@ -87,14 +88,35 @@ void exit_program(int errnum)
 	_ss_opt(1, &oldbuffer);
 #endif
 #ifdef UNIXV
-#       ifdef USE_NCURSES
-        scr_end();      /* e.g. turn off keypad transmit mode */
-#       endif
-        if (tty_saved)
-                tcsetattr(0, TCSADRAIN, &oldtermio);
+        tty_suspend();
 #endif
         exit(errnum);
 }
+
+#ifdef UNIXV
+/*
+** Purpose: put the terminal back the way it was before EBaC started, so
+**          that another program can use it (or EBaC can exit);
+**          tty_resume() sets it up for EBaC again.
+*/
+void tty_suspend(void)
+{
+#       ifdef USE_NCURSES
+        scr_end();      /* e.g. turn off keypad transmit mode */
+#       endif
+        fflush(stdout);
+        if (tty_saved)
+                tcsetattr(0, TCSADRAIN, &oldtermio);
+}
+
+void tty_resume(void)
+{
+        set_raw_tty();
+#       ifdef USE_NCURSES
+        scr_resume();
+#       endif
+}
+#endif
 
 #ifdef VMS
 int ugetchar(void)
@@ -411,7 +433,7 @@ static void contsignal(int signo)
 
 void initialize(void)
 {
-int i;
+int i, j, len;
 FILE *trans_file;
 
 /*
@@ -558,11 +580,25 @@ FILE *trans_file;
         	exit_program(1);
         }
 
+/*
+** Start with the translation named when EBaC was started ("bible BSB"; the
+** translation importer starts EBaC this way after adding one), if trans
+** lists it; otherwise with the first in the list.
+*/
+        j = 0;
+        if (start_trans != NULL && (len = strlen(start_trans)) > 0)
+        	for (i = 0; trans[i][0] != '\0'; i++)
+        		if (strncmp(trans[i], start_trans, len) == 0 &&
+        		    isspace(UCHAR(trans[i][len])))
+        		{
+        			j = i;
+        			break;
+        		}
         i = 0;
-        while (!isspace(UCHAR(trans[0][i])) && trans[0][i] != '\0' &&
+        while (!isspace(UCHAR(trans[j][i])) && trans[j][i] != '\0' &&
                (i < MAX_ETLA - 1))
         {
-        	etla[i] = trans[0][i]; /* default to first trans in list */
+        	etla[i] = trans[j][i];
         	++i;
         }
         etla[i] = '\0';

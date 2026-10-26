@@ -32,6 +32,14 @@ well as 1:1.
 Translations with more verses than EBaC can number (32767), such as those
 with the Apocrypha, aren't offered.
 
+EBaC runs this itself when A)dd a translation is chosen from its main menu
+(when Python 3 is installed), as "add-translation.py --from-ebac PROGRAM
+NAME": PROGRAM is how to start EBaC again, and NAME the translation it was
+showing. EBaC is replaced by this program, and this one is replaced by a
+new EBaC when it is done, which starts with the translation just added (or
+else NAME). So it seems like one program, and the new EBaC reads 'trans'
+again, listing what was added.
+
 Needs only Python 3 (3.6 or later), and the tools that build EBaC (make).
 """
 
@@ -79,7 +87,8 @@ def fetch(source, path):
         except urllib.error.HTTPError as err:
             raise Problem("couldn't download %s (%s)" % (url, err.code))
         except (urllib.error.URLError, OSError) as err:
-            raise Problem("couldn't download %s (%s)" % (url, getattr(err, "reason", err)))
+            raise Problem("couldn't download %s (%s; is this computer connected "
+                          "to the Internet?)" % (url, getattr(err, "reason", err)))
     try:
         with open(os.path.join(source, path), encoding="utf-8") as f:
             return f.read()
@@ -183,7 +192,7 @@ def add(name, title, source):
     was_listed = name in listed_translations()
     try:
         add_to(folder, name, title, source)
-    except Problem:
+    except (Problem, KeyboardInterrupt):        # (CTRL-C stops it too)
         if not was_listed and os.path.isdir(folder):
             shutil.rmtree(folder)
         raise
@@ -235,6 +244,119 @@ def add_to(folder, name, title, source):
     print("%s: done. %s is ready: start EBaC and press C to choose it." % (name, title))
 
 
+def screen_size():
+    size = shutil.get_terminal_size((80, 24))
+    return max(size.columns, 20), max(size.lines, 8)
+
+
+def clear_screen():
+    """Clear the terminal, with its own code for that, from terminfo."""
+    if not sys.stdout.isatty():
+        return
+    try:
+        import curses
+        curses.setupterm()
+        code = curses.tigetstr("clear")
+    except Exception:           # no curses module, or an unknown TERM
+        code = None
+    sys.stdout.flush()
+    if code:
+        sys.stdout.buffer.write(code)
+        sys.stdout.buffer.flush()
+    else:
+        print()
+
+
+def choose(available, listed, from_ebac):
+    """Show the translations a screenful at a time, and ask which to add.
+    Returns their short names; none to stop."""
+    by_lower = {n.lower(): n for n, _ in available}
+    first = 0
+    note = ""
+    while True:
+        cols, lines = screen_size()
+        per_page = max(lines - 5, 3)
+        pages = (len(available) + per_page - 1) // per_page
+        first = min(first, (pages - 1) * per_page)
+        clear_screen()
+        heading = "Add a translation to EBaC"
+        if pages > 1:
+            heading += " (page %d of %d)" % (first // per_page + 1, pages)
+        print(heading[:cols - 1])
+        print()
+        for i in range(first, min(first + per_page, len(available))):
+            name, title = available[i]
+            mark = "  (added)" if name in listed else ""
+            line = "%3d) %-12s" % (i + 1, name)
+            room = cols - 1 - len(line) - len(mark)
+            if len(title) > room:
+                title = title[:room - 3] + "..." if room > 3 else ""
+            print((line + title + mark)[:cols - 1])
+        print(note[:cols - 1])
+        note = ""
+        back = "back to EBaC" if from_ebac else "stop"
+        if cols - 1 >= 66:
+            print("Type the numbers of the translations to add, as 6 14, and Enter.")
+            prompt = "(%sEnter alone: %s): " % (
+                "n, p: next, previous page; " if pages > 1 else "", back)
+        else:
+            print("Numbers to add (as 6 14), Enter.")
+            prompt = "(%sEnter: %s): " % ("n/p: page; " if pages > 1 else "", back)
+        try:
+            answer = input(prompt)
+        except EOFError:
+            answer = ""
+        words = answer.replace(",", " ").split()
+        if not words or words[0].lower() in ("x", "q"):
+            return []
+        if words[0].lower() in ("n", "p") and len(words) == 1:
+            if words[0].lower() == "n" and first + per_page < len(available):
+                first += per_page
+            elif words[0].lower() == "p" and first > 0:
+                first -= per_page
+            continue
+        chosen, unknown = [], []
+        for word in words:
+            if word.isdigit() and 1 <= int(word) <= len(available):
+                chosen.append(available[int(word) - 1][0])
+            elif word.lower() in by_lower:
+                chosen.append(by_lower[word.lower()])
+            elif word.upper() in TOO_LARGE:
+                unknown.append(word + " (too big for EBaC)")
+            else:
+                unknown.append(word)
+        if unknown:
+            note = "Not in the list: " + ", ".join(unknown)
+            continue
+        return chosen
+
+
+def back_to_ebac(program, translation):
+    """Replace this program by a new EBaC, which starts with translation."""
+    sys.stdout.flush()
+    try:
+        if os.sep in program:
+            os.execv(program, [program, translation])
+        os.execvp(program, [program, translation])
+    except OSError as err:
+        sys.exit("add-translation: couldn't start EBaC again (%s: %s).\n"
+                 "Start it as usual, and the new translations will be there."
+                 % (program, err.strerror))
+
+
+def add_chosen(names, titles, source):
+    """Add these translations. Returns (the ones added, how many failed)."""
+    added, failed = [], 0
+    for name in names:
+        try:
+            add(name, titles[name], source)
+            added.append(name)
+        except Problem as err:
+            print("%s: not added: %s." % (name, err))
+            failed += 1
+    return added, failed
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Download Bible translations and add them to EBaC.")
@@ -243,36 +365,50 @@ def main():
     parser.add_argument("--source", default=SOURCE,
                         help="where the translations are: a web address, or a "
                              "folder with a copy of bible_databases (default: %(default)s)")
+    parser.add_argument("--from-ebac", nargs=2, metavar=("PROGRAM", "NAME"),
+                        help="run from EBaC's menu: start EBaC again with PROGRAM "
+                             "when done, with the translation added, or else NAME")
     args = parser.parse_args()
 
+    if not args.from_ebac:
+        try:
+            sys.exit(run(args, False))
+        except KeyboardInterrupt:
+            print()
+            sys.exit(1)
+
+    # run from EBaC: whatever happens, go back to a new EBaC at the end
+    program, translation = args.from_ebac
+    try:
+        added, failed = run(args, True)
+        if added:
+            translation = added[-1]
+        if failed:
+            input("\nPress Enter to go back to EBaC. ")
+    except (KeyboardInterrupt, EOFError):
+        print("\nStopped.")
+    back_to_ebac(program, translation)
+
+
+def run(args, from_ebac):
+    """Ask for (or take) the translations, and add them. Returns the exit
+    status, or from EBaC, (the ones added, how many failed)."""
     try:
         available = english_translations(args.source)
     except Problem as err:
-        sys.exit("add-translation: " + str(err))
+        print("add-translation: " + str(err))
+        return ([], 1) if from_ebac else 1
     titles = dict(available)
     listed = listed_translations()
 
-    if args.list or not args.names:
+    if args.list:
         print("English translations that can be added to EBaC:\n")
         for i, (name, title) in enumerate(available, 1):
             mark = "  (added)" if name in listed else ""
             print("%3d) %-12s %s%s" % (i, name, title, mark))
-        print()
-        if args.list:
-            return
-        try:
-            answer = input("Type the numbers or names of those to add, "
-                           "or press Enter to stop: ")
-        except EOFError:
-            answer = ""
-        for word in answer.replace(",", " ").split():
-            if word.isdigit() and 1 <= int(word) <= len(available):
-                args.names.append(available[int(word) - 1][0])
-            else:
-                args.names.append(word)
-        if not args.names:
-            return
+        return 0
 
+    names = []
     failed = 0
     by_lower = {n.lower(): n for n in titles}
     for word in args.names:
@@ -282,13 +418,18 @@ def main():
             if word.upper() in TOO_LARGE:
                 print("    (It has more verses than EBaC can number.)")
             failed += 1
-            continue
-        try:
-            add(name, titles[name], args.source)
-        except Problem as err:
-            print("%s: not added: %s." % (name, err))
-            failed += 1
-    sys.exit(1 if failed else 0)
+        else:
+            names.append(name)
+    if not args.names:
+        names = choose(available, listed, from_ebac)
+        if names:
+            clear_screen()
+
+    added, more = add_chosen(names, titles, args.source)
+    failed += more
+    if from_ebac:
+        return added, failed
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

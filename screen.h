@@ -43,6 +43,8 @@ extern void     scr_put P((char *s));
 extern void     scr_clear P((void));
 /* undo terminal settings made by initscreen(), before exiting */
 extern void     scr_end P((void));
+/* set the terminal up again after scr_end(), to carry on */
+extern void     scr_resume P((void));
 /* readable when the window has been resized (see ugetchar() in file.c) */
 extern int      scr_resize_fd P((void));
 /* tell a web terminal page which screen is showing (see curses.c) */

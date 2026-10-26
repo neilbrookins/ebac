@@ -8,6 +8,8 @@
 
 #ifdef UNIXV
 #       include <sys/utsname.h>  /* uname(), for the Information screen */
+#       include <errno.h>
+#       include <fcntl.h>       /* fcntl(), for run_importer() */
 #endif
 
 /*
@@ -26,6 +28,15 @@
 
 /* how this program was started, for the Information screen */
 static char program_path[512] = "";
+
+#ifdef UNIXV
+/*
+** The translation importer, add-translation.py in BIBLEROOT, if it is
+** there and Python 3 can be run; otherwise "". The main menu offers A)dd a
+** translation only when it is set.
+*/
+static char importer[600] = "";
+#endif
 
 #define WIDTH (s_cols - 1)
 #define MAXINDENT 26
@@ -95,6 +106,11 @@ static void view_match_list P((short int *verse_list));
 static void prog_info P((void));
 static void prog_diagnostics P((void));
 static void set_program_path P((char *argv0));
+#ifdef UNIXV
+static int on_path P((char *name));
+static void find_importer P((void));
+static void run_importer P((void));
+#endif
 static int tag_label P((int tag));
 static int key_to_tag P((int key));
 static int screen_key P((void));
@@ -111,10 +127,19 @@ static int main_menu(void)
         /* a blank line between the choices, so each is easy to tap on a
            touch screen (see gestures.js in the Home Assistant app) */
         printf("C)hange to a different translation\n\n");
+#ifdef UNIXV
+        if (importer[0] != '\0')
+                printf("A)dd a translation (download one)\n\n");
+#endif
         printf("V)iew by:   Bookname Chapter:Verse\n\n");
         printf("S)earch by: Keyword(s)\n\n");
         printf("I)nformation about EBaC\n\n");
         printf("E)xit Program\n\n");
+#ifdef UNIXV
+        if (importer[0] != '\0')
+                printf("Please press C, A, V, S, I, or E now.\n");
+        else
+#endif
         printf("Please press C, V, S, I, or E now.\n");
 /*
 ** I wish I understood why this is needed, but with the \r, the display
@@ -1196,6 +1221,109 @@ static void set_program_path(char *argv0)
                 strcpy(program_path, argv0);
 }
 
+#ifdef UNIXV
+/* Purpose: TRUE if a program of this name is in a folder listed in PATH. */
+static int on_path(char *name)
+{
+        char dir[512];
+        char *p = getenv("PATH");
+        int len;
+
+        while (p != NULL && *p != '\0')
+        {
+                for (len = 0; p[len] != ':' && p[len] != '\0'; len++)
+                        ;
+                if (len == 0)                   /* an empty entry: here */
+                        strcpy(dir, ".");
+                else if (len + 1 < (int) sizeof(dir))
+                {
+                        strncpy(dir, p, len);
+                        dir[len] = '\0';
+                }
+                else
+                        dir[0] = '\0';
+                if (dir[0] != '\0' &&
+                    strlen(dir) + strlen(name) + 2 <= sizeof(dir))
+                {
+                        strcat(dir, "/");
+                        strcat(dir, name);
+                        if (access(dir, X_OK) == 0)
+                                return TRUE;
+                }
+                p += len;
+                if (*p == ':')
+                        ++p;
+        }
+        return FALSE;
+}
+
+/*
+** Purpose: find the translation importer (see importer, above). Done
+**          before initialize() changes folder, so that a BIBLEROOT given
+**          relative to the current folder works too.
+*/
+static void find_importer(void)
+{
+        char *root = getenv("BIBLEROOT");
+        static char name[] = "/add-translation.py";
+
+        importer[0] = '\0';
+        if (root == NULL || *root == '\0' || !on_path("python3"))
+                return;
+        if (root[0] != '/' &&
+            getcwd(importer, sizeof(importer) - 2) != NULL)
+                strcat(importer, "/");
+        if (strlen(importer) + strlen(root) + sizeof(name) > sizeof(importer))
+        {
+                importer[0] = '\0';
+                return;
+        }
+        strcat(importer, root);
+        strcat(importer, name);
+        if (access(importer, R_OK) != 0)
+                importer[0] = '\0';
+}
+
+/*
+** Purpose: A)dd a translation, from the main menu. EBaC is replaced by the
+**          translation importer, so that none of its memory stays in use
+**          while Python runs, and the importer starts a new EBaC when it is
+**          done: one that reads 'trans' again, so it lists any translation
+**          just added (and starts with it). The importer is told how to start
+**          EBaC, and which translation this one was showing.
+** Returns: only if the importer couldn't be started, after saying so.
+*/
+static void run_importer(void)
+{
+        char *args[6];
+        int fd, err;
+
+        args[0] = "python3";
+        args[1] = importer;
+        args[2] = "--from-ebac";
+        args[3] = (program_path[0] != '\0') ? program_path : "bible";
+        args[4] = etla;
+        args[5] = NULL;
+
+        cls();
+        /* EBaC's open files aren't passed on to the importer, and so to the
+           EBaC it starts (this only takes effect if execvp() works) */
+        for (fd = 3; fd < 256; fd++)
+                fcntl(fd, F_SETFD, FD_CLOEXEC);
+        tty_suspend();
+        execvp("python3", args);
+
+        err = errno;                            /* still here: it failed */
+        tty_resume();
+        printf("\nThe translation importer couldn't be started:\n");
+        printf("Python (python3) couldn't be run: %s\n\n", strerror(err));
+        printf("Press any key to go back to the main menu.\n");
+        fflush(stdout);
+        scr_mode("anykey");
+        ugetchar();
+}
+#endif
+
 /* Main program! */
 int main(int argc, char **argv)
 {
@@ -1207,6 +1335,11 @@ int main(int argc, char **argv)
         short int cur_verse;
         struct bcv_type *point_bcv;
         set_program_path(argc > 0 ? argv[0] : NULL);
+        if (argc > 1)
+                start_trans = argv[1];  /* "bible BSB": start with BSB */
+#ifdef UNIXV
+        find_importer();
+#endif
         initialize();
         cls();
         for(;;)
@@ -1216,6 +1349,14 @@ int main(int argc, char **argv)
 		case 'c':
 			change_translations();
 			break;
+#ifdef UNIXV
+		case 'a':
+			if (importer[0] != '\0')
+				run_importer();
+			else
+				putchar('\7');
+			break;
+#endif
                 case 'v':
                         point_bcv = bcv_menu();
                         if (point_bcv != (struct bcv_type *) NULL)

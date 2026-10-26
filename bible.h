@@ -122,6 +122,11 @@ void exit_program P((int errnum));
 void mfclose P((FILE *fileptr, char *string));
 FILE *mfopen P((char *string, char *mode));
 void initialize P((void));
+extern char *start_trans;
+#ifdef UNIXV
+void tty_suspend P((void));
+void tty_resume P((void));
+#endif
 void change_translations P((void));
 int verse_to_book P((short int sequ_verse_number));
 struct bcv_array_type *get_verse P((short int sequ_verse_number));

@@ -184,6 +184,15 @@ void scr_end(void)
 		fflush(stdout);
 	}
 }
+void scr_resume(void)
+{
+	if (KS != NULL)
+	{
+		scr_put(KS);
+		fflush(stdout);
+	}
+}
+
 static char *default_TERM = "vt100";
 
 /* Used by tputs() to send each character to the screen */
