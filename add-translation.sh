@@ -476,12 +476,36 @@ clear_screen() {
 
 # Show the translations a screenful at a time, and ask which to add.
 # Sets chosen to their short names; none to stop.
+# read_line: read a line typed into answer. Returns 2, with nothing read, if
+# the window changes size meanwhile (or since the screen was drawn), so that
+# it can be drawn again at the new size: as when a phone's keyboard comes up
+# just after the list was drawn, which would push its top off the screen.
+# 1 at the end of input.
+read_line() {
+        answer=""
+        [ "$resized" = 1 ] && return 2
+        if [ -n "${BASH_VERSION:-}" ]; then
+                # (bash doesn't let a signal interrupt read: wait a second at
+                # a time, and look in between)
+                while :; do
+                        read -r -t 1 answer && return 0
+                        [ $? -gt 128 ] || { answer=""; return 1; }
+                        [ "$resized" = 1 ] && { answer=""; return 2; }
+                done
+        fi
+        read -r answer && return 0
+        answer=""
+        [ "$resized" = 1 ] && return 2  # (dash, BusyBox: read was interrupted)
+        return 1
+}
+
 choose() {
         first=0
         note=""
         count=$($AWK 'END { print NR }' "$tmp/list")
         listed_translations > "$tmp/listed"
         while :; do
+                resized=0               # (set by the WINCH trap)
                 screen_size
                 per_page=$((rows - 5))
                 [ $per_page -ge 3 ] || per_page=3
@@ -520,7 +544,6 @@ choose() {
                         else
                                 print "Add: 6 14, remove: r6; then Enter."
                 }' "$tmp/listed" "$tmp/list"
-                note=""
                 pg=""
                 if [ $((cols - 1)) -ge 66 ]; then
                         [ $pages -gt 1 ] && pg="n, p: next, previous page; "
@@ -530,8 +553,9 @@ choose() {
                         printf '(%sEnter: %s): ' "$pg" "$back"
                 fi
                 typing_mode
-                answer=""
-                read -r answer || answer=""
+                read_line
+                [ $? -eq 2 ] && continue        # resized: draw the list again
+                note=""
                 answer=$(printf '%s\n' "$answer" | tr ',' ' ')
                 set -- $answer
                 case $(printf '%s\n' "$1" | tr 'A-Z' 'a-z') in
@@ -637,6 +661,8 @@ done
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/ebac-add.XXXXXX") || exit 1
 trap cleanup EXIT
 trap interrupted INT
+resized=0
+trap 'resized=1' WINCH 2> /dev/null     # the window changed size (see read_line)
 
 if ! english_translations; then
         printf 'add-translation: %s\n' "$problem"
