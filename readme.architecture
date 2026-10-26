@@ -16,7 +16,10 @@ EBaC 2.1 compared with EBaC 2.0
      next to each other, in order: "in the . beginning ." finds
      Genesis 1:1. A search of words alone, with no operators at all
      ("in the beginning"), is taken as a phrase; before 2.1 it was an
-     error ("more words than operators can combine").
+     error ("more words than operators can combine"). A phrase may run
+     from the end of one verse into the start of the next, across
+     chapters and books too: the words of the Bible follow one another
+     from the first to the last.
 
   2. Words in [square brackets] (in the King James Version, the words
      the translators supplied, printed in italics in printed Bibles) and
@@ -40,7 +43,12 @@ EBaC 2.1 compared with EBaC 2.0
      32,767 lost its top bit: "the" occurs about 64,000 times in the
      King James Version.
 
-  6. The index has two new files, position.dat and plainpos.dat, and a
+  6. New distance operators, beside the number N (within N verses, in
+     either direction, the same verse included): +N, exactly N verses
+     after; -N, exactly N verses before; ~N, exactly N verses apart in
+     either direction (never the same verse, for N above 0).
+
+  7. The index has two new files, position.dat and plainpos.dat, and a
      marker, format.dat. Several existing files have wider fields (see
      "Index files" below). An index made by an older EBaC must be made
      again: "make" does so (it remakes an index whenever the index
@@ -124,9 +132,11 @@ Index files: format 1 (EBaC 2.0) and format 2 (EBaC 2.1)
                   word is in)                   repeated if the word is
                                                 in a verse more than once)
   position.dat    -                             count 4, full position 4
-                                                each, 0xFF
+                                                each (flagged if last in
+                                                its verse), 0xFF
   plainpos.dat    -                             count 4, plain position 4
-                                                each, 0xFF
+                                                each (flagged if last in
+                                                its verse), 0xFF
   bvarray.dat     SVN 2, chapters 2, per book   SVN 4, chapters 4, per book
   chapter.dat     SVN 2 per chapter             SVN 4 per chapter
   cvarray.dat     offset 4 per verse            unchanged
@@ -178,27 +188,44 @@ beginning of a word and ends at the end of one: "[was]" in
 brackets, [1:1], is a verse number, not a bracketed word. The same for
 { ... }.
 
+The last word. The last word of a verse has its full position flagged
+LAST (the bit 0x40000000 set): a word's record holds only its own
+positions, so nothing else would say that a word ends its verse. The
+last word not in brackets has its plain position flagged LAST in the
+same way (it may come before the last word, when a verse ends with
+words in brackets). The flag is taken off a position before it is
+compared. (Any flag keeps the first byte of the number below 0xFF.)
+
 For example, Genesis 1:2 in the King James Version:
 
   And the earth was without form, and void; and darkness [was] upon ...
   full:   1   2   3    4   5      6    7    8   9         10    11
   plain:  1   2   3    4   5      6    7    8   9         0     10
 
-Word B comes right after word A, in a phrase, when they are in the same
-verse and
+Word B comes right after word A, in a phrase, when either
 
-  B's full position is A's full position plus 1      (every word read),
-  or neither is bracketed (plain positions not 0), and
-     B's plain position is A's plain position plus 1  (bracketed words
-                                                       left out).
+  in the same verse:
+    B's full position is A's full position plus 1   (every word read),
+    or neither is bracketed (plain positions not 0), and
+       B's plain position is A's plain position plus 1  (bracketed words
+                                                         left out);
+  or in the next verse (B's SVN is A's SVN plus 1):
+    A's full position is flagged LAST and B's full position is 1,
+    or neither is bracketed, A's plain position is flagged LAST, and
+       B's plain position is 1.
 
 So "darkness was upon" matches by full positions, and "darkness upon"
 by plain positions; "earth darkness" doesn't match, as other words
 come between. Punctuation never separates words in a phrase:
 "saith the lord" matches "saith the LORD," whatever the punctuation.
 
-Positions count words in the verse as stored, so a phrase can't run
-from the end of one verse into the next.
+A phrase runs on from the last word of one verse to the first word of
+the next, whatever chapter or book that is in: the last word of
+Malachi and the first of Matthew are next to each other. The SVN was
+designed for this: it puts every verse, and so every word, of the
+translation in one sequence. (A verse a translation leaves empty, as
+some do where the King James has a verse their source lacks, breaks a
+phrase: the next verse is SVN plus 1, empty, not the one after it.)
 
 
 Searching
@@ -209,12 +236,22 @@ comes after the two things it combines. EBaC evaluates it with a stack
 (process.c): each word, or @book, pushes a list of verses; each
 operator pops two lists and pushes the result. The operators:
 
-  0, 1, 2, ...   AND: verses within that many verses of each other
-                 (0: the same verse)
+  0, 1, 2, ...   AND: verses within that many verses of each other,
+                 either way (0: the same verse)
+  +1, +2, ...    (2.1) AND: the second exactly that many verses after
+                 the first
+  -1, -2, ...    (2.1) AND: the second exactly that many verses before
+                 the first
+  ~1, ~2, ...    (2.1) AND: exactly that many verses apart, either way
+                 (never the same verse, for a number above 0)
   , or |         OR
-  - or !         AND NOT
+  - or !         AND NOT (a "-" alone: "-" with a number is the above)
   @book          (an operand, not an operator) every verse of the book
   .              (2.1) phrase: the second word right after the first
+
+The distance operators list the verses that match from both sides, as
+N does: "cain abel +1" lists each verse with "cain" that has "abel" in
+the verse after, and that verse. Any number may follow +, - or ~.
 
 The two builds. EBaC is built two ways from the same source, and both
 must behave exactly alike ("make test" checks that their screens are
@@ -230,9 +267,11 @@ Every list handling below exists in both forms.
 Two kinds of list. In 2.1 a list on the stack is one of two kinds:
 
   a verse list        SVNs, each once, in order (as in 2.0)
-  an occurrence list  entries of three numbers, SVN, full position and
-                      plain position, in order of SVN and then full
-                      position; an SVN may repeat
+  an occurrence list  entries of four numbers: the SVN where the phrase
+                      starts (for a word, its own SVN), the SVN of its
+                      last word, and that word's full and plain
+                      positions; in order of the last word's SVN and
+                      full position; an SVN may repeat
 
 A word gives an occurrence list only when the search uses "." (or is a
 phrase without operators); then EBaC reads position.dat and
@@ -247,19 +286,25 @@ first made into a verse list, each SVN once.
 
 The "." operator pops two occurrence lists, A then B, and pushes an
 occurrence list of the entries of B that come right after an entry of
-A (see "Positions"), with B's positions: so the result carries the
-position of the last word, and can itself be the first operand of
-another ".". "in the . beginning ." works this way: "in the ." finds
-"the" right after "in"; ". beginning" then finds "beginning" right
-after that "the". Both lists are in order, so they are combined by
-going through them together once, as AND does.
+A (see "Positions"), with A's starting SVN and B's last SVN and
+positions: so the result carries the position of the last word, and
+can itself be the first operand of another ".". "in the . beginning ."
+works this way: "in the ." finds "the" right after "in"; ". beginning"
+then finds "beginning" right after that "the". Both lists are in
+order, of SVN and position, so the entries of A in the same verse as
+an entry of B, or in the verse before, are next to one another in A:
+the lists are combined by going through them together once, as AND
+does, with no more reading of the index.
 
-  Note: the definition of "." is the AND operator with 0 (the same
-  verse), with one more condition on the positions. Combining the
-  lists directly by SVN and position does both at once.
+  Note: "." is the AND operator with 0 (the same verse), or with +1
+  (the next verse), with one more condition on the positions.
+  Combining the lists directly by SVN and position does all of it at
+  once.
 
-At the end, a result that is an occurrence list is made into a verse
-list, for the list of verses found.
+When an occurrence list is made into a verse list (for another
+operator, or at the end, for the list of verses found), each entry
+gives every verse from where its phrase starts to its last word: a
+phrase running from one verse into the next lists both.
 
 Phrases without operators. A search of two or more words, with no
 operators and no @book, is a phrase: "in the beginning" is evaluated as
@@ -270,7 +315,8 @@ taken exactly as written, and must have the right number of operators
 Errors (reported before the search is done, by valid_search(), as for
 the existing operators):
 
-  - "." needs two operands before it, like every operator.
+  - "." needs two operands before it, like every operator; so do +N,
+    -N and ~N.
   - "." can only combine words, or phrases made with "."; not the result
     of 0, ",", "-" or an @book: "The operator "." needs words or
     phrases before it." So "love hate 0 god ." is an error, and so is
@@ -356,7 +402,16 @@ These were settled in a design review (October 2026) before any code
 was written:
 
   - Phrase search must use the index, with no reading of the text, as
-    every other search does. Positions are stored at indexing time, in
+    every other search does.
+  - A phrase may run from the last word of a verse to the first word of
+    the next, across chapters and books: the SVN orders every word of
+    the translation, and its arithmetic has no boundaries. (Added after
+    the first review, from testing: a phrase can be broken by a verse
+    number in the middle.) So the last word of a verse is flagged in
+    position.dat and plainpos.dat, and a phrase across verses lists
+    every verse it touches.
+  - +N, -N and ~N, for any N: exactly N verses after, before, or apart
+    either way; N alone stays "within N verses, either way". Positions are stored at indexing time, in
     files parallel to references.dat, read with fseek() at the offset
     words.dat already gives.
   - The operator is "." (it was not in use). "0" (same verse) stays as
