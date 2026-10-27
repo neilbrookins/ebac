@@ -6,6 +6,31 @@ changed between versions and why, so that the reasons are not lost.
 It is plain text, to be read with any editor.
 
 
+EBaC 2.4 (planned): voice, through Home Assistant's Assist
+----------------------------------------------------------
+
+Design only, from a review in October 2026; nothing of it is built yet.
+See "Voice: ebac-api and the Assist integration" below.
+
+  1. A second program, ebac-api, built from the same source and makefile
+     as bible: it answers requests (a verse, the verses after one, a
+     search, the translations and their books) in JSON, for other
+     programs. The interactive program is unchanged.
+
+  2. EBaC understands a reference as speech-to-text writes it: "Genesis
+     one colon one", "Genesis I colon I", "John three sixteen", "first
+     Corinthians thirteen four", in the shared code, so the menus can
+     use it too.
+
+  3. The Home Assistant app (ebac-ha-app) runs ebac-api as a CGI program
+     under BusyBox's web server, on Home Assistant's internal network
+     only, and tells Home Assistant where it is.
+
+  4. A new Home Assistant integration (ebac-ha-integration, a separate
+     repository, for HACS) connects Assist to it: "Genesis one colon
+     one" is read aloud, then "next verse".
+
+
 EBaC 2.3 compared with EBaC 2.2
 -------------------------------
 
@@ -556,6 +581,179 @@ its own. The search line, while it is typed, shows Hebrew in the order
 typed (the line editor puts each character on the screen as it comes).
 
 
+Voice: ebac-api and the Assist integration
+------------------------------------------
+
+(Design for EBaC 2.4; October 2026.) The aim: say "Genesis one colon
+one" to Home Assistant's Assist, on a phone or a speaker, and hear the
+verse; then "next verse". Three parts, in three repositories:
+
+  ebac                  ebac-api, a second program of EBaC, and the
+                        parsing of spoken references (shared code)
+  ebac-ha-app           the app: runs ebac-api, reachable by the
+                        integration on Home Assistant's own network
+  ebac-ha-integration   the integration (HACS): Assist's sentences and
+                        intents, and the place each listener is at
+
+How a request goes:
+
+  speech -> Assist (speech to text) -> a sentence of the integration
+  matches -> its intent handler -> ebac-api in the app (HTTP) -> the
+  verse -> the handler's answer -> Assist (text to speech) -> heard
+
+1. ebac-api (repository ebac)
+
+A second main program, built by the same makefile from the same source
+as bible, the interactive program, sharing everything but main() and
+the screen. Nothing is written twice: a verse comes from get_verse(), a
+search from the same evaluation as the S)earch menu, a book's name from
+match_it(), a group from the groups files.
+
+What has to change in the shared code, for both programs:
+
+  - A search is given as text, not read from the keyboard, and its
+    errors come back as text, not printed with "Press any key":
+    valid_search() and process_words() take the line, and say what was
+    wrong in a string; the menu prints it and waits, as now.
+  - Choosing a translation by name, without the menu (it is a chdir()
+    and open_new_trans(), as now).
+  - The spoken-reference parser (3, below).
+
+It is a CGI program: a web server runs it once for each request, giving
+the request in environment variables (QUERY_STRING, PATH_INFO), and
+sends on what it prints. So EBaC has no socket code and keeps nothing
+between requests: each request opens the translation's files (a few
+milliseconds), answers, and ends. Any web server can run it; the app
+uses BusyBox's httpd (Alpine's package busybox-extras, about 111 KB). It
+can also be run by hand, for testing: ebac-api 'verse?ref=john+3:16'.
+
+Requests (all GET; the answer is JSON in UTF-8; an error is HTTP 400
+with {"error": "..."}):
+
+  /translations           the translations of trans: name and title
+  /books?t=AV             a translation's books, in order: name (as in
+                          booklist), number, chapters, and the spoken
+                          forms ("First Corinthians" for 1Corinthians)
+  /parse?text=...         a spoken or typed reference understood:
+                          book, chapter, verse (and an end verse), SVN
+  /verse?ref=...&t=AV     the verses of a reference: "john 3:16",
+                          "john 3:16-18", or the words of /parse; each
+                          with its reference and text, and "spoken": the
+                          reference and text as to be read aloud
+                          (brackets and braces taken out, "John chapter
+                          3, verse 16.")
+  /next?svn=N&n=1&t=AV    the n verses after SVN N (the SVN runs on
+                          across chapters and books, so after John 3:36
+                          comes John 4:1); /previous likewise. Verses
+                          with no text (an empty slot of the source,
+                          such as Genesis 3:25 in the Ukrainian) are
+                          passed over, for speech.
+  /search?q=...&t=AV&max=10
+                          a search in EBaC's own syntax: the number of
+                          verses, and the first max of them
+
+t= is a translation's name, as in trans (the first of trans if none).
+
+2. The app (repository ebac-ha-app)
+
+  - busybox-extras is added, and httpd started beside ttyd, serving
+    ebac-api as CGI on port 8080 (say).
+  - The port is not published to the host: only Home Assistant and its
+    other apps reach it, by the app's host name on the internal network
+    (bda2b308-ebac). So no password is needed; and ebac-api only reads.
+  - At each start the app tells Home Assistant where it is (Supervisor
+    "discovery", for the service ebac), so that the integration finds
+    it without the user typing an address.
+
+3. Understanding spoken references (repository ebac, shared C code)
+
+Speech-to-text writes what it hears, as the review's screenshot shows:
+"Genesis I colon I", "John three sixteen", "Genesis one colon one". The
+parser takes the words, in lower case, as:
+
+  [read] BOOK [chapter] NUMBER [colon | verse | :] NUMBER
+         [to | through | - NUMBER]
+
+  BOOK     one or more words, joined, matched as after @ (match_it(),
+           with Roman numerals): "genesis", "song of solomon"; an
+           ordinal or number before it, "first", "1st", "one", "I",
+           stands for 1 ("first corinthians", "I John"); "psalm" finds
+           Psalms.
+  NUMBER   digits ("16"), words ("sixteen", "one hundred nineteen",
+           "a hundred and nineteen"), or a Roman numeral ("I", "IV":
+           speech-to-text writes "I" for "one" after a word).
+  A chapter alone ("John three") is the chapter's first verse; a book
+  alone, its first.
+
+In the shared code, so that the book prompt could take "john 3:16" in
+one line later too. English words for numbers first; other languages'
+later.
+
+4. The integration (repository ebac-ha-integration)
+
+A custom integration (domain ebac, display name "EBaC (Electronic Bible
+and Concordance)"), installed from HACS.
+
+Finding the app: by the app's discovery (1 click to confirm), or an
+address typed in its setup (for EBaC elsewhere: any web server running
+ebac-api). Options: the translation to read from (from /translations);
+how many verses "read on" reads.
+
+How it hooks into Assist. Home Assistant has no supported way for a
+custom integration to add sentences to Assist (checked October 2026).
+What is supported: an integration may register intent handlers, in
+Python; and Assist reads sentence files from config/custom_sentences/
+LANGUAGE/, before its own sentences. So the integration:
+
+  - registers its intents: EbacRead (a reference), EbacNext,
+    EbacPrevious, EbacRepeat, EbacReadOn (several verses), EbacSearch;
+  - writes config/custom_sentences/en/ebac.yaml at setup (and removes
+    it when removed), then reloads Assist's sentences. The file's lists
+    are made from /books: every book's spoken forms, and numbers. So a
+    sentence matches only a real book and numbers, and can't take over
+    "turn on the kitchen light" (a catch-all wildcard would: custom
+    sentences are matched before the built-in ones).
+
+Sentences (English first):
+
+  [read] {book} [chapter] {chapter} [colon|verse] {verse}
+  [read] {book} chapter {chapter}
+  (next|following) verse; (previous|last) verse; read (that|it) again
+  (read|continue) on; keep reading
+  search [the] bible for {words}       ({words}: a wildcard, safe after
+                                        the fixed words before it)
+
+"Next verse" today goes to Home Assistant's media player ("Sorry, no
+device is playing", in the review's screenshot); the integration's
+sentence is matched first.
+
+The place: the integration keeps, for each voice device (a phone, a
+speaker), or else for each conversation, the translation and the SVN of
+the last verse read, so that "next verse" goes on from there, and two
+people in two rooms each have their own. Kept in Home Assistant's
+storage, so that it survives a restart.
+
+The answer is the verse's "spoken" text, which Assist speaks (text to
+speech) and shows. Long passages: one verse unless asked; "read on"
+reads the number set in the options.
+
+5. Not yet
+
+Languages other than English, for the sentences and the spoken numbers
+(the parser and the sentence files are made per language); speaking a
+translation in its own language's voice; an action, ebac.read, for
+automations ("read the verse of the day at 7").
+
+6. Order of work
+
+  1. ebac: the shared code made callable with text (searches, errors,
+     choosing a translation); ebac-api; the parser; tests (ebac-api run
+     by hand, its answers checked; the 66 screen scenarios unchanged).
+  2. ebac-ha-app: busybox-extras, httpd, discovery.
+  3. ebac-ha-integration: setup and discovery, the intents, the
+     sentence file, the place; tested in Home Assistant.
+
+
 Widths in the program
 ---------------------
 
@@ -740,3 +938,20 @@ For EBaC 2.3 (October 2026):
     in the importer later.
   - Right-to-left text is turned about run by run, not whole lines, so
     that the English around a Hebrew word stays as it is.
+
+For voice (EBaC 2.4, design review of October 2026):
+
+  - A second program, ebac-api, from the same source and makefile, not a
+    new repository: as much code shared as possible, as little new.
+  - It is a CGI program, run by an existing web server (BusyBox's httpd
+    in the app), rather than a server written into EBaC: less new code,
+    and nothing kept between requests.
+  - Spoken references are understood in EBaC's C code, shared, not in
+    the integration.
+  - The Home Assistant integration is a repository of its own,
+    ebac-ha-integration (an integration is not an app; HACS needs a
+    repository for it), and the app's repository was renamed
+    ebac-ha-app, so that the two are not confused.
+  - The integration remembers each listener's place, so that "next
+    verse" works per device. (Without an integration, an automation with
+    a helper could do it too, but with one place for the whole house.)
