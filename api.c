@@ -426,12 +426,13 @@ static void translations(void)
 /*
 ** The ways a book may be spoken: its full name, and, for a numbered book
 ** ("1 Samuel", "I Samuel"), with the number as a digit, a word ("First
-** Samuel") and a Roman numeral.
+** Samuel"), "1st" and a Roman numeral.
 */
 static void print_spoken(char *full)
 {
         static char *words[] = { "", "First", "Second", "Third" };
         static char *romans[] = { "", "I", "II", "III" };
+        static char *shorts[] = { "", "1st", "2nd", "3rd" };
         char rest[MAXBOOKNAME * 2], v[MAXBOOKNAME * 2];
         int n = 0, i;
 
@@ -458,6 +459,9 @@ static void print_spoken(char *full)
                         json_string(v);
                 }
                 snprintf(v, sizeof(v), "%s %s", words[n], rest);
+                printf(", ");
+                json_string(v);
+                snprintf(v, sizeof(v), "%s %s", shorts[n], rest);
                 printf(", ");
                 json_string(v);
                 snprintf(v, sizeof(v), "%s %s", romans[n], rest);
