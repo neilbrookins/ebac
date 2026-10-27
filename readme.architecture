@@ -772,6 +772,38 @@ The answer is the verse's "spoken" text, which Assist speaks (text to
 speech) and shows. Long passages: one verse unless asked; "read on"
 reads the number set in the options.
 
+Changing the translation by voice (planned, October 2026; not built
+yet). "Change translation to KJVA", "select translation King James",
+"switch to the Lexham translation", "use the Reina Valera translation";
+and "which translation is this?" / "what translation are you reading?".
+
+  - The sentences start with fixed words ("change translation [to]",
+    "select translation", "switch to the ... translation"), so the name
+    after them is a wildcard: it can't take over other commands, and
+    needs no list made in advance.
+  - The handler matches the words against the translations added in the
+    app (/translations), not the ones that could be downloaded:
+      1. the short name, ignoring case, spaces and dots ("KJVA", "K J V
+         A", "k.j.v.a.");
+      2. else the words of the titles: a translation whose title has
+         every word said ("King James" is in "King James Version" and in
+         KJVA's title too; "Lexham" in one only);
+      3. one match: it is chosen; several: it answers with them ("Which
+         one: KJV, King James Version; or KJVA, ...?") and changes
+         nothing; none: it says so, and names those installed.
+  - Chosen: the integration's translation option is set, as its
+    Configure screen does, for the whole house (every device), and the
+    answer says so: "Now reading from the King James Version (KJV)."
+  - The book names don't change: the source writes every translation's
+    books in English ("### Genesis", for Chinese and Hebrew too), so the
+    sentences' books stay the same, only the text's language changes.
+  - "Next verse" after a change goes on in the new translation from the
+    same reference (the last verse's reference, read in the new one),
+    not the same SVN: translations number verses differently (KJVA has
+    the Apocrypha between the Testaments). So the place keeps the last
+    verse's reference as well as the first's.
+  - "Which translation": its name and title, then the others installed.
+
 5. Not yet
 
 Languages other than English, for the sentences and the spoken numbers
@@ -862,7 +894,7 @@ macOS's awk (the "one true awk" of 2020) can't printf text beyond
 ASCII: it stops with an error. So names and titles are printed with
 print, never printf.
 
-Licenses (planned, October 2026; not built yet). The translations are
+Licenses (EBaC 2.4.1, October 2026). The translations are
 not all free to copy: of the 140 in the source, 100 are public domain;
 the rest are Creative Commons (some non-commercial, some "no
 derivatives"), GPL, or "Copyrighted; Free non-commercial distribution"
@@ -1041,3 +1073,12 @@ For licenses (design review of October 2026):
   - Every translation is asked about, public domain too.
   - What was agreed to is kept in the translation's folder (license).
   - From a script, only with --agree; otherwise nothing is added.
+
+For changing the translation by voice (October 2026):
+
+  - For the whole house: it sets the integration's option, not one
+    device's.
+  - The name is matched in the handler (short name, then title words),
+    after fixed words, rather than from a list in the sentence file, so
+    that a long title needn't be said exactly.
+  - With it, a question: which translation is in use.

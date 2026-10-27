@@ -6,6 +6,8 @@
 #                                     translations, and ask which to add or
 #                                     remove
 #   sh add-translation.sh BSB LEB     add these (by short name)
+#   sh add-translation.sh --agree BSB  add it, agreeing to its license
+#                                     (for scripts: see below)
 #   sh add-translation.sh --remove BSB  remove this one
 #   sh add-translation.sh --list      just list them
 #
@@ -15,14 +17,27 @@
 # book, then one verse per line, "[1:1] In the beginning ...". For each
 # translation chosen, this:
 #
-#   1. downloads it;
-#   2. splits it into a file per book, in a folder named after it (such as
+#   1. shows its license and asks whether you agree to it (if not, it is
+#      skipped);
+#   2. downloads it;
+#   3. splits it into a file per book, in a folder named after it (such as
 #      BSB), and writes the folder's booklist: the books, in order (and
-#      booknames: their full names, as the text has them);
-#   3. builds its concordance index (runs EBaC's index program in it), and
+#      booknames: their full names, as the text has them; and license:
+#      the license agreed to, and when);
+#   4. builds its concordance index (runs EBaC's index program in it), and
 #      checks that the index has every verse;
-#   4. adds it to the top of 'trans', so that EBaC offers it under C)hange
+#   5. adds it to the top of 'trans', so that EBaC offers it under C)hange
 #      translation, and starts with it from now on.
+#
+# Licenses. The translations are not all free to copy: most are public
+# domain, but some are free only for non-commercial use, or may not be
+# changed. So each is added only by someone who agrees to its license,
+# asked every time, a fresh copy too (a license can change). The license
+# is the line in the translation's README.md in the source ("**License:**
+# GPL"); the details are on its page at CrossWire, whose modules the texts
+# are made from. With no one to answer (standard input not a terminal, as
+# in a script), a translation is added only with --agree, by which whoever
+# runs this agrees to the license of each one named.
 #
 # Choosing a translation already added does the same again: a fresh copy,
 # and at the top of 'trans'. Removing one deletes its folder and its line
@@ -516,6 +531,64 @@ index_verses() {
               END { print ((b[n - 7] * 256 + b[n - 6]) * 256 + b[n - 5]) * 256 + b[n - 4] }'
 }
 
+# license_of NAME: the license of a translation, from its README.md in the
+# source, into license_line ("GPL"; "not stated" if it says "Null" or
+# nothing). The README is "# NAME: TITLE", then "**License:** X" (or
+# "**License**: X", or as LEB has it, the license alone on the next line).
+CROSSWIRE=https://crosswire.org/sword/modules/
+license_of() {
+        code=$($AWK -F '\t' -v n="$1" '$1 == n { print $2; exit }' "$tmp/all")
+        license_line=""
+        if fetch "sources/$code/$1/README.md" "$tmp/readme" 2> /dev/null; then
+                license_line=$($AWK "$PLAIN"'
+                        /^\*\*License:?\*\*:?/ {
+                                sub(/^\*\*License:?\*\*:?/, "")
+                                print plain($0); found = 1; exit
+                        }
+                        title && plain($0) != "" && !next_line { next_line = plain($0) }
+                        /^# / { title = 1 }
+                        END { if (!found && next_line ~ /^[A-Z]/) print next_line }' "$tmp/readme")
+        fi
+        case $license_line in
+        ""|Null|null) license_line="not stated" ;;
+        esac
+}
+
+# agree NAME TITLE: show the translation's license, and ask whether the
+# person adding it agrees (or --agree says so). Sets agreed to how ("typed
+# y", "with --agree"); returns 1 if not, with problem saying why.
+agree() {
+        license_of "$1"
+        printf '\n'
+        # (print, not printf: the title may be beyond ASCII)
+        $AWK -v l="$1: $2" -v cols="$cols" "$CHARS"'BEGIN { print cut_cols(l, cols - 1) }'
+        printf 'License: %s\n' "$license_line"
+        # (broken in two, to fit a phone's screen)
+        printf 'Details: %s\n  ModInfo.jsp?modName=%s\n' "$CROSSWIRE" "$1"
+        if [ "$agree_all" = yes ]; then
+                printf 'Agreed to, with --agree.\n'
+                agreed="with --agree"
+                return 0
+        fi
+        if [ ! -t 0 ]; then
+                problem="no one to agree to its license (add --agree to agree to it)"
+                return 1
+        fi
+        while :; do
+                printf 'Do you agree to these terms (y/n)? '
+                typing_mode
+                read_line
+                status=$?
+                [ $status -eq 2 ] && { resized=0; continue; }   # (resized: ask again)
+                [ $status -eq 1 ] && answer=n                     # (end of input)
+                case $(printf '%s\n' "$answer" | tr 'A-Z' 'a-z') in
+                y|yes) agreed="typed y"; return 0 ;;
+                n|no) problem="its license wasn't agreed to"; return 1 ;;
+                *) printf 'Please type y or n.\n' ;;
+                esac
+        done
+}
+
 # add NAME TITLE: add one translation; on failure, leave no half-made folder
 # behind (unless it was there, and listed in trans, before). Sets problem.
 add() {
@@ -716,6 +789,12 @@ add_to() {
                 problem="the index has $found verses, but the text has $total"
                 return 1
         fi
+
+        # the license agreed to, and when
+        { printf 'License: %s\n' "$license_line"
+          printf 'Details: %sModInfo.jsp?modName=%s\n' "$CROSSWIRE" "$name"
+          printf 'Agreed: %s (%s)\n' "$(date '+%Y-%m-%d')" "$agreed"
+        } > "$folder/license" || { problem="couldn't write $name/license"; return 1; }
 
         # at the top of trans (moved there, if it was listed already), so that
         # EBaC starts with it from now on
@@ -1010,10 +1089,12 @@ choose() {
 }
 
 usage() {
-        echo "usage: sh add-translation.sh [--list] [--source PLACE] [NAME ...] [--remove NAME ...]"
+        echo "usage: sh add-translation.sh [--list] [--agree] [--source PLACE] [NAME ...] [--remove NAME ...]"
         echo "Downloads Bible translations and adds them to EBaC, or removes them."
         echo "  NAME            short names of translations to add, such as BSB"
         echo "  --remove NAME   remove this translation (added before)"
+        echo "  --agree         agree to the license of each translation added (when"
+        echo "                  run with no one to answer, as from a script)"
         echo "  --list          only list the translations"
         echo "  --source PLACE  where the translations are: a web address, or a folder"
         echo "                  with a copy of bible_databases (default: $SOURCE)"
@@ -1024,10 +1105,12 @@ usage() {
 source=$SOURCE
 names_source=$NAMES_SOURCE
 list_only=no
+agree_all=no
 names=""
 while [ $# -gt 0 ]; do
         case $1 in
         --list) list_only=yes ;;
+        --agree) agree_all=yes ;;
         --source)
                 [ $# -ge 2 ] || { usage >&2; exit 2; }
                 source=$2; shift ;;
@@ -1118,7 +1201,15 @@ for action in $chosen; do
                 fi
                 ;;
         *)
-                if add "$name" "$(title_of "$name")"; then
+                title=$(title_of "$name")
+                screen_size
+                if ! agree "$name" "$title"; then
+                        printf '%s: not added: %s.\n' "$name" "$problem"
+                        # (no is an answer, not a failure; no one to answer is)
+                        [ ! -t 0 ] && failed=$((failed + 1))
+                        continue
+                fi
+                if add "$name" "$title"; then
                         start_with=$name
                 else
                         printf '%s: not added: %s.\n' "$name" "$problem"
