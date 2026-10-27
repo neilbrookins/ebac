@@ -23,6 +23,30 @@ EBaC is a fast, text-mode Bible reader and concordance. It has two main jobs:
 
 Unlike a printed concordance, EBaC shows complete verses. It indexes every word, even common ones like *I* and *am*. Searches find phrases ("in the beginning"), and can combine words and books with AND, OR, AND NOT and distances ("within 2 verses", "the next verse"). The King James (Authorized) Version is included.
 
+## Contents
+
+- [Installing in Home Assistant](#installing-in-home-assistant)
+- [Installing on Linux](#installing-on-linux)
+  - [First-time install (do this only once)](#first-time-install-do-this-only-once)
+  - [Running EBaC](#running-ebac)
+  - [Updating to the latest version](#updating-to-the-latest-version)
+  - [If something goes wrong](#if-something-goes-wrong)
+- [Installing on Windows](#installing-on-windows)
+- [Installing on macOS](#installing-on-macos)
+- [Installing on Solaris 11](#installing-on-solaris-11)
+- [Searching](#searching)
+- [Adding other translations](#adding-other-translations)
+  - [Downloading a translation](#downloading-a-translation)
+  - [Adding one by hand](#adding-one-by-hand)
+  - [How `make` keeps the indexes up to date](#how-make-keeps-the-indexes-up-to-date)
+- [History, and building on vintage computers](#history-and-building-on-vintage-computers)
+  - [Version 2 on the Tandy CoCo 3 (untested)](#version-2-on-the-tandy-coco-3-untested)
+- [What changed in 2.0](#what-changed-in-20)
+- [For other programs: ebac-api](#for-other-programs-ebac-api)
+- [Testing](#testing)
+- [License](#license)
+
+
 ## Installing in Home Assistant
 
 [![Open your Home Assistant instance and show the add app repository dialog with this repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fneilbrookins%2Febac-ha-app)
@@ -39,6 +63,8 @@ Click the button above to add the EBaC repository to your Home Assistant, or add
 Click **EBaC** in the sidebar to use it; it's available to every user. Each user keeps their own search history. **Updating:** when a new version comes out, Home Assistant offers it under **Settings → Updates**; select **Update**.
 
 The app needs Home Assistant OS or a Supervised install (the kinds that have **Settings → Apps**) on a 64-bit system. Its packaging lives at [neilbrookins/ebac-ha-app](https://github.com/neilbrookins/ebac-ha-app).
+
+**Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 
 ## Installing on Linux
 
@@ -128,6 +154,8 @@ That's all. Your settings and your search history are kept.
 - **`term.h: No such file or directory`** while building: step 1 wasn't done. Install the tools, then type `make` again.
 - **`Error: getenv(BIBLEROOT) failed`** when starting: step 4 wasn't done, or the terminal window was open before it was. Do step 4 (`sh ~/ebac/set-bibleroot.sh`), then open a new terminal window.
 
+**Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
+
 ## Installing on Windows
 
 On Windows 10 (version 2004 or later) and Windows 11, in every edition including Home, EBaC runs in **WSL**, the Windows Subsystem for Linux: Microsoft's own, free way to run Linux programs on Windows. (It replaced Microsoft's older *Services for UNIX*, which was removed in Windows 8.1.) WSL runs a real Linux, Ubuntu, in a window, so once it's set up, EBaC installs exactly as on Linux.
@@ -145,6 +173,8 @@ Restart the computer when it's done. (If it reports an error about virtualizatio
 From then on, open **Ubuntu** from the Start menu and type `~/ebac/bible` to run EBaC; [updating](#updating-to-the-latest-version) is the same as on Linux. The window works with all the keys EBaC uses, including **Home**, **End**, **Page Up** and **Page Down**. (WSL also appears in the **Terminal** app, as an Ubuntu tab.)
 
 **With Cygwin instead.** [Cygwin](https://www.cygwin.com/) is an older way of running UNIX programs on Windows, and still maintained; EBaC 1.3.0 was used and tested at length with it. Version 2 should build the same way (this hasn't been tried yet): when installing Cygwin with its `setup-x86_64.exe`, also select the packages **gcc-core**, **make**, **git** and **libncurses-devel** (and **python3** for `make test`), then type the Linux commands from step 2 of [First-time install](#first-time-install-do-this-only-once) onwards in the Cygwin terminal.
+
+**Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 
 ## Installing on macOS
 
@@ -177,6 +207,8 @@ Then run EBaC with `~/ebac/bible`, and update it with `git pull` and `make`, as 
 
 **Keys in the Mac's Terminal app.** Terminal keeps **Home**, **End**, **Page Up** and **Page Down** for scrolling its own window, so EBaC doesn't see them. Hold **Shift** with them to send them to EBaC (on a laptop keyboard, **Shift**+**fn** with the arrow keys), or use EBaC's own keys instead: **space** and **p** for the next and previous screen, and **CTRL-A** and **CTRL-E** for the start and end of the search line. The arrow keys work as they are. The Mac's **delete** key erases to the left; **fn**+**delete** erases to the right.
 
+**Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
+
 ## Installing on Solaris 11
 
 The steps are the same as [for Linux](#first-time-install-do-this-only-once), with two differences. (This hasn't been tried on a Solaris computer yet; if something doesn't work, please report it.)
@@ -201,6 +233,8 @@ Step 4, telling EBaC where its files are, is the same line as on Linux, `sh ~/eb
 The rest is taken care of. Solaris keeps the ncurses headers EBaC needs in their own folder, `/usr/include/ncurses`, apart from its own older curses: the makefile finds them there (or asks `pkg-config`, if it is installed). It also uses Solaris's `nawk`, as its `/usr/bin/awk` is the original 1970s version. On SPARC computers, the index files `gmake` builds are the same as everywhere else: they are written one byte at a time, the same on every kind of processor.
 
 Over SSH from Linux, a Mac or Windows, EBaC works in any terminal window. On Solaris's own console, ncurses needs to know the console's terminal type; if EBaC says it can't, log in over SSH instead.
+
+**Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 
 ## Searching
 
@@ -231,6 +265,8 @@ The top of the list says how many verses were found. For a search of one word al
 In the list of results, press the label beside a verse (**1**, **2**, ... **9**, then **a**, **b**, ...) to read it in context, and **x** to come back to the list. The letters under the digits, **q w e r t y u i o**, also pick entries 1 to 9, so on a phone's on-screen keyboard you never have to switch to the number keys. A label can be typed even when its entry is below the bottom of the screen: if hiding a phone's keyboard showed entries 3, 4 and 5, typing **3** still opens that entry after the keyboard comes back and hides it.
 
 See [`docs`](docs) for more examples.
+
+[↑ Contents](#contents)
 
 ## Adding other translations
 
@@ -286,6 +322,8 @@ In `trans`, blank lines and lines starting with `#` are comments. Every folder s
 
 The original [`README`](README) describes the file layout in more detail.
 
+[↑ Contents](#contents)
+
 ## History, and building on vintage computers
 
 EBaC was begun in 1992 on the MM/1 (OS-9 68000), at first searching for a single word; searches combining several words with operators came in 1993. It was then ported, in turn, to VAX/VMS, the Tandy Color Computer 3 (OS-9 6809, 512K), and soon after to the UNIX systems of the 1990s, MS-DOS and Windows (with Cygwin); the Information screen (**I** at the main menu) lists them in that order. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009. Since 2026 it runs on Linux, macOS and Windows (WSL), and, last, as a [Home Assistant app](https://github.com/neilbrookins/ebac-ha-app): the one with the most features, as its touch screen and mouse support (tapping and swiping) are its own.
@@ -322,6 +360,8 @@ Text files are given OS-9's line endings (a carriage return), and books whose na
 
 To make this possible, the source avoids what K&R compilers lack: declarations put their parameters in `P((...))`, which is `()` on the CoCo (see `both.h`); there is no `void`, `unsigned char`, `#if defined`, or string constants placed side by side on the CoCo; and EBaC has its own replacements for `strchr()` and `strtok()`. The converted source passes GCC's `-Wtraditional` check, but it has not been compiled on a CoCo yet. Whether version 2 fits in the CoCo's memory is also still to be found out.
 
+[↑ Contents](#contents)
+
 ## What changed in 2.0
 
 Modern compilers (GCC 14 and later, Clang 16 and later, and the C23 standard) reject the 1980s K&R style C the program was written in. The termcap library and `<sys/termio.h>` it used are gone from current Linux systems. Version 2.0:
@@ -332,6 +372,8 @@ Modern compilers (GCC 14 and later, Clang 16 and later, and the C23 standard) re
 - follows the terminal window when it is resized.
 
 The concordance index built on 64-bit Linux is byte-for-byte identical to the one shipped in 1.3.0. Since it can be rebuilt in seconds, it is no longer stored in the repository: `make` builds it. The `v1.3.0` release still includes its `.dat` files, for computers such as the CoCo that don't have the memory to run `index`.
+
+[↑ Contents](#contents)
 
 ## For other programs: ebac-api
 
@@ -346,6 +388,8 @@ export BIBLEROOT=$PWD
 
 Its requests (`translations`, `books`, `parse`, `verse`, `next`, `previous`, `search`) are described in [`readme.architecture`](readme.architecture), under "Voice". A translation's `booknames` file gives its books' full names to speak (`Song of Solomon`); downloading a translation writes it.
 
+[↑ Contents](#contents)
+
 ## Testing
 
 EBaC compiles two ways. `-DNORAMDISK` keeps search results in memory. `-DRAMDISK` keeps them in temporary files instead, for machines with little memory, such as the CoCo. The two are different code, but a user must never be able to tell them apart.
@@ -356,6 +400,10 @@ make test
 
 This builds both versions and runs them side by side through a set of scripted sessions: viewing, every kind of search, paging, and invalid input. It checks that the screens they produce are byte-for-byte identical. Every change to the code should keep this test passing, so the two versions never drift apart. To add memory-error checking as well, run `make test TESTSAN="-fsanitize=address,undefined"`. The test needs Python 3; to add a scenario, add a line to `SCENARIOS` in [`tests/sidebyside.py`](tests/sidebyside.py).
 
+[↑ Contents](#contents)
+
 ## License
 
 GNU General Public License, version 2 — the license the project has on SourceForge. See [`COPYING`](COPYING).
+
+[↑ Contents](#contents)
