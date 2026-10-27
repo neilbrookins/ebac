@@ -7,14 +7,16 @@
 >
 > | Your computer | Instructions |
 > |---|---|
-> | Linux, including a Raspberry Pi | [Installing on Linux](#installing-on-linux) |
+> | Linux, including a Raspberry Pi or a Chromebook | [Installing on Linux](#installing-on-linux) |
 > | Windows 10 or 11 | [Installing on Windows](#installing-on-windows) |
 > | An older Windows PC, with Cygwin | [Installing on Windows with Cygwin](#installing-on-windows-with-cygwin) |
 > | Apple Mac | [Installing on macOS](#installing-on-macos) |
 > | Solaris 11 | [Installing on Solaris 11](#installing-on-solaris-11) |
+> | FreeBSD, OpenBSD or NetBSD | [Installing on FreeBSD, OpenBSD or NetBSD](#installing-on-freebsd-openbsd-or-netbsd) |
 > | MM/1 (OS-9 68000) | [MM/1](#mm1-os-9-68000) |
 > | VAX/VMS | [VAX/VMS](#vaxvms) |
 > | Tandy Color Computer 3 (OS-9 6809) | [Version 2 on the Tandy CoCo 3](#version-2-on-the-tandy-coco-3-untested) |
+> | AT&T 3B1; SunOS 4 and Solaris 2; DEC Ultrix and OSF/1; HP-UX | [AT&T 3B1, Sun, DEC and HP UNIX](#att-3b1-sun-dec-and-hp-unix) |
 > | MS-DOS | [MS-DOS](#ms-dos) |
 
 Written by Neil G. Brookins.
@@ -39,10 +41,12 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
   - [Installing on Windows with Cygwin](#installing-on-windows-with-cygwin)
   - [Installing on macOS](#installing-on-macos)
   - [Installing on Solaris 11](#installing-on-solaris-11)
+  - [Installing on FreeBSD, OpenBSD or NetBSD](#installing-on-freebsd-openbsd-or-netbsd)
   - [Installing on vintage computers](#installing-on-vintage-computers)
     - [MM/1 (OS-9 68000)](#mm1-os-9-68000)
     - [VAX/VMS](#vaxvms)
     - [Version 2 on the Tandy CoCo 3 (untested)](#version-2-on-the-tandy-coco-3-untested)
+    - [AT&T 3B1, Sun, DEC and HP UNIX](#att-3b1-sun-dec-and-hp-unix)
     - [MS-DOS](#ms-dos)
 - [Searching](#searching)
 - [Adding other translations](#adding-other-translations)
@@ -59,6 +63,8 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 
 EBaC runs on these computers. Pick yours; at the end of its steps, a link skips the others and goes on to [Searching](#searching).
 
+EBaC needs nothing particular to one system: only a C compiler, `make`, the ncurses library, and a terminal window. So it should build on any Linux, BSD or other UNIX-like system that has them, beyond those below, even where it hasn't been tried. If you try one, please report how it went.
+
 ### Installing in Home Assistant
 
 The steps, with a button that adds EBaC to your Home Assistant in one click, are with the app: **[Installing the EBaC app](https://github.com/neilbrookins/ebac-ha-app#installing)**. Nothing needs to be typed or built.
@@ -73,6 +79,8 @@ Not sure which steps you need? Open a terminal and type `ls ~/ebac`:
 - If it lists files (`bible`, `README`, `AV`, ...), you already have it: follow [Updating to the latest version](#updating-to-the-latest-version).
 
 Type each command exactly as shown, pressing Enter after each line. Lines starting with `#` are comments; you don't need to type them.
+
+**On a Chromebook,** turn on ChromeOS's Linux development environment first (**Settings → About ChromeOS → Developers → Linux development environment**, then **Set up**). It is Debian, so the steps below work in its **Terminal** app, with the commands for Debian. (This hasn't been tried on a Chromebook yet.)
 
 #### First-time install (do this only once)
 
@@ -239,9 +247,26 @@ Over SSH from Linux, a Mac or Windows, EBaC works in any terminal window. On Sol
 
 **Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 
+### Installing on FreeBSD, OpenBSD or NetBSD
+
+The steps are those [for Linux](#first-time-install-do-this-only-once), with the tools installed by the system's own package tool, and `gmake` typed wherever they say `make` (as on Solaris: EBaC's makefile needs GNU make, and the BSDs' own `make` is another). This hasn't been tried on a BSD yet; if something doesn't work, please report it.
+
+```sh
+# FreeBSD (ncurses is part of the system):
+sudo pkg install git gmake
+# OpenBSD (ncurses is part of the system; doas in place of sudo):
+doas pkg_add git gmake
+# NetBSD (its own curses is not ncurses, so ncurses is added):
+sudo pkgin install git gmake ncurses
+```
+
+Then step 2 as on Linux, `gmake` for step 3, and step 4, `sh ~/ebac/set-bibleroot.sh`, which works with the BSDs' shells too (sh, ksh, csh, tcsh).
+
+**Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
+
 ### Installing on vintage computers
 
-EBaC began on the MM/1 in 1992 and ran on VAX/VMS, the Tandy CoCo 3 and MS-DOS (see [History](#history)). The [install steps](#first-time-install-do-this-only-once) download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
+EBaC began on the MM/1 in 1992 and was ported, in turn, to VAX/VMS, the Tandy CoCo 3, the AT&T 3B1, MS-DOS, and the UNIX systems of Sun, DEC and HP (see [History](#history)). The [install steps](#first-time-install-do-this-only-once) download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
 
 ```sh
 git clone https://github.com/neilbrookins/ebac.git ebac-full
@@ -278,6 +303,10 @@ This writes `coco/build/ebac-coco.tar`, and, if [ToolShed](https://github.com/ni
 Text files are given OS-9's line endings (a carriage return), and books whose names begin with a digit get the CoCo's names, so `1Chronicles` is stored as `x1Chronicle`.
 
 To make this possible, the source avoids what K&R compilers lack: declarations put their parameters in `P((...))`, which is `()` on the CoCo (see `both.h`); there is no `void`, `unsigned char`, `#if defined`, or string constants placed side by side on the CoCo; and EBaC has its own replacements for `strchr()` and `strtok()`. The converted source passes GCC's `-Wtraditional` check, but it has not been compiled on a CoCo yet. Whether version 2 fits in the CoCo's memory is also still to be found out.
+
+#### AT&T 3B1, Sun, DEC and HP UNIX
+
+EBaC ran on the AT&T 3B1 (UNIX System V), Suns (SunOS 4.x and Solaris 2.x, back to Solaris 2.4), DEC's Ultrix and OSF/1, and the HP 9000 (HP-UX 10.x), built with 1.3.0's makefile as it is, which uses termcap (`-ltermcap`). Version 2 needs an ANSI C compiler (gcc, or a system's own, such as HP's `c89`) and ncurses; SunOS 4's own `cc` is K&R C, so there use gcc, or the K&R conversion made for the [CoCo](#version-2-on-the-tandy-coco-3-untested).
 
 #### MS-DOS
 
@@ -375,7 +404,7 @@ The original [`README`](README) describes the file layout in more detail.
 
 ## History
 
-EBaC was begun in 1992 on the MM/1 (OS-9 68000), at first searching for a single word; searches combining several words with operators came in 1993. It was then ported, in turn, to VAX/VMS, the Tandy Color Computer 3 (OS-9 6809, 512K), and soon after to the UNIX systems of the 1990s, MS-DOS and Windows (with Cygwin); the Information screen (**I** at the main menu) lists them in that order. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009. Since 2026 it runs on Linux, macOS and Windows (WSL), and, last, as a [Home Assistant app](https://github.com/neilbrookins/ebac-ha-app): the one with the most features, as its touch screen and mouse support (tapping and swiping) are its own.
+EBaC was begun in 1992 on the MM/1 (OS-9 68000), at first searching for a single word; searches combining several words with operators came in 1993. It was then ported, in turn, to VAX/VMS, the Tandy Color Computer 3 (OS-9 6809, 512K), the AT&T 3B1 (UNIX System V), MS-DOS and Windows (with Cygwin), then the UNIX systems of the 1990s: Sun's SunOS 4 and Solaris 2, DEC's Ultrix and OSF/1, and HP-UX on the HP 9000; the Information screen (**I** at the main menu) lists them in that order. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009. Since 2026 it runs on Linux, macOS and Windows (WSL), and, last, as a [Home Assistant app](https://github.com/neilbrookins/ebac-ha-app): the one with the most features, as its touch screen and mouse support (tapping and swiping) are its own.
 
 This repository starts with that release, unchanged, as its first commit and tagged **`v1.3.0`**. Each step needed to bring it up to date is a separate commit after it, with an explanation.
 
