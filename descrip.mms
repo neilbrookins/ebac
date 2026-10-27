@@ -6,14 +6,14 @@ LINK=    link
 CFLAGS= /optimmize/nodebug
 OD=     
 EXE= .exe
-RFILES= bible.obj, file.obj, userint.obj, process.obj, cure.obj, vmsio.obj
+RFILES= bible.obj, file.obj, userint.obj, process.obj, cure.obj, vmsio.obj, utf8.obj
 
 bible$(EXE) : $(RFILES)
         $(LINK) $(LINKFLAGS) /nodebug options_file.opt/options, $(RFILES)
 
 ! this program needs over 9 meg RAM to run.
-index$(EXE) : index.obj both.h
-        $(LINK) $(LINKFLAGS) options_file.opt/options, index.obj
+index$(EXE) : index.obj utf8.obj both.h
+        $(LINK) $(LINKFLAGS) options_file.opt/options, index.obj, utf8.obj
 
 ! this pauses for a keystroke during installation script.
 pause$(EXE) : pause.obj

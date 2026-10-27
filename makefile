@@ -14,7 +14,7 @@ CC=gcc
 #  macOS:                            included with the Xcode tools
 #  Solaris 11:                       sudo pkg install library/ncurses
 CFLAGS= -O2 -Wall -Wextra -DNORAMDISK -DUNIXV
-RFILES= bible.o file.o userint.o process.o curses.o
+RFILES= bible.o file.o userint.o process.o curses.o utf8.o
 LIBS= $(NCURSES_LIBS)
 
 # Where ncurses is. pkg-config knows, where it is installed. Without it,
@@ -33,25 +33,25 @@ endif
 #If you are using an older UNIX that still has termcap instead of ncurses,
 #(Solaris before 11, HP-UX, and other System V from the 1990s):
 #CFLAGS= -O -DNORAMDISK -DUNIXV -DUSE_TERMCAP
-#RFILES= bible.o file.o userint.o process.o curses.o
+#RFILES= bible.o file.o userint.o process.o curses.o utf8.o
 #LIBS= -ltermcap
 
 #if you are using Microsoft MS-DOS, DOS, with about 512KB RAM:
 #Intel 8086 CPU, using Watcom C compiler
 #CFLAGS= -DRAMDISK -DMSDOS
-#RFILES= bible.o file.o userint.o process.o cure.o
+#RFILES= bible.o file.o userint.o process.o cure.o utf8.o
 #LIBS=
 
 #If you are using Microware OS-9 68000 on MM/1
 #on Philips 68070 CPU, using gcc
 #CFLAGS= -DNORAMDISK -DOSK
-#RFILES= bible.o file.o userint.o process.o curses.o
+#RFILES= bible.o file.o userint.o process.o curses.o utf8.o
 #LIBS= -ltermcap
 
 #If you are using Microware OS-9 6809 on Tandy CoCo 3
 #on Motorola 6809 CPU, using Microware C
 #CFLAGS= -DRAMDISK -DCOCO
-#RFILES= bible.o file.o userint.o process.o cure.o
+#RFILES= bible.o file.o userint.o process.o cure.o utf8.o
 #LIBS=
 
 #If you are using OpenVMS, VAX/VMS:
@@ -99,8 +99,8 @@ bible: $(RFILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OD)bible $(RFILES) $(LIBS)
 
 # this program needs over 7.5 meg RAM to run.
-index: index.c both.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(OD)index index.c
+index: index.c utf8.c utf8.h both.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(OD)index index.c utf8.c
 
 # splits an archive across multiple floppy disks
 split: split.c
@@ -127,9 +127,9 @@ verses: verses.c
 # Needs Python 3. For memory checking as well, run:
 #   make test TESTSAN="-fsanitize=address,undefined"
 TESTCFLAGS= -O1 -g -Wall -Wextra -DUNIXV $(TESTSAN)
-TESTSRC= bible.c file.c userint.c process.c curses.c
+TESTSRC= bible.c file.c userint.c process.c curses.c utf8.c
 # The test also checks that every folder is mentioned in 'trans'.
-test: $(TESTSRC) bible.h both.h screen.h tests/sidebyside.py indexes
+test: $(TESTSRC) bible.h both.h screen.h utf8.h tests/sidebyside.py indexes
 	sh translations.sh check --strict
 	rm -rf tests/build
 	mkdir -p tests/build/noramdisk tests/build/ramdisk
@@ -162,13 +162,14 @@ FORCE:
 
 .PHONY: all indexes test clean coco FORCE
 
-file.o: bible.h screen.h both.h
-userint.o: userint.c bible.h screen.h both.h version.stamp
+file.o: bible.h screen.h both.h utf8.h
+userint.o: userint.c bible.h screen.h both.h version.stamp utf8.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VERSION_FLAGS) -c userint.c
 curses.o: curses.c screen.h both.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(NCURSES_CFLAGS) -c curses.c
 cure.o: screen.h
-bible.o: bible.h both.h
-process.o: bible.h screen.h both.h
+utf8.o: utf8.c utf8.h both.h
+bible.o: bible.h both.h utf8.h
+process.o: bible.h screen.h both.h utf8.h
 
 #End of Makefile

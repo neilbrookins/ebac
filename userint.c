@@ -18,7 +18,7 @@
 ** or from version.txt in a downloaded archive), as EBAC_COMMIT, and a
 ** package such as the Home Assistant app can name itself in EBAC_PACKAGE.
 */
-#define EBAC_RELEASE "2.2"
+#define EBAC_RELEASE "2.3"
 #ifndef EBAC_COMMIT
 #       define EBAC_COMMIT ""
 #endif
@@ -185,17 +185,17 @@ static int roman_start(char *name, char **rest)
 */
 static int number_matches(char *typed, char *name)
 {
-        int number = 0, i = 0, j;
-        char *rest = name;
+        int number = 0, i = 0;
+        char *rest = name, lower[MAXWORDLEN];
 
         while (isdigit(UCHAR(typed[i])) && number < 1000)
                 number = number * 10 + (typed[i++] - '0');
         if (i == 0 || number == 0 || roman_start(name, &rest) != number)
                 return (FALSE);
-        for (j = 0; typed[i + j] != '\0'; j++)
-                if (tolower(UCHAR(rest[j])) != typed[i + j])
-                        return (FALSE);         /* (rest[j] '\0' too) */
-        return (TRUE);
+        strncpy(lower, rest, MAXWORDLEN - 1);
+        lower[MAXWORDLEN - 1] = '\0';
+        u8_lower(lower);
+        return (strncmp(lower, &typed[i], strlen(&typed[i])) == 0);
 }
 
 /*
@@ -204,12 +204,14 @@ static int number_matches(char *typed, char *name)
 */
 static int name_starts(char *typed, char *name)
 {
-        int i;
+        char lower[MAXWORDLEN];
 
-        for (i = 0; typed[i] != '\0'; i++)
-                if (tolower(UCHAR(name[i])) != typed[i])
-                        return (number_matches(typed, name)); /* (name[i] '\0' too) */
-        return (TRUE);
+        strncpy(lower, name, MAXWORDLEN - 1);   /* (its letters made small) */
+        lower[MAXWORDLEN - 1] = '\0';
+        u8_lower(lower);
+        if (strncmp(lower, typed, strlen(typed)) == 0)
+                return (TRUE);
+        return (number_matches(typed, name));
 }
 
 /*
@@ -226,9 +228,9 @@ void print_book_matches(char *book_str)
         char typed[MAXWORDLEN];
         int i, count = 0, shown = 0;
 
-        for (i = 0; i < MAXWORDLEN - 1 && book_str[i] != '\0'; i++)
-                typed[i] = tolower(UCHAR(book_str[i]));
-        typed[i] = '\0';
+        strncpy(typed, book_str, MAXWORDLEN - 1);
+        typed[MAXWORDLEN - 1] = '\0';
+        u8_lower(typed);
         for (i = 0; i < numbooks; i++)
                 if (name_starts(typed, book[i].name))
                         count++;
@@ -278,8 +280,7 @@ int match_it(char *book_str,
                 count = numbooks;
         else
         {
-                for (i = 0; i < MAXWORDLEN && book_str[i] != '\0'; i++)
-                        book_str[i] = tolower(UCHAR(book_str[i]));
+                u8_lower(book_str);
 
                 for (i = 0; i < numbooks; i++)
                 {
@@ -295,7 +296,7 @@ int match_it(char *book_str,
 		if (update_screen)
 		{
                   remove_char(book_str);
-                  last_len = strlen(book_str);
+                  last_len = u8_cols(book_str, strlen(book_str));
                   printf("%s?\b\7", book_str); /* Beep terminal to indicate user
                                                   has typed illegal letter */
                   fflush(stdout);
@@ -306,7 +307,7 @@ int match_it(char *book_str,
         {
 		if (update_screen)
 		{
-                  last_len = strlen(book[savei].name);
+                  last_len = u8_cols(book[savei].name, strlen(book[savei].name));
                   printf("%s", book[savei].name); /* Print entire bookname */
                   fflush(stdout);
 		}
@@ -316,7 +317,7 @@ int match_it(char *book_str,
         {
 		if (update_screen)
 		{
-                  last_len = strlen(book_str);
+                  last_len = u8_cols(book_str, strlen(book_str));
                   printf("%s?\b", book_str); /*Print only what user has typed*/
                   fflush(stdout);
 		}
@@ -348,18 +349,7 @@ void Erase_word(int length)
 */
 static void remove_char(char *strg)
 {
-        int i;
-        if (strg[0] != '\0')
-        {
-                for (i = 1; i < MAXWORDLEN; i++)
-                {
-                        if (strg[i] == '\0')
-                        {
-                                strg[i - 1] = '\0';
-                                break;
-                        }
-                }
-        }
+        strg[u8_prev(strg, strlen(strg))] = '\0';      /* (a whole character) */
 }
 
 /*
@@ -394,7 +384,8 @@ static int get_number(void)
 static struct bcv_type *bcv_menu(void)
 {
         static char book_str[MAXWORDLEN];
-        int c, i;
+        char typed[8];          /* a letter typed: in UTF-8, up to 4 bytes */
+        int c, c2, n, k;
 
 get_name_again:
         scr_mode("input");
@@ -407,22 +398,26 @@ get_name_again:
         for(;;)
         {
                 c = ugetchar();
-                if (isalnum(c))
+                if ((c > 0 && c < 128 && isalnum(c)) || (c >= 0xC2 && c <= 0xF4))
                 {
-                        for (i = 0; i < (MAXWORDLEN - 1); i++)
-                        {
-                                if (book_str[i] == '\0')
+                        /* a letter: beyond ASCII, all its bytes (UTF-8) */
+                        typed[0] = (char) c;
+                        n = 1;
+                        if (c >= 0x80)
+                                for (k = (c >= 0xF0) ? 4 : (c >= 0xE0) ? 3 : 2;
+                                     n < k; n++)
                                 {
-                                        book_str[i] = (char) c;
-                                        book_str[i + 1] = '\0';
-                                        break;
+                                        if (((c2 = ugetchar()) & 0xC0) != 0x80)
+                                                break;  /* (cut short) */
+                                        typed[n] = (char) c2;
                                 }
-                        }
-                        if (i == (MAXWORDLEN - 1))
+                        typed[n] = '\0';
+                        if (strlen(book_str) + n > (MAXWORDLEN - 1))
                         {
                             printf("\nOut of room in string to store word!\n");
                             exit_program(1);
                         }
+                        strcat(book_str, typed);
                 }
                 else if (c == '\b' || c == '\177') /* Back space, or Delete */
                         remove_char(book_str);
@@ -474,11 +469,25 @@ get_name_again:
         return(&bcv);
 }
 
+/*
+** Purpose: how many bytes of a verse's text fit on a line of width columns:
+**          at least one character, so that a line always moves on. (Its
+**          characters may be several bytes, or two columns, in UTF-8.)
+*/
+static int line_fit(char *strg, int width)
+{
+        int fit = u8_fit(strg, width);
+
+        if (fit == 0 && strg[0] != '\0')
+                fit = u8_len(strg);
+        return (fit);
+}
+
 /* figure out how many lines on the screen it will take to print this verse */
 static int count_lines(int tag, char *bookname, char *strg, int indent, int top_of_screen)
 {
         static char previous_book[MAXBOOKNAME] = { '\0' };
-        int a_lines = 0, i, indentWidth = WIDTH - indent;
+        int a_lines = 0, i, fit, indentWidth = WIDTH - indent;
 
         if (tag == -1)
         {
@@ -491,29 +500,32 @@ static int count_lines(int tag, char *bookname, char *strg, int indent, int top_
            }
         }
         strcpy(previous_book, bookname);
-        if ((int) strlen(strg) <= indentWidth)
+        fit = line_fit(strg, indentWidth);
+        if (strg[fit] == '\0')
                 return(1 + a_lines);
- for (i = indentWidth; i > 0; i--)
+ for (i = fit; i > 0; i--)
   if (strg[i] == ' ')
    return(count_lines(tag, bookname, &strg[i + 1],  /* recursive! */
                       indent, FALSE) + 1 + a_lines);
- return(count_lines(tag, bookname, &strg[indentWidth], /* here too! */
+ return(count_lines(tag, bookname, &strg[fit], /* here too! */
                     indent, FALSE) + 1 + a_lines);
 }
 
 /* Purpose: Display one line of text to the screen. Highlight, via reverse
             video, the word being searched for.
 */
+#define BYTE_IS(c, b) (((c) & 0xFF) == (b))
+
 static void dis_one_line(char *strg)
 {
-    int i = 0, j = 0, k;
+    int i = 0, j = 0, k, n;
     char wrd[MAXWORDLEN];
     char lower_wrd[MAXWORDLEN];
     extern char *rev_word[];
 
     for(;;)
     {
-        while (!(isalnum(UCHAR(strg[i]))))
+        while (!u8_is_letter(&strg[i]))
         {
                 if (strg[i] == '\0') /* We is done with this line */
                 {
@@ -524,16 +536,25 @@ static void dis_one_line(char *strg)
                 putchar(strg[i++]); /* prints commas, spaces, etc normally */
         }
 
-        while (isalnum(UCHAR(strg[i])) ||
+        /* a word: its letters (a letter may be several bytes, in UTF-8) */
+        while (u8_is_letter(&strg[i]) ||
                       (strg[i] == '\'') || /* allow "day's" to be highlighted */
-							 (strg[i] == '-'))    /* same with "father-in-law" */
+                      (strg[i] == '-') ||   /* same with "father-in-law" */
+                      (BYTE_IS(strg[i], 0xD6) && BYTE_IS(strg[i + 1], 0xBE)))
+                                            /* and Hebrew words joined by maqaf */
         {
-                wrd[j] = strg[i++];
-                lower_wrd[j] = tolower(UCHAR(wrd[j]));
-                ++j;
+                n = u8_len(&strg[i]);
+                if (j + n < MAXWORDLEN)
+                {
+                        strncpy(&wrd[j], &strg[i], n);
+                        j += n;
+                }
+                i += n;
         }
 
-        lower_wrd[j] = wrd[j] = '\0';
+        wrd[j] = '\0';
+        strcpy(lower_wrd, wrd);
+        u8_lower(lower_wrd);
         j = 0;
 /*
 ** We need to loop here to see if lower_wrd is the same as ANY of the multiple
@@ -561,10 +582,11 @@ static void dis_one_line(char *strg)
 */
 static void dis_verse(char *strg, int indent, int firstTime)
 {
-        int i, indentWidth = WIDTH - indent;
+        int i, fit, indentWidth = WIDTH - indent;
         char *outstr;
 
-        if ((int) strlen(strg) <= indentWidth)
+        fit = line_fit(strg, indentWidth);
+        if (strg[fit] == '\0')
         {
                 if ((strg[0] == '\0') && (firstTime == FALSE))
                         return;
@@ -573,7 +595,7 @@ static void dis_verse(char *strg, int indent, int firstTime)
                 dis_one_line(strg);
                 return;
         }
-        for (i = indentWidth; i > 0; i--)
+        for (i = fit; i > 0; i--)
         {
                 if (strg[i] == ' ')
                 {
@@ -595,13 +617,22 @@ static void dis_verse(char *strg, int indent, int firstTime)
 
         if (firstTime == FALSE)
                 printf("%s", spaces + MAXINDENT - indent);
-        for (i = 0; i < indentWidth; i++)
+        for (i = 0; i < fit; i++)
                 outstr[i] = strg[i];
         outstr[i] = '\0';
         dis_one_line(outstr);
         free(outstr);
         dis_verse(&strg[i], indent, FALSE);
         return;
+}
+
+/* Purpose: the columns a book's name takes, no more than most (for the spaces
+            before it, so that the names line up) */
+static int book_cols(char *name, int most)
+{
+        int cols = u8_cols(name, strlen(name));
+
+        return (cols > most ? most : cols);
 }
 
 /* Purpose: Display header info for a verse, such as bookname, chapter and
@@ -620,13 +651,13 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
 					    isupper (UCHAR(bcv_arrays->book_array[1])) &&
 					    islower (UCHAR(bcv_arrays->book_array[2])) )
                {
-                  printf("%s", spaces + MAXINDENT + strlen(bcv_arrays->book_array) + 1 - 15);
+                  printf("%s", spaces + MAXINDENT + book_cols(bcv_arrays->book_array, 14) + 1 - 15);
                   printf("%c ", bcv_arrays->book_array[0]);
                   printf("%s ", &bcv_arrays->book_array[1]);
                }
 				   else
 					{
-                  printf("%s", spaces + MAXINDENT + strlen(bcv_arrays->book_array) - 15);
+                  printf("%s", spaces + MAXINDENT + book_cols(bcv_arrays->book_array, 15) - 15);
                   printf("%s ", bcv_arrays->book_array);
                }
             }

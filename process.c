@@ -139,6 +139,60 @@ static char *fgets_cr(char *s, int n, FILE *iop)
         return((c == EOF && cs == s) ? NULL : s);
 }
 
+/*
+** The line being typed is UTF-8 (EBaC 2.3): a character may be more than one
+** byte, and take no column on the screen (a mark on the letter before it),
+** one, or two. The cursor moves, and a key erases, a whole character, with
+** any marks after it; the screen is moved over by columns. (See utf8.c.)
+*/
+
+/* where the character before byte place of line starts, with its marks */
+static int char_start(char *line, int place)
+{
+        int j = u8_prev(line, place);
+
+        while (j > 0 && u8_width(&line[j]) == 0)
+                j = u8_prev(line, j);
+        return (j);
+}
+
+/* where the character at byte place of line ends (after its marks) */
+static int char_end(char *line, int place)
+{
+        int j = place + u8_len(&line[place]);
+
+        while (line[j] != '\0' && u8_width(&line[j]) == 0)
+                j += u8_len(&line[j]);
+        return (j);
+}
+
+/* move the cursor back n columns */
+static void back_cols(int n)
+{
+        while (n-- > 0)
+                putchar('\b');
+}
+
+/* show line from byte from on, then blank columns, and put the cursor back
+   where the shown part began */
+static void show_rest(char *line, int from, int blank)
+{
+        int i;
+
+        printf("%s", &line[from]);
+        for (i = 0; i < blank; i++)
+                putchar(' ');
+        back_cols(u8_cols(&line[from], strlen(&line[from])) + blank);
+}
+
+/* take bytes from to to out of line */
+static void remove_bytes(char *line, int from, int to)
+{
+        do{
+                line[from] = line[to++];
+        }while(line[from++] != '\0');
+}
+
 /* Purpose: read a line from the keyboard. The input is terminated by <enter>.
             The backspace or delete keys can be used to correct errors.
    Bugs: Some braindead terminals don't move the cursor left upon receipt
@@ -147,7 +201,7 @@ static char *fgets_cr(char *s, int n, FILE *iop)
 */
 char *get_line(int mode)
 {
-        int c, i;
+        int c, c2, i;
         static char digit_letters[] = "qwertyuiop"; /* stand for 1-9, 0 */
         char *digit; /* letter standing for a digit, in DIGITS_MODE */
         int numeric; /* c may be part of a number, in DIGITS_MODE */
@@ -155,7 +209,10 @@ char *get_line(int mode)
         int place = 0; /* location of cursor within, or after, line of text */
         FILE *fp = NULL; /* log file for the line of text */
         int file_is_closed = TRUE; /* the above file's status */
-        int old_length; /* length of previous line; before up/down arrow */
+        int old_length; /* columns of previous line; before up/down arrow */
+        int width;      /* columns of the character erased */
+        char typed[8];  /* a character typed: in UTF-8, up to 4 bytes */
+        int n;
         long int position; /* value returned by ftell() */
 
         line[0] = '\0';
@@ -172,12 +229,11 @@ char *get_line(int mode)
                         }
                         else
                         {
-                                while (line[place] != '\0')
-                                {           /* move cursor to end of line */
-                                        nd_space();
-                                        ++place;
-                                }           /* and erase the line */
-                                Erase_word(strlen(line));
+                                for (i = u8_cols(&line[place], strlen(&line[place]));
+                                     i > 0; i--)
+                                        nd_space(); /* move cursor to end of line */
+                                Erase_word(u8_cols(line, strlen(line)));
+                                                    /* and erase the line */
                                 line[0] = '\0';
                                 place = 0;
                         }
@@ -191,17 +247,13 @@ char *get_line(int mode)
                         }
                         else
                         {
-                                putchar('\b');
-                                printf("%s ", &line[place]);
-                                i = 1 + strlen(&line[place]);
-                                while(i--)
-                                        putchar('\b');
+                                i = char_start(line, place);
+                                width = u8_cols(&line[i], place - i);
+                                back_cols(width);
+                                remove_bytes(line, i, place);
+                                place = i;
+                                show_rest(line, place, width);
                                 fflush(stdout);
-                                i = --place;
-                                do{
-                                        line[i] = line[i + 1];
-                                }while(line[i++] != '\0');
-
                         }
                         break;
                 case 0x4:  /* Ctrl-D, or Delete key: erase char under cursor */
@@ -212,15 +264,11 @@ char *get_line(int mode)
                         }
                         else
                         {
-                                printf("%s ", &line[place + 1]);
-                                i = 1 + strlen(&line[place + 1]);
-                                while(i--)
-                                        putchar('\b');
+                                i = char_end(line, place);
+                                width = u8_cols(&line[place], i - place);
+                                remove_bytes(line, place, i);
+                                show_rest(line, place, width);
                                 fflush(stdout);
-                                i = place;
-                                do{
-                                        line[i] = line[i + 1];
-                                }while(line[i++] != '\0');
                         }
                         break;
                 case 0x2:  /* left arrow-key */
@@ -231,20 +279,18 @@ char *get_line(int mode)
                         }
                         else
                         {
-                            putchar('\b');
+                            i = char_start(line, place);
+                            back_cols(u8_cols(&line[i], place - i));
                             fflush(stdout);
-                            --place;
+                            place = i;
                         }
                         break;
                 case 0x18: /* Ctrl-X, or Home key: jump to begining of line */
                 case 0x1:  /* Ctrl-A, as in most Linux programs */
                         if (place == 0)
                             putchar('\7'); /* Beep */
-                        while (place > 0)
-                        {
-                                putchar('\b');
-                                --place;
-                        }
+                        back_cols(u8_cols(line, place));
+                        place = 0;
                         fflush(stdout);
                         break;
                 case 0x6:  /* right arrow-key */
@@ -255,20 +301,19 @@ char *get_line(int mode)
                         }
                         else
                         {
-                            nd_space();
+                            for (i = char_end(line, place); place < i; place++)
+                                putchar(line[place]);  /* (over it, by its width) */
                             fflush(stdout);
-                            ++place;
                         }
                         break;
                 case 0x12: /* Ctrl-R, or End key: jump to end of line */
                 case 0x5:  /* Ctrl-E, as in most Linux programs */
                         if (line[place] == '\0')
                                 putchar('\7');
-                        while (line[place] != '\0')
-                        {
-                            nd_space();
-                            ++place;
-                        }
+                        for (i = u8_cols(&line[place], strlen(&line[place]));
+                             i > 0; i--)
+                            nd_space();         /* (by columns) */
+                        place = strlen(line);
                         fflush(stdout);
                         break;
                 case 0x10: /* up arrow-key */
@@ -283,11 +328,8 @@ char *get_line(int mode)
                                          /* position to end of file */
                                 fseek(fp, 0L, 2);
                         }
-                        while (place > 0)
-                        {
-                                putchar('\b');
-                                --place;
-                        }
+                        back_cols(u8_cols(line, place));
+                        place = 0;
                         do{
                                 if ((fseek(fp, -2L, 1) != 0) || (ftell(fp) < 0))
                                 {
@@ -296,7 +338,7 @@ char *get_line(int mode)
                                         break;
                                 }
                         }while(fgetc(fp) != '\r');
-                        old_length = strlen(line);
+                        old_length = u8_cols(line, strlen(line));
 
                         position = ftell(fp);
                         fgets_cr(line, MAXSEARCHLEN, fp);
@@ -306,9 +348,9 @@ char *get_line(int mode)
                                 line[i - 1] = '\0';
                         fputs(line, stdout);
                         place = strlen(line);
-                        for(i = place; i < old_length; i++)
+                        for(i = u8_cols(line, place); i < old_length; i++)
                                 putchar(' ');
-                        for(i = place; i < old_length; i++)
+                        for(i = u8_cols(line, place); i < old_length; i++)
                                 putchar('\b');
                         fflush(stdout);
                         break;
@@ -316,12 +358,9 @@ char *get_line(int mode)
                 case 0x16:  /* ctrl-v */
                         if ((mode == DIGITS_MODE) || file_is_closed)
                                 break;
-                        while (place > 0)
-                        {
-                                putchar('\b');
-                                --place;
-                        }
-                        old_length = strlen(line);
+                        back_cols(u8_cols(line, place));
+                        place = 0;
+                        old_length = u8_cols(line, strlen(line));
 
                         fgets_cr(line, MAXSEARCHLEN, fp);
                         position = ftell(fp);
@@ -332,9 +371,9 @@ char *get_line(int mode)
                                 line[i - 1] = '\0';
                         fputs(line, stdout);
                         place = strlen(line);
-                        for(i = place; i < old_length; i++)
+                        for(i = u8_cols(line, place); i < old_length; i++)
                                 putchar(' ');
-                        for(i = place; i < old_length; i++)
+                        for(i = u8_cols(line, place); i < old_length; i++)
                                 putchar('\b');
                         fflush(stdout);
                         break;
@@ -347,7 +386,21 @@ char *get_line(int mode)
                         ** needn't be switched to numbers. The digit or minus
                         ** sign is what appears on the screen.
                         */
-                        if (mode == DIGITS_MODE && c > 0 && c < 256 &&
+                        /* a character beyond ASCII: all its bytes (UTF-8) */
+                        typed[0] = (char) c;
+                        n = 1;
+                        if (c >= 0xC2 && c <= 0xF4)
+                        {
+                                i = (c >= 0xF0) ? 4 : (c >= 0xE0) ? 3 : 2;
+                                while (n < i)
+                                {
+                                        c2 = ugetchar();
+                                        if ((c2 & 0xC0) != 0x80)
+                                                break;  /* (cut short) */
+                                        typed[n++] = (char) c2;
+                                }
+                        }
+                        if (mode == DIGITS_MODE && c > 0 && c < 128 &&
                             (digit = find_char(digit_letters, tolower(c))) != NULL)
                                 c = "1234567890"[digit - digit_letters];
                         if (mode == DIGITS_MODE && (c == 'm' || c == 'M'))
@@ -365,27 +418,31 @@ char *get_line(int mode)
                         }
                         else
                         {
-                                putchar(c);        /* put onto video display */
+                                if (c < 128)       /* (a digit, - or Enter for it) */
+                                {
+                                        typed[0] = (char) c;
+                                        n = 1;
+                                }
+                                for (i = 0; i < n; i++)
+                                        putchar(typed[i]); /* put onto video display */
                    /* Accept the whole line, even if cursor is in the middle */
                                 if (c == '\r')
                                         place = strlen(line);
-                                printf("%s", &line[place]);
-                                i = strlen(&line[place]);
-                                while(i--)
-                                        putchar('\b');
+                                show_rest(line, place, 0);
                                 fflush(stdout);
                                 i = strlen(line);
-                                if (i == (MAXSEARCHLEN - 1))
+                                if (i + n > (MAXSEARCHLEN - 1))
                                 {
                                     printf("\nOut of room in string!\n");
                                     exit_program(1);
                                 }
                                 while(i >= place)
                                 {
-                                    line[i + 1] = line[i];
+                                    line[i + n] = line[i];
                                     --i;
                                 }
-                                line[place++] = c;
+                                for (i = 0; i < n; i++)
+                                    line[place++] = typed[i];
                         }
                 }
         }while(c != '\r');
@@ -402,9 +459,8 @@ char *get_line(int mode)
                 mfclose(fp, LOGFILE);
         }
 
-        i = 0; /* Make line lowercase to match index data which is lowercase */
-        while ((line[i] = tolower(UCHAR(line[i]))) != '\0')
-                i++;
+        /* Make line lowercase to match index data which is lowercase */
+        u8_lower(line);
         return((char *)line);
 }
 

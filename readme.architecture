@@ -6,6 +6,40 @@ changed between versions and why, so that the reasons are not lost.
 It is plain text, to be read with any editor.
 
 
+EBaC 2.3 compared with EBaC 2.2
+-------------------------------
+
+  EBaC 2.2   index format 2
+  EBaC 2.3   index format 2 (the same files; but an index must be made
+             again, to have the words it left out: see point 1)
+
+  1. Text in UTF-8: letters beyond ASCII (accented letters, Hebrew,
+     Greek, Cyrillic) are letters, not punctuation. Before 2.3 the index
+     program took them for punctuation, as the C library does for
+     anything beyond ASCII (in the "C" locale): a letter such as the
+     final o of "creo" with an accent was cut off the word, and a word of
+     Hebrew letters alone was not indexed at all (the Hebrew name of
+     God, 8,227 times in the RNKJV, could not be searched for). See
+     "UTF-8" below.
+
+  2. Capital letters beyond ASCII are made small too (E with an accent
+     as e with it, Greek, Cyrillic), as A-Z always were, so that a word
+     is found whether or not it begins a sentence. Accents are matched
+     exactly as typed: a search for "senor" doesn't find the word with
+     n-tilde (a decision of the review: a phone's keyboard types it with
+     a long press).
+
+  3. The search line, the book prompt, highlighting, line wrapping, and
+     the book column of the list of results work in characters and
+     columns, not bytes: Backspace erases a whole letter, the cursor
+     stays in step, a found word with accents is highlighted, and lines
+     and columns line up.
+
+  4. The translation importer keeps the letters beyond ASCII in book
+     names (a Spanish Genesis keeps its accent), and cuts long names
+     short by characters, never in the middle of one.
+
+
 EBaC 2.2 compared with EBaC 2.1
 -------------------------------
 
@@ -450,6 +484,57 @@ own), and ot without them. The Douay-Rheims Bible and the CPDV need no
 file: their Old Testament is every book before Matthew, as published.
 
 
+UTF-8
+-----
+
+(EBaC 2.3.) EBaC was written in 1993 for ASCII text, where a character
+is a byte. The translations now come as UTF-8, where a character beyond
+ASCII is two to four bytes, each 0x80 or above, the first not a
+"continuation" byte (0x80 to 0xBF). What already worked, by the design:
+
+  - Text is kept and shown as bytes: the terminal turns the UTF-8 into
+    characters, so Hebrew and accents were always shown right.
+  - The index's end-of-record byte, 0xFF, never appears in UTF-8, so no
+    word can be mistaken for the end of a record.
+  - Words are looked up, and ordered in words.dat, by their bytes, the
+    same way in the index program and in EBaC.
+
+What did not, and was changed: every place that asked what a character
+is, or how wide. utf8.c answers for both programs, with its own tables:
+
+  u8_len, u8_code   the bytes of a character, and its code point
+  u8_is_letter      a letter or digit in any alphabet, or a mark on one
+                    (an accent, a Hebrew vowel point): part of a word.
+                    Punctuation beyond ASCII (the Spanish inverted ? and
+                    !, the French quotation marks, dashes, the Hebrew
+                    maqaf and sof pasuq) is not.
+  u8_lower          capital to small letter, in place: Latin with
+                    accents, Greek (with the final sigma at a word's
+                    end), Cyrillic, Armenian; only pairs of the same
+                    length in UTF-8, so that a word keeps its length
+  u8_width, u8_cols columns on the screen: 0 for a mark (it sits on the
+                    letter before), 2 for Chinese, Japanese and Korean
+  u8_fit, u8_prev   how much fits in so many columns; a character back
+
+They don't use the C library's locales (setlocale), which differ from
+system to system and aren't on the CoCo: the same text gives the same
+index, and the same screens, everywhere. A byte that isn't part of a
+well-formed character is a character of its own, one column wide, and
+not a letter.
+
+The line editor (get_line()) and the book prompt read a character's
+bytes together, as one key; Backspace, Delete and the arrow keys take a
+whole character, with any marks after it, and move the cursor by its
+columns. Line wrapping and the book column count columns.
+
+Right to left. Hebrew is stored, as in the text, in reading order, and
+the web terminal of the Home Assistant app shows every line left to
+right, so a Hebrew word appears reversed. A layer between EBaC's output
+and the screen that reverses each run of right-to-left letters is
+planned (the designer's idea: build the line in memory, then print it
+with its Hebrew turned about).
+
+
 Widths in the program
 ---------------------
 
@@ -578,3 +663,14 @@ Settled in a second review (October 2026), for EBaC 2.2:
     alike.
   - A number for a Roman numeral, in book names, one way only (see
     "EBaC 2.2 compared with EBaC 2.1", point 3).
+
+For EBaC 2.3 (October 2026):
+
+  - UTF-8 is handled without the C library's locales, by EBaC's own
+    tables (utf8.c), so that every system behaves alike.
+  - A search matches accents exactly as typed: no accent-insensitive
+    matching, as words differing only by an accent can differ in
+    meaning, and a phone's keyboard types accents with a long press.
+  - First the bugs (index, search, line editor, display, importer);
+    other languages' translations in the importer, and right-to-left
+    display, later.

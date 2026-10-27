@@ -43,7 +43,7 @@ cr() {
 
 # the source, as K&R C
 $CC -w -DSTDC_HEADERS -o "$out/ansi2knr" coco/ansi2knr.c
-for f in bible.c file.c userint.c process.c cure.c; do
+for f in bible.c file.c userint.c process.c cure.c utf8.c; do
         {
                 # the version for the Information screen (from the makefile)
                 if [ "$f" = userint.c ] && [ -n "$EBAC_COMMIT" ]; then
@@ -54,7 +54,7 @@ for f in bible.c file.c userint.c process.c cure.c; do
         cr "$out/knr.c" "$stage/BIBLE/SRC/$f"
 done
 rm -f "$out/knr.c"
-for f in bible.h both.h screen.h; do
+for f in bible.h both.h screen.h utf8.h; do
         cr "$f" "$stage/BIBLE/SRC/$f"
 done
 cr coco/makefile "$stage/BIBLE/SRC/makefile"

@@ -4,13 +4,19 @@
    http://ebac.sourceforge.net/
 */
 #include "both.h"
+#include "utf8.h"
 
 /* The number of verses to show before the selected verse when viewing
 ** a verse in context */
 #define NUM_SHOW_BEFORE 3
 
-/* the number of characters in: a1thessalonians.\n\0 */
-#define MAXBOOKNAME 18
+/* the number of characters in: a1thessalonians.\n\0 (bytes: a book's name,
+   in UTF-8, may have letters of two bytes or more, as Génesis has) */
+#ifdef COCO
+#       define MAXBOOKNAME 18
+#else
+#       define MAXBOOKNAME 64
+#endif
 
 /* number of bytes in: "123\0" */
 #define MAXCHAPTNAME 4

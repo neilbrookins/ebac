@@ -318,17 +318,33 @@ add_to() {
         # book with text, its number among the headings and its file name.
         # Prints the plan, then "ok BOOKS VERSES", or "problem MESSAGE".
         $AWK "$PLAIN"'
+        # The first n characters of s: a character beyond ASCII is two to
+        # four bytes, in UTF-8, the first not a continuation byte (\200 to
+        # \277), so that a letter such as the e of Genesis, in Spanish, is
+        # never cut in two.
+        function first_chars(s, n,    i, count) {
+                if (CONTINUATION == "")         # (octal, as every awk reads it)
+                        CONTINUATION = "\200\201\202\203\204\205\206\207\210\211\212\213\214\215\216\217\220\221\222\223\224\225\226\227\230\231\232\233\234\235\236\237\240\241\242\243\244\245\246\247\250\251\252\253\254\255\256\257\260\261\262\263\264\265\266\267\270\271\272\273\274\275\276\277"
+                count = 0
+                for (i = 1; i <= length(s); i++)
+                        if (!index(CONTINUATION, substr(s, i, 1)) && ++count > n)
+                                return substr(s, 1, i - 1)
+                return s
+        }
         function book_name(name,    word, limit, n, other) {
                 word = name
-                gsub(/[^A-Za-z0-9]/, "", word)
+                # (ASCII punctuation and spaces go, and the no-break space:
+                # letters beyond ASCII, as in Genesis in Spanish, stay)
+                gsub(/[\001-\057\072-\100\133-\140\173-\177]/, "", word)
+                gsub(/\302\240/, "", word)
                 if (word == "")
                         word = "Book"
                 # a name like 1Samuel is shown as "1 Samuel", one character wider
                 limit = (word ~ /^[0-9][A-Z][a-z]/) ? 14 : 15
-                word = substr(word, 1, limit)
+                word = first_chars(word, limit)
                 if (word in taken) {            # (made the same by shortening)
                         for (n = 2; n < 10; n++) {
-                                other = substr(word, 1, limit - 1) n
+                                other = first_chars(word, limit - 1) n
                                 if (!(other in taken)) {
                                         word = other
                                         break

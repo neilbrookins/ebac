@@ -586,12 +586,15 @@ FILE *trans_file;
         	   with a newline, and read over the rest of the line */
         	if (find_char(trans[i], '\n') == NULL && !feof(trans_file))
         	{
-        		int c;
+        		int c, k;
 
         		while ((c = fgetc(trans_file)) != '\n' && c != EOF)
         			;
-        		trans[i][78] = '\n';
-        		trans[i][79] = '\0';
+        		k = 78;         /* (not in the middle of a character) */
+        		while (k > 0 && (trans[i][k] & 0xC0) == 0x80)
+        			k--;
+        		trans[i][k] = '\n';
+        		trans[i][k + 1] = '\0';
         	}
         	while (*p == ' ' || *p == '\t')
         		++p;
@@ -796,11 +799,19 @@ static void open_new_trans(void)
 */
 static void print_trans(int i, int used)
 {
-	int k, w;
+	int k, n, w;
 
-	for (k = 0, w = used; trans[i][k] != '\n' && trans[i][k] != '\0' &&
-	     w < s_cols - 1; k++, w++)
-		putchar(trans[i][k]);
+	for (k = 0, w = used; trans[i][k] != '\n' && trans[i][k] != '\0';
+	     k += n)
+	{
+		n = u8_len(&trans[i][k]);       /* (a character: UTF-8) */
+		if (w + u8_width(&trans[i][k]) > s_cols - 1)
+			break;
+		w += u8_width(&trans[i][k]);
+		while (n-- > 0)
+			putchar(trans[i][k++]);
+		n = 0;
+	}
 	putchar('\n');
 }
 

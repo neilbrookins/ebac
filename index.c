@@ -13,6 +13,7 @@ the indices which are text files.
 */
 
 #include "both.h"
+#include "utf8.h"
 #ifdef OSK
 #       define malloc _lmalloc
 #endif
@@ -187,35 +188,35 @@ remove_tail_punctuation();
 make_into_lowercase();
 }
 
+/*
+** Punctuation is taken off the start and end of a word, a character at a
+** time: a character, in UTF-8, may be more than one byte, and a letter
+** such as the é of "creó" is not punctuation (see utf8.c).
+*/
 static void remove_head_punctuation(void)
 {
-  int i;
-  if (isalnum((unsigned char) word[0]) || word[0] == '\0')
-          return;
-  else
+  int i, n;
+
+  while (word[0] != '\0' && !u8_is_letter(word))
   {
-  for(i = 0; i < (int) strlen(word); i++)
-          word[i] = word[i + 1];
-  remove_head_punctuation();            /* Oooh! Neat! A recursive call! */
+          n = u8_len(word);
+          for (i = 0; word[i + n - 1] != '\0'; i++)
+                  word[i] = word[i + n];
   }
 }
 
 static void remove_tail_punctuation(void)
 {
-  if (word[0] == '\0' || isalnum((unsigned char) word[strlen(word) - 1]))
-          return;
-  else
-  {
-          word[strlen(word) - 1] = '\0';
-          remove_tail_punctuation();    /* Oooh! Neat! A recursive call! */
-  }
+  int last;
+
+  while (word[0] != '\0' &&
+         !u8_is_letter(&word[last = u8_prev(word, strlen(word))]))
+          word[last] = '\0';
 }
 
 static void make_into_lowercase(void)
 {
-        int i = 0;
-        while ((word[i] = tolower((unsigned char) word[i])) != '\0')
-                i++;
+        u8_lower(word);
 }
 
 /*
@@ -481,12 +482,18 @@ static void note_brackets(void)
         if (raw_word[0] == '[' || raw_word[0] == '{')
                 in_brackets = TRUE;
         bracketed = in_brackets;
-        for (i = strlen(raw_word) - 1; i >= 0 && !isalnum((unsigned char) raw_word[i]); i--)
+        for (i = u8_prev(raw_word, strlen(raw_word));
+             raw_word[0] != '\0' && !u8_is_letter(&raw_word[i]);
+             i = u8_prev(raw_word, i))
+        {
                 if (raw_word[i] == ']' || raw_word[i] == '}')
                 {
                         in_brackets = FALSE;
                         break;
                 }
+                if (i == 0)
+                        break;
+        }
         full_position++;
         if (bracketed)
                 plain_position = 0;

@@ -9,7 +9,7 @@
 CC=cc
 
 CFLAGS= -DRAMDISK -DCOCO
-RFILES= bible.o file.o userint.o process.o cure.o
+RFILES= bible.o file.o userint.o process.o cure.o utf8.o
 
 OD= -o ./
 .c.o:
@@ -25,5 +25,6 @@ userint.o: bible.h screen.h both.h
 cure.o: screen.h both.h
 bible.o: bible.h both.h
 process.o: bible.h screen.h both.h
+utf8.o: utf8.h both.h
 
 #End of Makefile

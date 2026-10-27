@@ -220,7 +220,7 @@ Searches use postfix (reverse Polish) notation. Put the operator after the two t
 | `faith =nt 0` | "faith" in the New Testament |
 | `grace =rom..phile 0` | "grace" from Romans to Philemon (a range of books) |
 
-Operators: a number for AND (`0` = same verse; `2` = within two verses, either way), `+2`, `-2` and `~2` for exactly two verses after, before, or apart either way, `,` for OR, `-` for AND NOT, and `.` for a phrase: the word just before it comes next. Books are written `@` plus enough of the name to be unique.
+Operators: a number for AND (`0` = same verse; `2` = within two verses, either way), `+2`, `-2` and `~2` for exactly two verses after, before, or apart either way, `,` for OR, `-` for AND NOT, and `.` for a phrase: the word just before it comes next. Books are written `@` plus enough of the name to be unique. Words with letters beyond ASCII (accented letters, Hebrew, Greek) are searched for like any other, case ignored and accents matched exactly as typed: `señor`, `creó`.
 
 Groups of books are written `=` plus enough of the group's name to be unique (`=n`, `=go`), and a range of books `=` plus two books (`=rom..phile`, in the translation's own order). The groups are defined in the file `groups`, not in the program: `ot` and `nt`; `law`, `history`, `poetry`, `majorprophets` and `minorprophets`; `gospels`, `synoptics`, `paul`, `pastoral`, `general` and `john`. Each translation keeps its own arrangement of books: the Old Testament of the Douay-Rheims Bible includes Tobit and the others, as published, and the King James Version with the Apocrypha (KJVA) has `apocrypha` as well, from `groups.KJVA`. Edit `groups` to add your own; [readme.architecture](readme.architecture) describes the file.
 
