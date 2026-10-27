@@ -9,10 +9,13 @@
 > |---|---|
 > | Linux, including a Raspberry Pi | [Installing on Linux](#installing-on-linux) |
 > | Windows 10 or 11 | [Installing on Windows](#installing-on-windows) |
+> | An older Windows PC, with Cygwin | [Installing on Windows with Cygwin](#installing-on-windows-with-cygwin) |
 > | Apple Mac | [Installing on macOS](#installing-on-macos) |
 > | Solaris 11 | [Installing on Solaris 11](#installing-on-solaris-11) |
-> | Tandy Color Computer 3 (OS-9) | [Version 2 on the Tandy CoCo 3](#version-2-on-the-tandy-coco-3-untested) |
-> | MM/1, VAX/VMS, MS-DOS and other vintage computers | [History, and building on vintage computers](#history-and-building-on-vintage-computers) |
+> | MM/1 (OS-9 68000) | [MM/1](#mm1-os-9-68000) |
+> | VAX/VMS | [VAX/VMS](#vaxvms) |
+> | Tandy Color Computer 3 (OS-9 6809) | [Version 2 on the Tandy CoCo 3](#version-2-on-the-tandy-coco-3-untested) |
+> | MS-DOS | [MS-DOS](#ms-dos) |
 
 Written by Neil G. Brookins.
 
@@ -25,48 +28,44 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 
 ## Contents
 
-- [Installing in Home Assistant](#installing-in-home-assistant)
-- [Installing on Linux](#installing-on-linux)
-  - [First-time install (do this only once)](#first-time-install-do-this-only-once)
-  - [Running EBaC](#running-ebac)
-  - [Updating to the latest version](#updating-to-the-latest-version)
-  - [If something goes wrong](#if-something-goes-wrong)
-- [Installing on Windows](#installing-on-windows)
-- [Installing on macOS](#installing-on-macos)
-- [Installing on Solaris 11](#installing-on-solaris-11)
+- [Installing](#installing)
+  - [Installing in Home Assistant](#installing-in-home-assistant)
+  - [Installing on Linux](#installing-on-linux)
+    - [First-time install (do this only once)](#first-time-install-do-this-only-once)
+    - [Running EBaC](#running-ebac)
+    - [Updating to the latest version](#updating-to-the-latest-version)
+    - [If something goes wrong](#if-something-goes-wrong)
+  - [Installing on Windows](#installing-on-windows)
+  - [Installing on Windows with Cygwin](#installing-on-windows-with-cygwin)
+  - [Installing on macOS](#installing-on-macos)
+  - [Installing on Solaris 11](#installing-on-solaris-11)
+  - [Installing on vintage computers](#installing-on-vintage-computers)
+    - [MM/1 (OS-9 68000)](#mm1-os-9-68000)
+    - [VAX/VMS](#vaxvms)
+    - [Version 2 on the Tandy CoCo 3 (untested)](#version-2-on-the-tandy-coco-3-untested)
+    - [MS-DOS](#ms-dos)
 - [Searching](#searching)
 - [Adding other translations](#adding-other-translations)
   - [Downloading a translation](#downloading-a-translation)
   - [Adding one by hand](#adding-one-by-hand)
   - [How `make` keeps the indexes up to date](#how-make-keeps-the-indexes-up-to-date)
-- [History, and building on vintage computers](#history-and-building-on-vintage-computers)
-  - [Version 2 on the Tandy CoCo 3 (untested)](#version-2-on-the-tandy-coco-3-untested)
+- [History](#history)
 - [What changed in 2.0](#what-changed-in-20)
 - [For other programs: ebac-api](#for-other-programs-ebac-api)
 - [Testing](#testing)
 - [License](#license)
 
+## Installing
 
-## Installing in Home Assistant
+EBaC runs on these computers. Pick yours; at the end of its steps, a link skips the others and goes on to [Searching](#searching).
 
-[![Open your Home Assistant instance and show the add app repository dialog with this repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fneilbrookins%2Febac-ha-app)
+### Installing in Home Assistant
 
-Click the button above to add the EBaC repository to your Home Assistant, or add it by hand:
-
-1. In Home Assistant, go to **Settings → Apps** and select **Install app**.
-2. Open the menu (⋮) in the top-right corner and select **Repositories**.
-3. Paste `https://github.com/neilbrookins/ebac-ha-app` and select **Add**, then close the dialog.
-4. Find **EBaC (Electronic Bible and Concordance)** in the list (you may need to refresh the page) and select it.
-5. Select **Install**. Home Assistant builds EBaC on your machine, which takes a few minutes, longer on a Raspberry Pi.
-6. Select **Start**, then turn on **Show in sidebar**.
-
-Click **EBaC** in the sidebar to use it; it's available to every user. Each user keeps their own search history. **Updating:** when a new version comes out, Home Assistant offers it under **Settings → Updates**; select **Update**.
-
-The app needs Home Assistant OS or a Supervised install (the kinds that have **Settings → Apps**) on a 64-bit system. Its packaging lives at [neilbrookins/ebac-ha-app](https://github.com/neilbrookins/ebac-ha-app).
+The steps, with a button that adds EBaC to your Home Assistant in one click, are with the app: **[Installing the EBaC app](https://github.com/neilbrookins/ebac-ha-app#installing)**. Nothing needs to be typed or built.
 
 **Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 
-## Installing on Linux
+### Installing on Linux
 
 Not sure which steps you need? Open a terminal and type `ls ~/ebac`:
 
@@ -75,7 +74,7 @@ Not sure which steps you need? Open a terminal and type `ls ~/ebac`:
 
 Type each command exactly as shown, pressing Enter after each line. Lines starting with `#` are comments; you don't need to type them.
 
-### First-time install (do this only once)
+#### First-time install (do this only once)
 
 **1. Install the tools EBaC needs to build.** This asks for your password.
 
@@ -114,7 +113,7 @@ Then close the terminal window and open a new one, so that it picks up the setti
 ~/ebac/bible
 ```
 
-### Running EBaC
+#### Running EBaC
 
 Any time after installing, just type:
 
@@ -124,7 +123,7 @@ Any time after installing, just type:
 
 At the main menu press **V** to view a passage (type the start of the book's name, then the chapter and verse numbers; the letters **q w e r t y u i o p** can be typed for **1 2 3 4 5 6 7 8 9 0**, and **m** for a minus sign, so a phone's on-screen keyboard can stay on letters. Chapter and verse count on from the start of the book, so they can run past its end into the next book, and **0** or a negative number counts back: John 3:**0** is John 2:25, Exodus chapter **0** is Genesis 50, and John 3:**-3** is John 2:22. Pressing Enter alone means 1), **S** to search, **C** to change translation, **A** to [add or remove one](#downloading-a-translation), **I** for information, or **E** to exit. In any list or passage, press **?** for the keys available there. The arrow keys and **Page Up**/**Page Down** work too: in a passage, Down and Up step one verse at a time. If the window changes size, such as when a phone's on-screen keyboard appears or goes away, a passage or a list of search results is redrawn at once to fill the new size, starting from the same verse; **CTRL-L** redraws it too.
 
-### Updating to the latest version
+#### Updating to the latest version
 
 **Don't run `git clone` again.** You already have EBaC; `git clone` only works the first time, and will just say `destination path 'ebac' already exists`. Instead, download only what changed, then rebuild:
 
@@ -139,7 +138,7 @@ That's all. Your settings and your search history are kept.
 - If `git pull` says `Already up to date.`, you already have the latest version.
 - If `make` prints nothing at all, that's fine too: the update didn't change the program itself, only things like the documentation, so there was nothing to rebuild.
 
-### If something goes wrong
+#### If something goes wrong
 
 - **`destination path 'ebac' already exists`:** you already have EBaC. Use [Updating to the latest version](#updating-to-the-latest-version) instead.
 - **`fatal: not a git repository`:** you weren't in the EBaC folder. Type `cd ~/ebac` first, then try again.
@@ -156,7 +155,7 @@ That's all. Your settings and your search history are kept.
 
 **Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 
-## Installing on Windows
+### Installing on Windows
 
 On Windows 10 (version 2004 or later) and Windows 11, in every edition including Home, EBaC runs in **WSL**, the Windows Subsystem for Linux: Microsoft's own, free way to run Linux programs on Windows. (It replaced Microsoft's older *Services for UNIX*, which was removed in Windows 8.1.) WSL runs a real Linux, Ubuntu, in a window, so once it's set up, EBaC installs exactly as on Linux.
 
@@ -166,17 +165,21 @@ On Windows 10 (version 2004 or later) and Windows 11, in every edition including
 wsl --install
 ```
 
-Restart the computer when it's done. (If it reports an error about virtualization, it has to be switched on in the computer's BIOS or UEFI settings, usually among the CPU options; Microsoft explains how in [Enable virtualization on Windows](https://support.microsoft.com/windows/c5578302-6e43-4b4b-a449-8ced115f58e1). A PC too old for WSL, such as one with a Core 2 Duo, can use Cygwin instead, below.) Afterwards, an **Ubuntu** window opens by itself (or open **Ubuntu** from the Start menu) and asks you to choose a user name and password for Linux. They can be different from your Windows ones; remember the password, as step 2 asks for it.
+Restart the computer when it's done. (If it reports an error about virtualization, it has to be switched on in the computer's BIOS or UEFI settings, usually among the CPU options; Microsoft explains how in [Enable virtualization on Windows](https://support.microsoft.com/windows/c5578302-6e43-4b4b-a449-8ced115f58e1). A PC too old for WSL, such as one with a Core 2 Duo, can use [Cygwin](#installing-on-windows-with-cygwin) instead.) Afterwards, an **Ubuntu** window opens by itself (or open **Ubuntu** from the Start menu) and asks you to choose a user name and password for Linux. They can be different from your Windows ones; remember the password, as step 2 asks for it.
 
 **2. In the Ubuntu window, follow [First-time install](#first-time-install-do-this-only-once) for Linux,** using the commands for Ubuntu. They download EBaC into your Linux home folder, which is the best place for it.
 
 From then on, open **Ubuntu** from the Start menu and type `~/ebac/bible` to run EBaC; [updating](#updating-to-the-latest-version) is the same as on Linux. The window works with all the keys EBaC uses, including **Home**, **End**, **Page Up** and **Page Down**. (WSL also appears in the **Terminal** app, as an Ubuntu tab.)
 
-**With Cygwin instead.** [Cygwin](https://www.cygwin.com/) is an older way of running UNIX programs on Windows, and still maintained; EBaC 1.3.0 was used and tested at length with it. Version 2 should build the same way (this hasn't been tried yet): when installing Cygwin with its `setup-x86_64.exe`, also select the packages **gcc-core**, **make**, **git** and **libncurses-devel** (and **python3** for `make test`), then type the Linux commands from step 2 of [First-time install](#first-time-install-do-this-only-once) onwards in the Cygwin terminal.
+**Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
+
+### Installing on Windows with Cygwin
+
+[Cygwin](https://www.cygwin.com/) is an older way of running UNIX programs on Windows, and still maintained; EBaC 1.3.0 was used and tested at length with it. Version 2 should build the same way (this hasn't been tried yet): when installing Cygwin with its `setup-x86_64.exe`, also select the packages **gcc-core**, **make**, **git** and **libncurses-devel** (and **python3** for `make test`), then type the Linux commands from step 2 of [First-time install](#first-time-install-do-this-only-once) onwards in the Cygwin terminal.
 
 **Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 
-## Installing on macOS
+### Installing on macOS
 
 The steps are the same as [for Linux](#first-time-install-do-this-only-once), except for installing the tools, and a few keys. They work in the Mac's own Terminal app, and in other terminal windows such as iTerm2 or xterm. (EBaC has been built and tested here with the same tools a Mac has, including its version of `make`, but not yet on a Mac itself; if something doesn't work, please report it.)
 
@@ -209,7 +212,7 @@ Then run EBaC with `~/ebac/bible`, and update it with `git pull` and `make`, as 
 
 **Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 
-## Installing on Solaris 11
+### Installing on Solaris 11
 
 The steps are the same as [for Linux](#first-time-install-do-this-only-once), with two differences. (This hasn't been tried on a Solaris computer yet; if something doesn't work, please report it.)
 
@@ -235,6 +238,52 @@ The rest is taken care of. Solaris keeps the ncurses headers EBaC needs in their
 Over SSH from Linux, a Mac or Windows, EBaC works in any terminal window. On Solaris's own console, ncurses needs to know the console's terminal type; if EBaC says it can't, log in over SSH instead.
 
 **Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
+
+### Installing on vintage computers
+
+EBaC began on the MM/1 in 1992 and ran on VAX/VMS, the Tandy CoCo 3 and MS-DOS (see [History](#history)). The [install steps](#first-time-install-do-this-only-once) download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
+
+```sh
+git clone https://github.com/neilbrookins/ebac.git ebac-full
+cd ebac-full
+git checkout v1.3.0
+```
+
+In the full download, `git log v1.3.0..` lists each step since the original release. A folder made with `--depth 1` can get the full history later with `git fetch --unshallow --tags`.
+
+Version 2.0 is written in ANSI C (C89, and also valid C99, C17 and C23). The OS-9 68000, VMS and MS-DOS code is still in the source behind its `#ifdef`s and may still build with those systems' ANSI compilers. The settings for each come from version 1.3.0's makefile (`git show v1.3.0:makefile` in the full download). None of them has been tried with version 2 yet; if you try one, please report how it went.
+
+#### MM/1 (OS-9 68000)
+
+EBaC's first computer. Build it with `CFLAGS= -DNORAMDISK -DOSK` (1.3.0's makefile used gcc, on the MM/1's Philips 68070). The text files need OS-9's line endings, a carriage return, as on the CoCo; the index files are the same on every computer, so ones built on Linux can be copied over.
+
+#### VAX/VMS
+
+Build it with MMS, using [`descrip.mms`](descrip.mms) and [`options_file.opt`](options_file.opt) in place of the makefile (`-DVMS` is set by VMS's C compiler itself). VMS-specific input and output are in [`vmsio.c`](vmsio.c).
+
+#### Version 2 on the Tandy CoCo 3 (untested)
+
+The CoCo's Microware C compiler only takes the older K&R C, and the CoCo hasn't the memory to build the concordance index. On a Linux computer, `make coco` prepares everything it needs:
+
+```sh
+make coco
+```
+
+This writes `coco/build/ebac-coco.tar`, and, if [ToolShed](https://github.com/nitros9project/toolshed)'s `os9` program is installed, `coco/build/ebac-coco.dsk`, an OS-9 disk image (8 MB, for DriveWire, a CoCoSDC or an emulator). Each holds one folder, `BIBLE`, which goes in `/dd/BIBLE` on the CoCo:
+
+- `BIBLE/SRC`: the program's source, converted to K&R C by [ansi2knr](coco/ansi2knr.c) (by L. Peter Deutsch; GPL), and a makefile with 1.3.0's CoCo settings (`-DRAMDISK -DCOCO`). Compile it there to make `bible`.
+- `BIBLE/AV`: the King James text and its index. The index files are the same on every computer, so the ones built on Linux work on the CoCo unchanged.
+- `BIBLE/trans`: the list of translations.
+
+Text files are given OS-9's line endings (a carriage return), and books whose names begin with a digit get the CoCo's names, so `1Chronicles` is stored as `x1Chronicle`.
+
+To make this possible, the source avoids what K&R compilers lack: declarations put their parameters in `P((...))`, which is `()` on the CoCo (see `both.h`); there is no `void`, `unsigned char`, `#if defined`, or string constants placed side by side on the CoCo; and EBaC has its own replacements for `strchr()` and `strtok()`. The converted source passes GCC's `-Wtraditional` check, but it has not been compiled on a CoCo yet. Whether version 2 fits in the CoCo's memory is also still to be found out.
+
+#### MS-DOS
+
+Build it with `CFLAGS= -DRAMDISK -DMSDOS` (1.3.0's makefile names the Watcom C compiler, for an 8086 with about 512 KB of memory). [`readme.msdos`](readme.msdos) is 1.3.0's guide to installing it from floppy disks: the `BIBLEROOT`, `BIBLEDRIVE` and `TEMPFILE` settings in `AUTOEXEC.BAT`, and the `ANSI.SYS` driver EBaC needs.
+
+[↑ Contents](#contents)
 
 ## Searching
 
@@ -324,41 +373,13 @@ The original [`README`](README) describes the file layout in more detail.
 
 [↑ Contents](#contents)
 
-## History, and building on vintage computers
+## History
 
 EBaC was begun in 1992 on the MM/1 (OS-9 68000), at first searching for a single word; searches combining several words with operators came in 1993. It was then ported, in turn, to VAX/VMS, the Tandy Color Computer 3 (OS-9 6809, 512K), and soon after to the UNIX systems of the 1990s, MS-DOS and Windows (with Cygwin); the Information screen (**I** at the main menu) lists them in that order. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009. Since 2026 it runs on Linux, macOS and Windows (WSL), and, last, as a [Home Assistant app](https://github.com/neilbrookins/ebac-ha-app): the one with the most features, as its touch screen and mouse support (tapping and swiping) are its own.
 
 This repository starts with that release, unchanged, as its first commit and tagged **`v1.3.0`**. Each step needed to bring it up to date is a separate commit after it, with an explanation.
 
-The [install steps](#first-time-install-do-this-only-once) download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
-
-```sh
-git clone https://github.com/neilbrookins/ebac.git ebac-full
-cd ebac-full
-git checkout v1.3.0
-```
-
-In the full download, `git log v1.3.0..` lists each step since the original release. A folder made with `--depth 1` can get the full history later with `git fetch --unshallow --tags`.
-
-Version 2.0 is written in ANSI C (C89, and also valid C99, C17 and C23). The OS-9 68000, VMS and MS-DOS code is still in the source behind its `#ifdef`s and may still build with those systems' ANSI compilers, but only the Linux build has been tested.
-
-### Version 2 on the Tandy CoCo 3 (untested)
-
-The CoCo's Microware C compiler only takes the older K&R C, and the CoCo hasn't the memory to build the concordance index. On a Linux computer, `make coco` prepares everything it needs:
-
-```sh
-make coco
-```
-
-This writes `coco/build/ebac-coco.tar`, and, if [ToolShed](https://github.com/nitros9project/toolshed)'s `os9` program is installed, `coco/build/ebac-coco.dsk`, an OS-9 disk image (8 MB, for DriveWire, a CoCoSDC or an emulator). Each holds one folder, `BIBLE`, which goes in `/dd/BIBLE` on the CoCo:
-
-- `BIBLE/SRC`: the program's source, converted to K&R C by [ansi2knr](coco/ansi2knr.c) (by L. Peter Deutsch; GPL), and a makefile with 1.3.0's CoCo settings (`-DRAMDISK -DCOCO`). Compile it there to make `bible`.
-- `BIBLE/AV`: the King James text and its index. The index files are the same on every computer, so the ones built on Linux work on the CoCo unchanged.
-- `BIBLE/trans`: the list of translations.
-
-Text files are given OS-9's line endings (a carriage return), and books whose names begin with a digit get the CoCo's names, so `1Chronicles` is stored as `x1Chronicle`.
-
-To make this possible, the source avoids what K&R compilers lack: declarations put their parameters in `P((...))`, which is `()` on the CoCo (see `both.h`); there is no `void`, `unsigned char`, `#if defined`, or string constants placed side by side on the CoCo; and EBaC has its own replacements for `strchr()` and `strtok()`. The converted source passes GCC's `-Wtraditional` check, but it has not been compiled on a CoCo yet. Whether version 2 fits in the CoCo's memory is also still to be found out.
+To build EBaC on one of those computers, see [Installing on vintage computers](#installing-on-vintage-computers).
 
 [↑ Contents](#contents)
 
