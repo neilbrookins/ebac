@@ -1,7 +1,7 @@
 # EBaC — Electronic Bible and Concordance
 
 > [!NOTE]
-> **Do you use Home Assistant?** Then install **[EBaC for Home Assistant](https://github.com/neilbrookins/ebac-ha)** instead of this. It's the easier way: there's nothing to type or build, it updates itself, and besides the keyboard it works by tapping, swiping and clicking, on a phone, a tablet or a computer's web browser. (Home Assistant is a free smart-home system, often run on a small computer such as a Raspberry Pi and used through a web browser or its phone app.) If typing commands and building a program sounds unfamiliar, and you have Home Assistant or would like to, that version is the one for you.
+> **Do you use Home Assistant?** Then install **[the EBaC app for Home Assistant](https://github.com/neilbrookins/ebac-ha-app)** instead of this. It's the easier way: there's nothing to type or build, it updates itself, and besides the keyboard it works by tapping, swiping and clicking, on a phone, a tablet or a computer's web browser. (Home Assistant is a free smart-home system, often run on a small computer such as a Raspberry Pi and used through a web browser or its phone app.) If typing commands and building a program sounds unfamiliar, and you have Home Assistant or would like to, that version is the one for you.
 >
 > **This page is EBaC to install on a computer yourself.** You download it and build it with a few typed commands, and it runs in a terminal window, used with the keyboard. Pick your computer to go straight to its instructions:
 >
@@ -25,20 +25,20 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 
 ## Installing in Home Assistant
 
-[![Open your Home Assistant instance and show the add app repository dialog with this repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fneilbrookins%2Febac-ha)
+[![Open your Home Assistant instance and show the add app repository dialog with this repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fneilbrookins%2Febac-ha-app)
 
 Click the button above to add the EBaC repository to your Home Assistant, or add it by hand:
 
 1. In Home Assistant, go to **Settings → Apps** and select **Install app**.
 2. Open the menu (⋮) in the top-right corner and select **Repositories**.
-3. Paste `https://github.com/neilbrookins/ebac-ha` and select **Add**, then close the dialog.
+3. Paste `https://github.com/neilbrookins/ebac-ha-app` and select **Add**, then close the dialog.
 4. Find **EBaC (Electronic Bible and Concordance)** in the list (you may need to refresh the page) and select it.
 5. Select **Install**. Home Assistant builds EBaC on your machine, which takes a few minutes, longer on a Raspberry Pi.
 6. Select **Start**, then turn on **Show in sidebar**.
 
 Click **EBaC** in the sidebar to use it; it's available to every user. Each user keeps their own search history. **Updating:** when a new version comes out, Home Assistant offers it under **Settings → Updates**; select **Update**.
 
-The app needs Home Assistant OS or a Supervised install (the kinds that have **Settings → Apps**) on a 64-bit system. Its packaging lives at [neilbrookins/ebac-ha](https://github.com/neilbrookins/ebac-ha).
+The app needs Home Assistant OS or a Supervised install (the kinds that have **Settings → Apps**) on a 64-bit system. Its packaging lives at [neilbrookins/ebac-ha-app](https://github.com/neilbrookins/ebac-ha-app).
 
 ## Installing on Linux
 
@@ -285,7 +285,7 @@ The original [`README`](README) describes the file layout in more detail.
 
 ## History, and building on vintage computers
 
-EBaC was begun in 1992 on the MM/1 (OS-9 68000), at first searching for a single word; searches combining several words with operators came in 1993. It was then ported, in turn, to VAX/VMS, the Tandy Color Computer 3 (OS-9 6809, 512K), and soon after to the UNIX systems of the 1990s, MS-DOS and Windows (with Cygwin); the Information screen (**I** at the main menu) lists them in that order. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009. Since 2026 it runs on Linux, macOS and Windows (WSL), and, last, as a [Home Assistant app](https://github.com/neilbrookins/ebac-ha): the one with the most features, as its touch screen and mouse support (tapping and swiping) are its own.
+EBaC was begun in 1992 on the MM/1 (OS-9 68000), at first searching for a single word; searches combining several words with operators came in 1993. It was then ported, in turn, to VAX/VMS, the Tandy Color Computer 3 (OS-9 6809, 512K), and soon after to the UNIX systems of the 1990s, MS-DOS and Windows (with Cygwin); the Information screen (**I** at the main menu) lists them in that order. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009. Since 2026 it runs on Linux, macOS and Windows (WSL), and, last, as a [Home Assistant app](https://github.com/neilbrookins/ebac-ha-app): the one with the most features, as its touch screen and mouse support (tapping and swiping) are its own.
 
 This repository starts with that release, unchanged, as its first commit and tagged **`v1.3.0`**. Each step needed to bring it up to date is a separate commit after it, with an explanation.
 
