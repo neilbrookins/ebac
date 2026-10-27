@@ -75,6 +75,7 @@ LIST_PATH=docs/main_readme/translation_list.md
 # Unicode's Common Locale Data Repository (CLDR): the list of translations
 # gives each one's language only as a code (such as es).
 NAMES_SOURCE=https://raw.githubusercontent.com/unicode-org/cldr-json/main/cldr-json/cldr-localenames-full/main
+CACHE_FORMAT="# languages.cache: code, English name, own name, code named (EBaC 2.3.3)"
 
 here=$(cd "$(dirname "$0")" && pwd)
 
@@ -283,10 +284,10 @@ fetch_from() {
         http://* | https://*)
                 url=${from%/}/$1
                 if command -v curl > /dev/null 2>&1; then
-                        code=$(curl -sSL --max-time 600 -o "$2" -w '%{http_code}' "$url")
+                        http_code=$(curl -sSL --max-time 600 -o "$2" -w '%{http_code}' "$url")
                         status=$?
-                        if [ $status -eq 0 ] && [ "$code" -ge 400 ] 2>/dev/null; then
-                                problem="couldn't download $url ($code)"
+                        if [ $status -eq 0 ] && [ "$http_code" -ge 400 ] 2>/dev/null; then
+                                problem="couldn't download $url ($http_code)"
                                 return 1
                         fi
                         case $status in
@@ -359,18 +360,23 @@ language_names() {
         if [ -f "$cache" ] && [ -n "$(find "$cache" -mtime +30 2> /dev/null)" ]; then
                 rm -f "$cache"          # (a month old: the names again)
         fi
-        [ -f "$cache" ] || : > "$cache" 2> /dev/null
-        missing=$($AWK -F '\t' 'FILENAME == ARGV[1] { kept[$1] = 1; next }
+        # (its first line says what it is; one without it, as an EBaC 2.3.2
+        # in the Home Assistant app wrote, keyed by a web status, goes)
+        if [ -f "$cache" ] && [ "$(head -n 1 "$cache")" != "$CACHE_FORMAT" ]; then
+                rm -f "$cache"
+        fi
+        [ -f "$cache" ] || echo "$CACHE_FORMAT" > "$cache" 2> /dev/null
+        missing=$($AWK -F '\t' 'FILENAME == ARGV[1] { if ($1 !~ /^#/) kept[$1] = 1; next }
                 !($2 in kept) && !($2 in seen) { seen[$2] = 1; print $2 }' \
                 "$cache" "$tmp/all")
         [ -n "$missing" ] || return 0
         echo "Getting the names of the languages (from Unicode)..."
         fetch_from "$names_source" "en/languages.json" "$tmp/en.json" || return 0
-        for code in $missing; do
+        for lang_code in $missing; do
                 # Unicode's name for the code: zh-hant is its zh-Hant (a
                 # script, of 4 letters, with a capital; a region, of 2, in
                 # capitals). If it has none, the code before the "-".
-                full=$(printf '%s\n' "$code" | $AWK -F - '{
+                full=$(printf '%s\n' "$lang_code" | $AWK -F - '{
                         out = $1
                         for (i = 2; i <= NF; i++)
                                 if (length($i) == 4)
@@ -380,7 +386,7 @@ language_names() {
                                 else
                                         out = out "-" $i
                         print out }')
-                base=${code%%-*}
+                base=${lang_code%%-*}
                 names_for=$full
                 : > "$tmp/own.json"
                 if ! fetch_from "$names_source" "$full/languages.json" "$tmp/own.json"; then
@@ -390,7 +396,7 @@ language_names() {
                                 names_for=$base
                         fi
                 fi
-                $AWK -v code="$code" -v full="$(printf '%s' "$full" | tr 'A-Z' 'a-z')" \
+                $AWK -v code="$lang_code" -v full="$(printf '%s' "$full" | tr 'A-Z' 'a-z')" \
                     -v base="$base" -v ownfor="$(printf '%s' "$names_for" | tr 'A-Z' 'a-z')" '
                 # a line of languages.json:    "es": "espanol",
                 function value(line) {
@@ -641,7 +647,7 @@ add_to() {
                                 total += verses[b]
                         }
                 if (kept == 0)
-                        fail("it has no text")
+                        fail("its text in the source is empty (only verse numbers)")
                 for (b = 1; b <= books; b++)
                         if (text[b] && bad[b] != "")
                                 fail(heading[b] " " bad[b])
@@ -808,7 +814,7 @@ choose_language() {
         while :; do
                 resized=0               # (set by the WINCH trap)
                 screen_size
-                per_page=$((rows - 5))
+                per_page=$((rows - 6))
                 [ $per_page -ge 3 ] || per_page=3
                 pages=$(( (count + per_page - 1) / per_page ))
                 [ $first -le $(( (pages - 1) * per_page )) ] || first=$(( (pages - 1) * per_page ))
@@ -822,7 +828,9 @@ choose_language() {
                         if ($4) any = 1
                 }
                 END {
-                        heading = "Add or remove translations: choose a language"
+                        # (two lines, so that the page number fits a narrow screen)
+                        print cut_cols("Add or remove translations", cols - 1)
+                        heading = "Choose a language"
                         if (pages > 1)
                                 heading = heading " (page " (int(first / per_page) + 1) " of " pages ")"
                         print cut_cols(heading, cols - 1)
@@ -882,7 +890,7 @@ choose() {
         while :; do
                 resized=0               # (set by the WINCH trap)
                 screen_size
-                per_page=$((rows - 5 - lang_nospace))
+                per_page=$((rows - 6 - lang_nospace))
                 [ $per_page -ge 3 ] || per_page=3
                 pages=$(( (count + per_page - 1) / per_page ))
                 [ $first -le $(( (pages - 1) * per_page )) ] || first=$(( (pages - 1) * per_page ))
@@ -899,10 +907,11 @@ choose() {
                                 any = 1
                 }
                 END {
-                        heading = "Add or remove translations: " language
-                        if (pages > 1)
-                                heading = heading " (page " (int(first / per_page) + 1) " of " pages ")"
-                        print cut_cols(heading, cols - 1)
+                        # (two lines, so that the page number fits a narrow screen;
+                        # a name too long for it is cut, not the page number)
+                        print cut_cols("Add or remove translations", cols - 1)
+                        page = (pages > 1) ? " (page " (int(first / per_page) + 1) " of " pages ")" : ""
+                        print cut_cols(language, cols - 1 - length(page)) page
                         if (nospace)    # (search goes word by word)
                                 print cut_cols("Note: often written without spaces between words; searching such a translation works poorly.", cols - 1)
                         print any ? "* = added already" : ""

@@ -600,7 +600,11 @@ cop-sa, then shown with the code: "Coptic [cop-sa]"); a code CLDR has no
 names for is shown as it is (hbo). The names are kept in
 languages.cache, beside the importer, so that the list comes up at once:
 a language's names are fetched the first time its code appears, and all
-of them again after a month. A name in small letters ("espanol") is
+of them again after a month. (Its first line says what it is: in 2.3.2,
+a variable of the download function, holding the web's status, had the
+same name as the loop's language code, so that in the Home Assistant
+app every language was kept as "200", and shown by its code. A cache
+without that line is made again.) A name in small letters ("espanol") is
 shown with a capital, as lists show them (title_first(), for Latin,
 Greek, Cyrillic and Armenian letters: awk in the "C" locale knows only
 ASCII). The languages are listed English first, then by their English
