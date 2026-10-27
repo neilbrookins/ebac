@@ -862,6 +862,47 @@ macOS's awk (the "one true awk" of 2020) can't printf text beyond
 ASCII: it stops with an error. So names and titles are printed with
 print, never printf.
 
+Licenses (planned, October 2026; not built yet). The translations are
+not all free to copy: of the 140 in the source, 100 are public domain;
+the rest are Creative Commons (some non-commercial, some "no
+derivatives"), GPL, or "Copyrighted; Free non-commercial distribution"
+(such as the Lexham English Bible); three state none ("Null"). The
+source's own instructions say to check a text's information page for
+its license before using it. So before adding a translation, the
+importer shows its license and asks the person adding it to agree:
+
+  KJV: King James Version (1769)
+  License: GPL
+  Details: https://crosswire.org/sword/modules/
+    ModInfo.jsp?modName=KJV
+  Do you agree to these terms (y/n)?
+
+  - The license line comes from the translation's README.md in the
+    source (sources/LANG/NAME/README.md: "**License:** GPL"), fetched
+    beside the text: plain text, one line, for every translation; the
+    importer doesn't read the information page's HTML. The line is
+    found in each of the forms the READMEs use ("**License:** X",
+    "**License**: X", or the line after the title, as LEB has it);
+    "Null" or no line is shown as "License: not stated".
+  - "Details" is the translation's information page at CrossWire,
+    whose modules the source is made from: ModInfo.jsp?modName=NAME,
+    the name as the source has it (case matters). It is longer than a
+    phone's 52 columns, so it is broken before "ModInfo.jsp".
+  - Every translation is asked about, public domain or not: one
+    question, the same each time.
+  - y adds it. n skips it, says so, and goes on to the next of those
+    typed on the same line (6 14 31). A translation already added and
+    chosen again (to download a fresh copy) is asked about again.
+  - What was agreed to is kept in the translation's folder, in a file
+    named license: the license line, the details address, and the date
+    agreed. (For the Information screen, later.)
+  - Run from a script, with no one to answer (no terminal on standard
+    input), it adds nothing unless given --agree, which means the
+    person running it agrees to the license of each translation named;
+    without --agree each is skipped, saying why. The licenses are
+    printed either way, and --agree is recorded in the license file
+    ("agreed with --agree").
+
 
 Testing
 -------
@@ -990,3 +1031,13 @@ For voice (EBaC 2.4, design review of October 2026):
   - The integration remembers each listener's place, so that "next
     verse" works per device. (Without an integration, an automation with
     a helper could do it too, but with one place for the whole house.)
+
+For licenses (design review of October 2026):
+
+  - The person adding a translation agrees to its license first: the
+    importer shows the license (from the source's README, plain text)
+    and its information page's address, rather than fetching and
+    reading that page's HTML in a shell script.
+  - Every translation is asked about, public domain too.
+  - What was agreed to is kept in the translation's folder (license).
+  - From a script, only with --agree; otherwise nothing is added.
