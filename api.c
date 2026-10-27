@@ -395,31 +395,53 @@ static void answer_verses(long from, long to, int step, long n)
 
 /* ---- the requests -------------------------------------------------- */
 
+/*
+** The translations of trans, in order: name and title. Read from the file
+** itself, whole lines: the shared code keeps 80 bytes of each (as on the
+** CoCo), which cuts a long title, sooner in Cyrillic (two bytes a letter).
+** The same lines are skipped: blank, and comments (#).
+*/
 static void translations(void)
 {
-        char name[80], *t;
-        int i, k;
+        char path[1100], line[1024], *t, *title;
+        char *root = getenv("BIBLEROOT");
+        FILE *f;
+        int k, n = 0;
 
+        sprintf(path, "%.1000s/trans", root != NULL ? root : ".");
+        if ((f = fopen(path, "r")) == NULL)
+                fail("can't read the list of translations (trans)");
         begin_answer(TRUE);
         printf("{\"translations\": [");
-        for (i = 0; trans[i][0] != '\0'; i++)
+        while (fgets(line, sizeof(line), f) != NULL)
         {
-                t = trans[i];
-                for (k = 0; t[k] != '\0' && !isspace(UCHAR(t[k])) && k < 79; k++)
-                        name[k] = t[k];
-                name[k] = '\0';
-                while (isspace(UCHAR(t[k])))
-                        k++;
-                printf(i > 0 ? ",\n  {\"name\": " : "\n  {\"name\": ");
-                json_string(name);
+                k = strlen(line);
+                if (k > 0 && line[k - 1] != '\n' && !feof(f))
+                {
+                        int c;          /* (longer still: read over the rest) */
+
+                        while ((c = fgetc(f)) != '\n' && c != EOF)
+                                ;
+                }
+                while (k > 0 && isspace(UCHAR(line[k - 1])))
+                        line[--k] = '\0';
+                for (t = line; *t == ' ' || *t == '\t'; t++)
+                        ;
+                if (*t == '#' || *t == '\0')
+                        continue;
+                for (title = t; *title != '\0' && !isspace(UCHAR(*title)); title++)
+                        ;
+                if (*title != '\0')
+                        *title++ = '\0';
+                while (isspace(UCHAR(*title)))
+                        title++;
+                printf(n++ > 0 ? ",\n  {\"name\": " : "\n  {\"name\": ");
+                json_string(t);
                 printf(", \"title\": ");
-                strcpy(name, &t[k]);
-                k = strlen(name);
-                while (k > 0 && isspace(UCHAR(name[k - 1])))
-                        name[--k] = '\0';
-                json_string(name);
+                json_string(title);
                 printf("}");
         }
+        fclose(f);
         printf("]}\n");
 }
 
