@@ -18,7 +18,7 @@
 ** or from version.txt in a downloaded archive), as EBAC_COMMIT, and a
 ** package such as the Home Assistant app can name itself in EBAC_PACKAGE.
 */
-#define EBAC_RELEASE "2.3.3"
+#define EBAC_RELEASE "2.3.4"
 #ifndef EBAC_COMMIT
 #       define EBAC_COMMIT ""
 #endif
@@ -1255,45 +1255,59 @@ static int key_to_tag(int key)
         return 0;
 }
 
+/*
+** The first two Information pages. Each line is at most 50 characters, so
+** that it fits a phone's screen (about 52 columns) without wrapping, and
+** each page fits 24 lines.
+*/
 static void prog_info(void)
 {
 cls();
-printf("Electronic Bible and Concordance (EBaC)      version %s\n", EBAC_RELEASE);
-printf("     Copyright (C) 2004 by Neil G. Brookins\n");
+printf("Electronic Bible and Concordance (EBaC) %s\n", EBAC_RELEASE);
+printf("  Copyright (C) 2004 by Neil G. Brookins\n");
 if (EBAC_COMMIT[0] != '\0')
-        printf("     Built from commit %s\n", EBAC_COMMIT);
+        printf("  Built from commit %s\n", EBAC_COMMIT);
 printf("\n");
-printf("The following translations are available for use with EBAC:\n");
-printf("      King James (Authorized) Version\n");
-printf("      New International Version\n");
-printf("      New Revised Standard Version\n");
-printf("      Revised Standard Version\n");
-printf("      Webster's Bible\n");
-printf("      Darby Bible\n");
-printf("      Young's Literal Translation\n");
+/* the translations of EBaC 1.3, from before the downloads (A) */
+printf("Translations EBaC was first made for:\n");
+printf("  King James (Authorized) Version\n");
+printf("  New International Version\n");
+printf("  New Revised Standard Version\n");
+printf("  Revised Standard Version\n");
+printf("  Webster's Bible\n");
+printf("  Darby Bible\n");
+printf("  Young's Literal Translation\n");
 printf("\n");
-printf("For technical help, and information:\n");
-printf("      Neil G. Brookins\n");
-printf("      http://ebac.sourceforge.net/\n");
+printf("For help, or to report a problem, open an issue:\n");
+printf("  The program:\n");
+printf("    github.com/neilbrookins/ebac\n");
+printf("  The Home Assistant app:\n");
+printf("    github.com/neilbrookins/ebac-ha\n");
+printf("  The texts to download (A on the main menu):\n");
+printf("    github.com/scrollmapper/bible_databases\n");
 printf("\n");
 printf("(Press any Key) ");
 fflush(stdout);
 scr_mode("anykey");
 ugetchar();
 cls();
-printf("EBaC currently supports the following types of computers:\n");
-printf("      MM/1, System V, TC-70  (OS-9 68000)\n");
-printf("      Digital VAX            (OpenVMS)\n");
-printf("      Tandy Color Computer 3 (OS-9 6809)\n");
-printf("      AT&T 3B1               (UNIX System V)\n");
+/* in the order EBaC was ported to them, one by one */
+printf("EBaC has run on these computers, ported to each\n");
+printf("in turn, in this order, from the first in 1992:\n");
+printf("  MM/1, System V, TC-70  (OS-9 68000)\n");
+printf("  Digital VAX            (OpenVMS)\n");
+printf("  Tandy Color Computer 3 (OS-9 6809)\n");
+printf("  AT&T 3B1               (UNIX System V)\n");
 /* "Windows" was Cygwin, with which EBaC 1.3.0 was used and tested at
    length on Windows; today, Windows 10 and 11 run it in WSL (Linux) */
-printf("      IBM-PC and compatibles (MS-DOS, Windows with Cygwin)\n");
-printf("      Sun                    (SunOS 4.x, Solaris 2.x)\n");
-printf("      DEC                    (Ultrix, OSF/1)\n");
-printf("      HP 9000                (HP-UX 10.x)\n");
-printf("      PCs and Raspberry Pi   (Linux, with ncurses)\n");
-printf("      Windows 10 and 11      (WSL, or Cygwin)\n");
+printf("  IBM-PC and compatibles (MS-DOS; Cygwin)\n");
+printf("  Sun                    (SunOS 4.x, Solaris 2.x)\n");
+printf("  DEC                    (Ultrix, OSF/1)\n");
+printf("  HP 9000                (HP-UX 10.x)\n");
+printf("  PCs and Raspberry Pi   (Linux, with ncurses)\n");
+printf("  Windows 10 and 11      (WSL, or Cygwin)\n");
+printf("  Apple Macintosh        (macOS)\n");
+printf("  Home Assistant         (an app in its sidebar)\n");
 printf("\n");
 printf("(Press any Key) ");
 fflush(stdout);
