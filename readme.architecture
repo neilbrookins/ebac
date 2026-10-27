@@ -6,11 +6,12 @@ changed between versions and why, so that the reasons are not lost.
 It is plain text, to be read with any editor.
 
 
-EBaC 2.4 (planned): voice, through Home Assistant's Assist
-----------------------------------------------------------
+EBaC 2.4: voice, through Home Assistant's Assist
+------------------------------------------------
 
-Design only, from a review in October 2026; nothing of it is built yet.
-See "Voice: ebac-api and the Assist integration" below.
+From a review in October 2026. Points 1 and 2 are built (ebac-api,
+api.c; the parser, refparse.c); 3 and 4 are being built. See "Voice:
+ebac-api and the Assist integration" below.
 
   1. A second program, ebac-api, built from the same source and makefile
      as bible: it answers requests (a verse, the verses after one, a
@@ -632,9 +633,11 @@ with {"error": "..."}):
 
   /translations           the translations of trans: name and title
   /books?t=AV             a translation's books, in order: name (as in
-                          booklist), number, chapters, and the spoken
-                          forms ("First Corinthians" for 1Corinthians)
-  /parse?text=...         a spoken or typed reference understood:
+                          booklist), full_name (from the folder's
+                          booknames file: "Song of Solomon"), number,
+                          chapters, and the spoken forms ("1 Samuel",
+                          "First Samuel", "I Samuel")
+  /parse?ref=...          a spoken or typed reference understood:
                           book, chapter, verse (and an end verse), SVN
   /verse?ref=...&t=AV     the verses of a reference: "john 3:16",
                           "john 3:16-18", or the words of /parse; each
@@ -683,7 +686,17 @@ parser takes the words, in lower case, as:
            "a hundred and nineteen"), or a Roman numeral ("I", "IV":
            speech-to-text writes "I" for "one" after a word).
   A chapter alone ("John three") is the chapter's first verse; a book
-  alone, its first.
+  alone, its first. Of a book of one chapter, a number is a verse:
+  "Jude three" is Jude 1:3, "Jude three to five" Jude 1:3-5 ("John
+  three to five" asks "Which chapter of John?"). A final "s" too many is
+  forgiven ("revelations").
+
+A book's full name, for /books and for what is spoken, comes from the
+translation folder's booknames file: one name a line, in the order of
+booklist, as the text's own headings have them ("Song of Solomon",
+where booklist has SongofSolomon). add-translation.sh writes it; AV's is
+in the repository. With no booknames, a space is put after a leading
+digit ("1 John").
 
 In the shared code, so that the book prompt could take "john 3:16" in
 one line later too. English words for numbers first; other languages'

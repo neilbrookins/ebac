@@ -1499,6 +1499,7 @@ static void run_importer(void)
 }
 #endif
 
+#ifndef EBAC_API        /* (ebac-api has its own: api.c) */
 /* Main program! */
 int main(int argc, char **argv)
 {
@@ -1603,4 +1604,5 @@ printf("Enter Search word(s) here:\n");
                 }
         }
 }
+#endif
 

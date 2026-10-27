@@ -1952,10 +1952,13 @@ static int valid_search(char *line)
                        depth - 1);
                 printf("Put an operator after each pair, for example:  love hate 0\n");
         }
-        printf("The search was not done.  (Press any Key) ");
-        fflush(stdout);
-        scr_mode("anykey");
-        ugetchar();
+        if (interactive)
+        {
+                printf("The search was not done.  (Press any Key) ");
+                fflush(stdout);
+                scr_mode("anykey");
+                ugetchar();
+        }
         return FALSE;
 }
 
@@ -1988,13 +1991,30 @@ static char *next_term(char **pos)
 /* Purpose: get search term(s) from the user. Process into a list of verses
 ** Returns: the list, or NULL if the line was blank or not a valid search.
 */
+/* Purpose: get search term(s) from the user, and evaluate them.
+** Returns: the list, or NULL if the line was blank or not a valid search.
+*/
 #ifdef RAMDISK
 struct TEMPFILE *process_words(void)
+#else
+long int *process_words(void)
+#endif
+{
+        return (process_line(get_line(NORMAL_MODE)));
+}
+
+/* Purpose: evaluate a search line (lower case, ending with '\r'), as typed
+**          or given (by ebac-api). Into a list of verses.
+** Returns: the list, or NULL if the line was blank or not a valid search
+**          (which is explained: on the screen, or to ebac-api).
+*/
+#ifdef RAMDISK
+struct TEMPFILE *process_line(char *line)
 {
         struct TEMPFILE *verse_list;
         static struct TEMPFILE result_list;
 #else
-long int *process_words(void)
+long int *process_line(char *line)
 {
         long int *verse_list;
 #endif
@@ -2007,7 +2027,7 @@ long int *process_words(void)
         count_word[0] = '\0';
         while (del_rev()) /* Remove all words from list which had been */
                 ;         /* displayed in reverse video. */
-        arg = get_line(NORMAL_MODE); /* Get search terms from user. */
+        arg = line;
         if (!valid_search(arg))
                 return (NULL);
         while (*arg++ == ' ') /* Get rid of leading spaces */

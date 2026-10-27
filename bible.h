@@ -147,6 +147,10 @@ void change_translations P((void));
 int verse_to_book P((long int sequ_verse_number));
 struct bcv_array_type *get_verse P((long int sequ_verse_number));
 FILE *root_fopen P((char *name));
+extern int interactive;
+#ifdef UNIXV
+int use_translation P((char *name));
+#endif
 #ifdef RAMDISK
 struct TEMPFILE *find_word P((char *word, int positions));
 #else
@@ -159,8 +163,10 @@ void load_groups P((void));
 char *get_line P((int mode));
 #ifdef RAMDISK
 struct TEMPFILE *process_words P((void));
+struct TEMPFILE *process_line P((char *line));
 #else
 long int *process_words P((void));
+long int *process_line P((char *line));
 #endif
 
 /* userint.c */

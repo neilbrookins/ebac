@@ -59,6 +59,8 @@ char *start_trans = NULL; /* the translation to start with, from "bible BSB" */
 static char root_dir[1024] = "";
 #endif
 long int num_verses;  /* Number of verses in item on stack */
+/* FALSE in ebac-api: no terminal, no screen, and no waiting for a key */
+int interactive = TRUE;
 /*
 ** The books (from bvarray.dat), and pach[]: the sequential verse number of
 ** each chapter's first verse (from chapter.dat). Verse numbers are long:
@@ -124,7 +126,8 @@ void exit_program(int errnum)
 void tty_suspend(void)
 {
 #       ifdef USE_NCURSES
-        scr_end();      /* e.g. turn off keypad transmit mode */
+        if (interactive)
+                scr_end();      /* e.g. turn off keypad transmit mode */
 #       endif
         fflush(stdout);
         if (tty_saved)
@@ -517,15 +520,18 @@ FILE *trans_file;
 		exit(1);
 	}
 
-        if (!isatty(0) || tcgetattr(0, &oldtermio) != 0)
+        if (interactive)        /* (not for ebac-api: no terminal) */
         {
-                printf("EBaC must be run from an interactive terminal.\n");
-                exit(1);
+                if (!isatty(0) || tcgetattr(0, &oldtermio) != 0)
+                {
+                        printf("EBaC must be run from an interactive terminal.\n");
+                        exit(1);
+                }
+                tty_saved = TRUE;
+                set_raw_tty();
+                signal(SIGINT, exit_program);
+                signal(SIGCONT, contsignal);
         }
-        tty_saved = TRUE;
-        set_raw_tty();
-        signal(SIGINT, exit_program);
-        signal(SIGCONT, contsignal);
 #endif
 #ifdef MSDOS
 /*
@@ -569,7 +575,8 @@ FILE *trans_file;
         if (getcwd(root_dir, sizeof(root_dir) - MAX_ETLA - 2) == NULL)
                 root_dir[0] = '\0';    /* (then ../NAME, as before) */
 #endif
-        initscreen();
+        if (interactive)
+                initscreen();
 	initlogname();
 /*
 ** Each line of trans is a translation's folder name, then a description.
@@ -608,6 +615,9 @@ FILE *trans_file;
         	printf("The file 'trans' lists no translations.\n");
         	exit_program(1);
         }
+
+        if (!interactive)
+                return;         /* (ebac-api chooses: use_translation()) */
 
 /*
 ** Start with the translation named when EBaC was started ("bible BSB"; the
@@ -670,6 +680,43 @@ static int index_format_ok(char *name)
         }
         return (ok);
 }
+
+#ifdef UNIXV
+/*
+** Purpose: choose a translation by its name, as listed in trans, without
+**          the menu (for ebac-api): go to its folder and open its index.
+** Returns: FALSE, having said why, if it isn't listed or can't be used.
+*/
+int use_translation(char *name)
+{
+	char new_dir[1024 + MAX_ETLA + 2];
+	int i, len = strlen(name);
+
+	for (i = 0; trans[i][0] != '\0'; i++)
+		if (strncmp(trans[i], name, len) == 0 &&
+		    (isspace(UCHAR(trans[i][len])) || trans[i][len] == '\0'))
+			break;
+	if (len == 0 || len >= MAX_ETLA || trans[i][0] == '\0')
+	{
+		printf("There is no translation %s.\n", name);
+		return (FALSE);
+	}
+	if (root_dir[0] != '\0')
+		sprintf(new_dir, "%s%c%s", root_dir, SLASH, name);
+	else
+		sprintf(new_dir, "..%c%s", SLASH, name);
+	if (chdir(new_dir) != 0)
+	{
+		printf("Can't find the folder of %s.\n", name);
+		return (FALSE);
+	}
+	if (!index_format_ok(name))
+		return (FALSE);
+	strcpy(etla, name);
+	open_new_trans();
+	return (TRUE);
+}
+#endif
 
 /*
 ** Purpose: open a file in the EBaC folder (BIBLEROOT), such as "groups",
@@ -1176,7 +1223,7 @@ struct bcv_array_type *get_verse(long int sequ_verse_number)
         long int offset;
         int book_num;
         static int bn_previous = -1;
-        static char filename[40] = { '\0' };
+        static char filename[MAXBOOKNAME] = { '\0' }; /* (a book's file: its name) */
         static FILE *file_ptr;
 /* last word processed is saved for the next time function is called */
         static char *word;

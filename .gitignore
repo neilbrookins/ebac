@@ -19,3 +19,4 @@ __pycache__/
 
 # the names of languages, kept by add-translation.sh
 languages.cache
+/ebac-api

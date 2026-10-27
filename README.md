@@ -330,6 +330,19 @@ Modern compilers (GCC 14 and later, Clang 16 and later, and the C23 standard) re
 
 The concordance index built on 64-bit Linux is byte-for-byte identical to the one shipped in 1.3.0. Since it can be rebuilt in seconds, it is no longer stored in the repository: `make` builds it. The `v1.3.0` release still includes its `.dat` files, for computers such as the CoCo that don't have the memory to run `index`.
 
+## For other programs: ebac-api
+
+`make` also builds `ebac-api`, which answers requests in JSON instead of showing screens, for other programs such as Home Assistant's voice assistant. It understands references as they are spoken: `Genesis one colon one`, `John three sixteen`, `first Corinthians thirteen four`, `Jude three`. A web server runs it as a CGI program; you can also run it by hand, in the `ebac` folder:
+
+```sh
+export BIBLEROOT=$PWD
+./ebac-api 'verse?ref=john+three+sixteen'
+./ebac-api 'next?svn=26137'          # the verse after John 3:16
+./ebac-api 'search?q=faith+hope&max=5'
+```
+
+Its requests (`translations`, `books`, `parse`, `verse`, `next`, `previous`, `search`) are described in [`readme.architecture`](readme.architecture), under "Voice". A translation's `booknames` file gives its books' full names to speak (`Song of Solomon`); downloading a translation writes it.
+
 ## Testing
 
 EBaC compiles two ways. `-DNORAMDISK` keeps search results in memory. `-DRAMDISK` keeps them in temporary files instead, for machines with little memory, such as the CoCo. The two are different code, but a user must never be able to tell them apart.

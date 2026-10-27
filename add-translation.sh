@@ -17,7 +17,8 @@
 #
 #   1. downloads it;
 #   2. splits it into a file per book, in a folder named after it (such as
-#      BSB), and writes the folder's booklist: the books, in order;
+#      BSB), and writes the folder's booklist: the books, in order (and
+#      booknames: their full names, as the text has them);
 #   3. builds its concordance index (runs EBaC's index program in it), and
 #      checks that the index has every verse;
 #   4. adds it to the top of 'trans', so that EBaC offers it under C)hange
@@ -686,6 +687,10 @@ add_to() {
                 if (out != "")
                         close(out)
                 out = (b in file) ? folder "/" file[b] : ""
+                # its full name, as the text has it (for ebac-api: "Song
+                # of Solomon", which booklist has as SongofSolomon)
+                if (b in file)
+                        print plain(substr($0, 5)) > (folder "/booknames")
                 next
         }
         out == "" || spaces($0) == "" { next }
