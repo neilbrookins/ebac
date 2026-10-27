@@ -18,7 +18,7 @@
 ** or from version.txt in a downloaded archive), as EBAC_COMMIT, and a
 ** package such as the Home Assistant app can name itself in EBAC_PACKAGE.
 */
-#define EBAC_RELEASE "2.3"
+#define EBAC_RELEASE "2.3.1"
 #ifndef EBAC_COMMIT
 #       define EBAC_COMMIT ""
 #endif
@@ -95,6 +95,7 @@ static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
 static long int calculate_fv P((long int last_verse));
 static long int scrolled_top P((long int last_shown));
 static void rev_printf P((char *string));
+static void print_visual P((char *s, char *hi));
 static int check_limits P((long int cur_verse));
 static void view_in_context P((long int cur_verse));
 #ifdef RAMDISK
@@ -518,25 +519,27 @@ static int count_lines(int tag, char *bookname, char *strg, int indent, int top_
 
 static void dis_one_line(char *strg)
 {
-    int i = 0, j = 0, k, n;
+    int i = 0, j, k, n, from;
     char wrd[MAXWORDLEN];
     char lower_wrd[MAXWORDLEN];
+    char *hi;           /* for each byte of the line: TRUE if highlighted */
     extern char *rev_word[];
 
+    if ((hi = (char *) malloc(strlen(strg) + 1)) == NULL)
+    {
+        printf("Out of memory!!\n");
+        exit_program(1);
+    }
     for(;;)
     {
-        while (!u8_is_letter(&strg[i]))
-        {
-                if (strg[i] == '\0') /* We is done with this line */
-                {
-/* What did this line used to say? Was it a printf("\n")  ??? */
-                        putchar('\n');
-                        return;
-                }
-                putchar(strg[i++]); /* prints commas, spaces, etc normally */
-        }
+        while (strg[i] != '\0' && !u8_is_letter(&strg[i]))
+                hi[i++] = FALSE; /* commas, spaces, etc: shown as they are */
+        if (strg[i] == '\0') /* We is done with this line */
+                break;
 
         /* a word: its letters (a letter may be several bytes, in UTF-8) */
+        from = i;
+        j = 0;
         while (u8_is_letter(&strg[i]) ||
                       (strg[i] == '\'') || /* allow "day's" to be highlighted */
                       (strg[i] == '-') ||   /* same with "father-in-law" */
@@ -555,7 +558,6 @@ static void dis_one_line(char *strg)
         wrd[j] = '\0';
         strcpy(lower_wrd, wrd);
         u8_lower(lower_wrd);
-        j = 0;
 /*
 ** We need to loop here to see if lower_wrd is the same as ANY of the multiple
 ** words used in the searching command.
@@ -565,14 +567,48 @@ static void dis_one_line(char *strg)
         {
 	/* printf("Comparing '%s' with '%s'\n", lower_wrd, rev_word[k]); */
                 if (strcmp (lower_wrd, rev_word[k]) == 0)
-                {
-                        rev_printf(wrd);
                         break;
-                }
         }
-        if (rev_word[k] == 0)
-                printf("%s", wrd);
+        for (; from < i; from++)
+                hi[from] = (rev_word[k] != 0);
     }
+    print_visual(strg, hi);
+    putchar('\n');
+    free(hi);
+}
+
+/*
+** Purpose: print a string as it is to be seen: with any right-to-left
+**          text (Hebrew) turned about, so that it reads right to left on a
+**          terminal that shows every line from left to right (see
+**          u8_display_order() in utf8.c). hi, if not NULL, says which bytes
+**          are highlighted (reverse video), and goes with them as they
+**          move. Text without any right-to-left characters is printed as
+**          it is.
+*/
+#define MAXVISUAL 400   /* characters: more than a line of the screen */
+
+static void print_visual(char *s, char *hi)
+{
+        int start[MAXVISUAL], len[MAXVISUAL];
+        int n, k, j, on = FALSE;
+
+        n = u8_display_order(s, (int) strlen(s), start, len, MAXVISUAL);
+        for (k = 0; k < n; k++)
+        {
+                if (hi != NULL && hi[start[k]] != on)
+                {
+                        on = hi[start[k]];
+                        if (on)
+                                standout();
+                        else
+                                standend();
+                }
+                for (j = 0; j < len[k]; j++)
+                        putchar(s[start[k] + j]);
+        }
+        if (on)
+                standend();
 }
 
 /* Purpose: performs word wrapping by inserting a '\0' at appropriate location
@@ -653,12 +689,14 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
                {
                   printf("%s", spaces + MAXINDENT + book_cols(bcv_arrays->book_array, 14) + 1 - 15);
                   printf("%c ", bcv_arrays->book_array[0]);
-                  printf("%s ", &bcv_arrays->book_array[1]);
+                  print_visual(&bcv_arrays->book_array[1], (char *) NULL);
+                  putchar(' ');
                }
 				   else
 					{
                   printf("%s", spaces + MAXINDENT + book_cols(bcv_arrays->book_array, 15) - 15);
-                  printf("%s ", bcv_arrays->book_array);
+                  print_visual(bcv_arrays->book_array, (char *) NULL);
+                  putchar(' ');
                }
             }
             else
@@ -678,10 +716,10 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
 					   islower (UCHAR(bcv_arrays->book_array[2])) )
               {
                  printf("%c ", bcv_arrays->book_array[0]);
-                 printf("%s", &bcv_arrays->book_array[1]);
+                 print_visual(&bcv_arrays->book_array[1], (char *) NULL);
               }
 				  else
-                 printf("%s", bcv_arrays->book_array);
+                 print_visual(bcv_arrays->book_array, (char *) NULL);
               underend();
               printf(" (%s)\n", etla);
            }
@@ -753,7 +791,7 @@ static long int scrolled_top(long int last_shown)
 static void rev_printf(char *string)
 {
         standout();
-        fputs(string, stdout);
+        print_visual(string, (char *) NULL);    /* (Hebrew turned about) */
         standend();
 }
 
@@ -1010,7 +1048,8 @@ static void view_match_list(long int *verse_list)
                                    extra blank line. (Change s_cols to WIDTH if
                                    one doesn't.) */
                                 if ((int) (sizeof(HEAD_TEXT) - 1 + strlen(count) +
-                                        2 + strlen(count_word) + strlen(times))
+                                        2 + u8_cols(count_word, strlen(count_word)) +
+                                        strlen(times))
                                         <= s_cols)
                                 {
                                         fputs(", ", stdout);

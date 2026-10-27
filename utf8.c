@@ -84,6 +84,13 @@ static long double_width[][2] = {
         { 0L, 0L }
 };
 
+/* Characters written right to left: Hebrew, Arabic, Syriac and others */
+static long right_to_left[][2] = {
+        { 0x0590L, 0x08FFL }, { 0xFB1DL, 0xFDFFL }, { 0xFE70L, 0xFEFFL },
+        { 0x10800L, 0x10FFFL }, { 0x1E800L, 0x1EFFFL },
+        { 0L, 0L }
+};
+
 /*
 ** Capital letters and their small letters: { first, last, step, change }:
 ** each capital from first to last, every step code points, has its small
@@ -327,4 +334,82 @@ void u8_lower(char *s)
                 }
                 i += n;
         }
+}
+
+/* Purpose: is the character at s written right to left (Hebrew, say)? */
+int u8_is_rtl(char *s)
+{
+        long code = u8_code(s);
+
+        return (code >= 0x80L && code < 0x110000L && in_table(right_to_left, code));
+}
+
+/*
+** Purpose: the order in which to show the characters of the first n bytes
+**          of s, from left to right on the screen. The text is stored in
+**          the order it is read; a terminal shows every line from left to
+**          right, so Hebrew would appear back to front. So each run of
+**          right-to-left characters is turned about: a run starts at one,
+**          and goes on, over spaces and punctuation between them, to the
+**          last before the next left-to-right letter ("And HEBREW WORDS
+**          Elohim": the two Hebrew words, and the space between). In it,
+**          numbers keep their order, as they are read left to right in
+**          Hebrew too, and a mark (a vowel point) stays with its letter.
+**          (A simple form of the Unicode bidirectional algorithm, enough
+**          for a line of Hebrew or Arabic among English.)
+** Returns: the number of characters, each in start[] and len[] (its bytes,
+**          with any marks after it), in the order to show them: at most
+**          max (the rest of the text is then the last one, in its order).
+*/
+int u8_display_order(char *s, int n, int *start, int *len, int max)
+{
+        int i = 0, count = 0, a, b, m, last, t;
+
+        while (i < n && s[i] != '\0' && count < max)
+        {
+                start[count] = i;
+                i += u8_len(&s[i]);
+                while (i < n && s[i] != '\0' && u8_width(&s[i]) == 0)
+                        i += u8_len(&s[i]);     /* (its marks) */
+                len[count] = i - start[count];
+                count++;
+        }
+        if (i < n && s[i] != '\0' && count > 0)
+                len[count - 1] = n - start[count - 1];
+        for (a = 0; a < count; a++)
+        {
+                if (!u8_is_rtl(&s[start[a]]))
+                        continue;
+                last = a;
+                for (m = a + 1; m < count; m++)
+                {
+                        if (u8_is_rtl(&s[start[m]]))
+                                last = m;
+                        else if (u8_is_letter(&s[start[m]]) &&
+                                 !isdigit(BYTE(s[start[m]])))
+                                break;          /* left to right again */
+                }
+                for (b = a, m = last; b < m; b++, m--)  /* turned about */
+                {
+                        t = start[b]; start[b] = start[m]; start[m] = t;
+                        t = len[b]; len[b] = len[m]; len[m] = t;
+                }
+                for (b = a; b <= last; b++)     /* numbers as they were */
+                {
+                        if (!isdigit(BYTE(s[start[b]])))
+                                continue;
+                        for (m = b; m < last && isdigit(BYTE(s[start[m + 1]])); m++)
+                                ;
+                        for (i = b, t = m; i < t; i++, t--)
+                        {
+                                int x = start[i];
+
+                                start[i] = start[t]; start[t] = x;
+                                x = len[i]; len[i] = len[t]; len[t] = x;
+                        }
+                        b = m;
+                }
+                a = last;
+        }
+        return (count);
 }

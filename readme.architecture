@@ -527,12 +527,33 @@ bytes together, as one key; Backspace, Delete and the arrow keys take a
 whole character, with any marks after it, and move the cursor by its
 columns. Line wrapping and the book column count columns.
 
-Right to left. Hebrew is stored, as in the text, in reading order, and
-the web terminal of the Home Assistant app shows every line left to
-right, so a Hebrew word appears reversed. A layer between EBaC's output
-and the screen that reverses each run of right-to-left letters is
-planned (the designer's idea: build the line in memory, then print it
-with its Hebrew turned about).
+Right to left (EBaC 2.3.1). Hebrew is stored, as in the text, in the
+order it is read, and a terminal shows every line from left to right,
+so a Hebrew word would appear back to front. So a line is shown through
+a layer that turns each run of right-to-left text about, built in
+memory first (the designer's idea), then printed:
+
+  u8_is_rtl         a character of a right-to-left script: Hebrew,
+                    Arabic, Syriac and others, by their Unicode blocks
+  u8_display_order  the order to show a line's characters in. A run
+                    starts at a right-to-left character and goes on,
+                    over the spaces and punctuation between such
+                    characters, to the last before the next
+                    left-to-right letter; it is turned about. So two
+                    Hebrew words together change places too, as they
+                    are read. In a run, numbers keep their order (they
+                    are read left to right in Hebrew too), and a mark
+                    (a vowel point) stays with its letter.
+
+This is a small form of the Unicode bidirectional algorithm, enough for
+Hebrew or Arabic among English, or a line of them. dis_one_line() marks
+which bytes are highlighted (the words searched for), and prints the
+line in that order, so the highlighting moves with its letters;
+rev_printf() (the word in the list's heading) and book names go through
+it too. A line with no right-to-left text is printed exactly as before.
+Lines are wrapped first, so each line of the screen is turned about on
+its own. The search line, while it is typed, shows Hebrew in the order
+typed (the line editor puts each character on the screen as it comes).
 
 
 Widths in the program
@@ -672,5 +693,7 @@ For EBaC 2.3 (October 2026):
     matching, as words differing only by an accent can differ in
     meaning, and a phone's keyboard types accents with a long press.
   - First the bugs (index, search, line editor, display, importer);
-    other languages' translations in the importer, and right-to-left
-    display, later.
+    then right-to-left display (2.3.1); other languages' translations
+    in the importer later.
+  - Right-to-left text is turned about run by run, not whole lines, so
+    that the English around a Hebrew word stays as it is.
