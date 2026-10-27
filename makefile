@@ -102,7 +102,7 @@ bible: $(RFILES)
 # ebac-api: EBaC for other programs (a CGI program; see api.c): the same
 # source as bible, with its own main() and the reference parser.
 APISRC= api.c refparse.c bible.c file.c userint.c process.c curses.c utf8.c
-ebac-api: $(APISRC) bible.h both.h screen.h utf8.h version.stamp
+ebac-api: $(APISRC) bible.h both.h screen.h utf8.h refparse.h version.stamp
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Wno-unused-function $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DEBAC_API $(LDFLAGS) -o ebac-api $(APISRC) $(LIBS)
 
 index: index.c utf8.c utf8.h both.h

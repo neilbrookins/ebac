@@ -31,6 +31,7 @@
 ** to be the error's text, so that it never spoils the JSON.
 */
 #include "bible.h"
+#include "refparse.h"
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -50,8 +51,6 @@ static int cgi = FALSE;         /* run by a web server (not by hand) */
 static int answered = FALSE;
 static int saved_stdout = -1;   /* the real standard output */
 static FILE *caught = NULL;     /* what the shared code prints, meanwhile */
-
-int parse_reference P((char *text, int *book, int *chapter, int *verse, int *to, char *why));
 
 /* ---- output -------------------------------------------------------- */
 
@@ -315,18 +314,31 @@ static int has_text(long svn)
 **          verse 16. For God so loved ..."; after the first verse, only
 **          "Verse 17. ...").
 */
-static void print_verse(long svn, int first)
+/* Purpose: print verse svn as JSON; its "spoken" form says as much of
+   the reference as is new since the verse before (prev; 0 for none): the
+   book and chapter, the chapter, or only the verse */
+static void print_verse(long svn, long prev)
 {
         struct bcv_array_type *v;
         char name[MAXBOOKNAME * 2], text[LONGESTVERSE], spoken[LONGESTVERSE + 200];
+        char prev_chapter[16];
         int b = verse_to_book(svn), n;
 
         full_name(b, name);
+        prev_chapter[0] = '\0';        /* (get_verse()'s answer is static) */
+        if (prev > 0)
+        {
+                strncpy(prev_chapter, get_verse(prev)->chapt_array, sizeof(prev_chapter) - 1);
+                prev_chapter[sizeof(prev_chapter) - 1] = '\0';
+        }
         v = get_verse(svn);
         plain_text(v->data_array, text, sizeof(text));
-        if (first)
+        if (prev == 0 || verse_to_book(prev) != b)
                 sprintf(spoken, "%s chapter %s, verse %s. %s", name,
                         v->chapt_array, v->verse_array, text);
+        else if (strcmp(prev_chapter, v->chapt_array) != 0)
+                sprintf(spoken, "Chapter %s, verse %s. %s", v->chapt_array,
+                        v->verse_array, text);
         else
                 sprintf(spoken, "Verse %s. %s", v->verse_array, text);
         printf("{\"ref\": ");
@@ -350,7 +362,7 @@ static void print_verse(long svn, int first)
    most n of them, in order (step 1) or backwards (step -1) */
 static void answer_verses(long from, long to, int step, long n)
 {
-        long svn, shown = 0;
+        long svn, shown = 0, prev = 0;
         long list[MAXN];
         int count = 0, i;
 
@@ -374,7 +386,8 @@ static void answer_verses(long from, long to, int step, long n)
                 long s = step > 0 ? list[i] : list[count - 1 - i];
 
                 printf(i > 0 ? ",\n  " : "\n  ");
-                print_verse(s, i == 0);
+                print_verse(s, prev);
+                prev = s;
                 shown++;
         }
         printf("]}\n");
@@ -455,6 +468,45 @@ static void print_spoken(char *full)
                 }
         }
         printf("]");
+}
+
+/*
+** Purpose: the ways each number is said, from 1 to the most chapters or
+**          verses of any book or chapter of the translation (176, for
+**          Psalm 119, in AV): for the EBaC integration's sentences.
+*/
+static void numbers(void)
+{
+        char forms[8][MAXSPOKEN];
+        int most = 0, b, c, n, k, count;
+
+        choose_translation();
+        for (b = 0; b < numbooks; b++)
+        {
+                if (chapters_of(b) > most)
+                        most = chapters_of(b);
+                for (c = 1; c <= chapters_of(b); c++)
+                        if (verses_of(b, c) > most)
+                                most = verses_of(b, c);
+        }
+        begin_answer(TRUE);
+        printf("{\"translation\": ");
+        json_string(etla);
+        printf(", \"most\": %d, \"numbers\": [", most);
+        for (n = 1; n <= most; n++)
+        {
+                count = spoken_numbers(n, forms, 8);
+                printf(n > 1 ? ",\n  " : "\n  ");
+                printf("{\"number\": %d, \"spoken\": [", n);
+                for (k = 0; k < count; k++)
+                {
+                        if (k > 0)
+                                printf(", ");
+                        json_string(forms[k]);
+                }
+                printf("]}");
+        }
+        printf("]}\n");
 }
 
 static void books(void)
@@ -652,6 +704,8 @@ int main(int argc, char **argv)
                 translations();
         else if (strcmp(request, "books") == 0)
                 books();
+        else if (strcmp(request, "numbers") == 0)
+                numbers();
         else if (strcmp(request, "parse") == 0)
                 parse();
         else if (strcmp(request, "verse") == 0)
@@ -663,6 +717,6 @@ int main(int argc, char **argv)
         else if (strcmp(request, "search") == 0)
                 search();
         else
-                fail("no such request (translations, books, parse, verse, next, previous, search)");
+                fail("no such request (translations, books, numbers, parse, verse, next, previous, search)");
         return (0);
 }

@@ -637,6 +637,13 @@ with {"error": "..."}):
                           booknames file: "Song of Solomon"), number,
                           chapters, and the spoken forms ("1 Samuel",
                           "First Samuel", "I Samuel")
+  /numbers?t=AV           each number from 1 to the most chapters or
+                          verses the translation has (176 in AV), with
+                          the ways it is said that the parser reads:
+                          "119", "one hundred nineteen", "a hundred and
+                          nineteen", "cxix" (from the parser's own word
+                          tables, so the integration's sentences know
+                          the same numbers as EBaC)
   /parse?ref=...          a spoken or typed reference understood:
                           book, chapter, verse (and an end verse), SVN
   /verse?ref=...&t=AV     the verses of a reference: "john 3:16",
@@ -644,7 +651,8 @@ with {"error": "..."}):
                           with its reference and text, and "spoken": the
                           reference and text as to be read aloud
                           (brackets and braces taken out, "John chapter
-                          3, verse 16.")
+                          3, verse 16."; after the first verse, only what
+                          is new: "Verse 17.", "Chapter 4, verse 1.")
   /next?svn=N&n=1&t=AV    the n verses after SVN N (the SVN runs on
                           across chapters and books, so after John 3:36
                           comes John 4:1); /previous likewise. Verses
@@ -729,8 +737,22 @@ LANGUAGE/, before its own sentences. So the integration:
 
 Sentences (English first):
 
-  [read] {book} [chapter] {chapter} [colon|verse] {verse}
-  [read] {book} chapter {chapter}
+  [read] {book} [chapter] {chapter} [colon|verse|:] {verse}
+         [to|through|- {to}]
+  [read] {book} [chapter] {chapter}
+  [read] {book} {verse} to {to}        (Jude: a book of one chapter)
+
+  {chapter}, {verse} and {to} are one list, made from /numbers: digits,
+  words and Roman numerals. Tested with hassil (Assist's matcher,
+  October 2026): its own number lists ("range") take "sixteen" and
+  "3:16" (a ":" may join two lists), but not "I" or "a hundred and
+  nineteen"; a list from /numbers takes them all. A wildcard after the
+  book would take them too, but also "Mark the door closed": numbers
+  keep the sentence to real references. The integration builds the text
+  "John 3:16-18" from what matched, and ebac-api reads it, so the rules
+  (such as "Jude three" being Jude 1:3) are in one place. A book's list
+  has its spoken forms from /books, with and without a final "s"
+  ("Psalm", "Revelations"), as the parser forgives.
   (next|following) verse; (previous|last) verse; read (that|it) again
   (read|continue) on; keep reading
   search [the] bible for {words}       ({words}: a wildcard, safe after

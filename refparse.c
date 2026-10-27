@@ -22,6 +22,7 @@
 ** English, as speech in another language would need its own.
 */
 #include "bible.h"
+#include "refparse.h"
 #include <string.h>
 
 #define MAXTOKENS 24
@@ -270,6 +271,77 @@ static int book_at(int *i)
                 }
         }
         return (0);
+}
+
+/*
+** Purpose: the ways n (1 to 999) is said or written, that number_at()
+**          understands: "119", "one hundred nineteen", "one hundred and
+**          nineteen", "a hundred nineteen", "a hundred and nineteen",
+**          "cxix". For the EBaC integration's sentences (ebac-api's
+**          numbers request), so that Assist knows the same numbers.
+** Returns: how many forms are in forms[] (at most max), each up to
+**          MAXSPOKEN bytes.
+*/
+int spoken_numbers(int n, char forms[][MAXSPOKEN], int max)
+{
+        static char *romans[] = { "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i" };
+        static int values[] = { 100, 90, 50, 40, 10, 9, 5, 4, 1 };
+        char below[MAXSPOKEN], hundreds[2][MAXSPOKEN];
+        int count = 0, k, h, r = n % 100, m, nh = 0;
+
+        if (n < 1 || n > 999 || max < 1)
+                return (0);
+        sprintf(forms[count++], "%d", n);
+        /* the part below a hundred: "nineteen", "twenty three" */
+        below[0] = '\0';
+        if (r >= 20)
+                sprintf(below, r % 10 ? "%s %s" : "%s", tens[r / 10], units[r % 10]);
+        else if (r > 0)
+                strcpy(below, units[r]);
+        h = n / 100;
+        if (h > 0)
+        {
+                sprintf(hundreds[nh++], "%s hundred", units[h]);
+                if (h == 1)
+                        strcpy(hundreds[nh++], "a hundred");
+        }
+        if (h == 0 && count < max)
+                strcpy(forms[count++], below);
+        for (k = 0; k < nh; k++)
+        {
+                if (r == 0 && count < max)
+                        strcpy(forms[count++], hundreds[k]);
+                if (r > 0 && count < max)
+                        sprintf(forms[count++], "%s %s", hundreds[k], below);
+                if (r > 0 && count < max)
+                        sprintf(forms[count++], "%s and %s", hundreds[k], below);
+        }
+        /* Roman, to 399 (speech to text writes "I" for "one") */
+        if (n < 400 && count < max)
+        {
+                forms[count][0] = '\0';
+                for (m = n, k = 0; k < 9; k++)
+                        while (m >= values[k])
+                        {
+                                strcat(forms[count], romans[k]);
+                                m -= values[k];
+                        }
+                count++;
+        }
+        return (count);
+}
+
+/*
+** Purpose: the number that text is, as number_at() reads it (for testing
+**          spoken_numbers()); -1 if it isn't one number.
+*/
+int number_of(char *text)
+{
+        int i = 0, n;
+
+        tokenize(text);
+        n = number_at(&i);
+        return (i == ntokens ? n : -1);
 }
 
 /*
