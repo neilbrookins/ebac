@@ -925,10 +925,12 @@ choose_language() {
                                 print cut_cols((some[i] ? "*" : " ") n ") " shown[i], cols - 1)
                         }
                         print cut_cols(note, cols - 1)
-                        if (cols - 1 >= 40)
-                                print "Type the number of a language; then Enter."
+                        # (one only: unlike the list of translations next,
+                        # which takes several)
+                        if (cols - 1 >= 44)
+                                print "Type the number of one language, then Enter."
                         else
-                                print "A language: its number, Enter."
+                                print "One language: its number, Enter."
                 }' "$tmp/langs"
                 pg=""
                 if [ $((cols - 1)) -ge 66 ]; then
@@ -959,7 +961,13 @@ choose_language() {
                         fi
                         ;;
                 esac
-                note="Not in the list: $answer"
+                if [ $# -gt 1 ]; then
+                        # (as the list of translations takes: but here,
+                        # one language, whose translations come next)
+                        note="One language at a time: translations come next."
+                else
+                        note="Not in the list: $answer"
+                fi
         done
 }
 
