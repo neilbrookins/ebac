@@ -152,6 +152,15 @@ do{
     else if (word[i] == ' ')
         line_start = FALSE;
 }while (word[i] == ' ' || word[i] == '\n');
+/* A new line (a new verse, in the importer's text) ends any {note} or
+   [brackets] left open: one of them unclosed, a slip in a text (as in a
+   verse of one Japanese translation), would otherwise hide the verse
+   numbers, or bracket the words, of the rest of the book. */
+if (line_start)
+{
+    disable_newverse = 0;
+    in_brackets = FALSE;
+}
 
 /* Read until a delimeter is found, or EOF. A word too long for word[] is
    cut short, but all of it is read, and counted in raw_length. */

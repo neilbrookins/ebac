@@ -18,7 +18,7 @@
 ** or from version.txt in a downloaded archive), as EBAC_COMMIT, and a
 ** package such as the Home Assistant app can name itself in EBAC_PACKAGE.
 */
-#define EBAC_RELEASE "2.3.1"
+#define EBAC_RELEASE "2.3.2"
 #ifndef EBAC_COMMIT
 #       define EBAC_COMMIT ""
 #endif

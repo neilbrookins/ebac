@@ -586,6 +586,45 @@ add-translation.sh no longer limits a translation to 32,767 verses, and
 offers the translations with the Apocrypha (KJVA, the Douay-Rheims
 Bible and the Catholic Public Domain Version) with the rest.
 
+Languages (EBaC 2.3.2). The importer offers every language of the
+source, not English alone: A at the main menu lists the languages, then
+a language's translations. Nothing about the languages is written into
+the program: the list of translations, read each time, gives each one's
+language as a code (en, es, grc, zh-hant), and the names come from
+Unicode's Common Locale Data Repository (CLDR, on GitHub: the
+languages.json of cldr-localenames-full, in English for the English
+names, and in each language for its own name, as "espanol" with an
+accent for es). A code is looked up as CLDR writes it (zh-Hant: a
+script with a capital), or else the code before its "-" (cop for
+cop-sa, then shown with the code: "Coptic [cop-sa]"); a code CLDR has no
+names for is shown as it is (hbo). The names are kept in
+languages.cache, beside the importer, so that the list comes up at once:
+a language's names are fetched the first time its code appears, and all
+of them again after a month. A name in small letters ("espanol") is
+shown with a capital, as lists show them (title_first(), for Latin,
+Greek, Cyrillic and Armenian letters: awk in the "C" locale knows only
+ASCII). The languages are listed English first, then by their English
+names. Titles are cut to the screen by columns, not bytes (Chinese
+characters take two).
+
+Words without spaces. Chinese, Japanese, Thai, Burmese and others are
+often written without spaces between words, and EBaC searches word by
+word. So a language whose name or titles are in such a script has a
+note on its list ("often written without spaces"), and a translation
+whose verses mostly have no spaces gets a note when it is added (one
+Chinese translation in the source does have them).
+
+A slip in a text. A "{" left unclosed, in one Japanese translation, hid
+the verse numbers of the rest of its book (EBaC takes {...} as a note,
+in which numbers are not verses), and the importer refused it: the index
+had too few verses. Since a verse starts a line, a new line now ends any
+{note} or [brackets] left open (index.c). Indexes without such a slip
+are unchanged.
+
+macOS's awk (the "one true awk" of 2020) can't printf text beyond
+ASCII: it stops with an error. So names and titles are printed with
+print, never printf.
+
 
 Testing
 -------

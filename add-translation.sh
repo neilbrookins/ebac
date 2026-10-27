@@ -2,8 +2,9 @@
 # add-translation.sh -- download a Bible translation and add it to EBaC
 #                        (or remove one added before).
 #
-#   sh add-translation.sh             list the English translations, and
-#                                     ask which to add or remove
+#   sh add-translation.sh             list the languages, then a language's
+#                                     translations, and ask which to add or
+#                                     remove
 #   sh add-translation.sh BSB LEB     add these (by short name)
 #   sh add-translation.sh --remove BSB  remove this one
 #   sh add-translation.sh --list      just list them
@@ -38,8 +39,15 @@
 # stay as they are. Verse numbers keep their brackets: EBaC reads [1:1] as
 # well as 1:1.
 #
-# Every English translation there is offered, those with the Apocrypha too
-# (before EBaC 2.1, they had more verses than it could number: 32,767).
+# Every translation there is offered, in every language, those with the
+# Apocrypha too (before EBaC 2.1, they had more verses than it could number:
+# 32,767). The list of them is read each time, so that new languages and
+# translations appear as they are added there. First the languages are
+# listed, each by its own name and its name in English ("Espanol, Spanish",
+# with its accent), English first, then by the English names; then the
+# translations of the language chosen. The list gives each translation's
+# language only as a code (es), so the names come from Unicode (see
+# NAMES_SOURCE and language_names()).
 #
 # EBaC runs this itself when A)dd a translation is chosen from its main menu,
 # as "sh add-translation.sh --from-ebac PROGRAM NAME": PROGRAM is how to
@@ -63,6 +71,10 @@ set -f                  # no file-name patterns: a typed * stays a *
 
 SOURCE=https://raw.githubusercontent.com/scrollmapper/bible_databases/master
 LIST_PATH=docs/main_readme/translation_list.md
+# The names of languages, in English and in each language itself, from
+# Unicode's Common Locale Data Repository (CLDR): the list of translations
+# gives each one's language only as a code (such as es).
+NAMES_SOURCE=https://raw.githubusercontent.com/unicode-org/cldr-json/main/cldr-json/cldr-localenames-full/main
 
 here=$(cd "$(dirname "$0")" && pwd)
 
@@ -150,11 +162,126 @@ interrupted() {
         exit 1
 }
 
+# Functions for the awk programs, on the characters of UTF-8 text (in the C
+# locale, awk sees bytes; a character beyond ASCII is two to four bytes, the
+# first not a continuation byte, \200 to \277, each written in octal):
+#   char_len(s, i)    the bytes of the character at byte i of s
+#   char_cols(c)      the columns character c takes: 2 for Chinese, Japanese
+#                     and Korean, 0 for a mark on the letter before it (an
+#                     accent, a Hebrew vowel point), 1 for the rest
+#   cut_cols(s, n)    as much of s as fits in n columns
+#   title_first(s)    s with its first letter a capital (Unicode gives many
+#                     languages' names in small letters; a list shows them
+#                     with a capital): ASCII, Latin with accents, Greek,
+#                     Cyrillic and Armenian
+#   no_spaces(s)      whether s is in a script written without spaces
+#                     between words: Chinese, Japanese, Thai, Lao, Burmese,
+#                     Khmer (EBaC's search, word by word, works poorly in it)
+CHARS='
+function char_len(s, i,    n) {
+        if (CONT == "")
+                CONT = "\200\201\202\203\204\205\206\207\210\211\212\213\214\215\216\217\220\221\222\223\224\225\226\227\230\231\232\233\234\235\236\237\240\241\242\243\244\245\246\247\250\251\252\253\254\255\256\257\260\261\262\263\264\265\266\267\270\271\272\273\274\275\276\277"
+        n = 1
+        while (i + n <= length(s) && index(CONT, substr(s, i + n, 1)))
+                n++
+        return n
+}
+function char_cols(c,    b, b2) {
+        if (CONT == "")
+                char_len("", 1)
+        b = substr(c, 1, 1)
+        b2 = substr(c, 2, 1)
+        if (index("\343\344\345\346\347\350\351\352\353\354\355", b) ||
+            (b == "\357" && (b2 == "\274" || b2 == "\275")))
+                return 2
+        if (b == "\314" || (b == "\315" && index(CONT, b2) <= 48) ||
+            (b == "\326" && index(CONT, b2) >= 18 && b2 != "\276") ||
+            (b == "\327" && index("\201\202\204\205\207", b2)))
+                return 0
+        return 1
+}
+function cut_cols(s, n,    i, len, used, w) {
+        used = 0
+        for (i = 1; i <= length(s); i += len) {
+                len = char_len(s, i)
+                w = char_cols(substr(s, i, len))
+                if (used + w > n)
+                        return substr(s, 1, i - 1)
+                used += w
+        }
+        return s
+}
+function byte_of(n) {           # a continuation byte, by its value (128 to 191)
+        if (CONT == "")
+                char_len("", 1)
+        return substr(CONT, n - 127, 1)
+}
+function title_first(s,    c, b, v, code) {
+        if (CONT == "")
+                char_len("", 1)
+        c = substr(s, 1, 1)
+        if (index("abcdefghijklmnopqrstuvwxyz", c))
+                return toupper(c) substr(s, 2)
+        b = substr(s, 2, 1)
+        v = index(CONT, b) + 127                # the second byte, as a number
+        if (v == 127)
+                return s
+        if (c == "\303" && v >= 160 && v <= 190 && v != 183)       # Latin-1
+                return c byte_of(v - 32) substr(s, 3)
+        if (c == "\304" || c == "\305") {                           # Latin Extended-A
+                code = (c == "\304" ? 256 : 320) + v - 128
+                if (((code >= 256 && code <= 311) || (code >= 330 && code <= 375)) && code % 2 == 1)
+                        code--
+                else if (((code >= 313 && code <= 328) || (code >= 377 && code <= 382)) && code % 2 == 0)
+                        code--
+                else
+                        return s
+                if (code < 320)
+                        return "\304" byte_of(code - 256 + 128) substr(s, 3)
+                return "\305" byte_of(code - 320 + 128) substr(s, 3)
+        }
+        if (c == "\316" && v >= 177 && v <= 191)                    # Greek
+                return c byte_of(v - 32) substr(s, 3)
+        if (c == "\317" && v >= 128 && v <= 137 && v != 130)
+                return "\316" byte_of(v + 32) substr(s, 3)
+        if (c == "\320" && v >= 176 && v <= 191)                    # Cyrillic
+                return c byte_of(v - 32) substr(s, 3)
+        if (c == "\321" && v >= 128 && v <= 143)
+                return "\320" byte_of(v + 32) substr(s, 3)
+        if (c == "\321" && v >= 144 && v <= 159)
+                return "\320" byte_of(v - 16) substr(s, 3)
+        if (c == "\325" || c == "\326") {                           # Armenian
+                code = (c == "\325" ? 1344 : 1408) + v - 128   # (U+0540, U+0580)
+                if (code < 1377 || code > 1414)                 # (U+0561 to U+0586)
+                        return s
+                code -= 48
+                if (code < 1344)
+                        return "\324" byte_of(code - 1280 + 128) substr(s, 3)
+                return "\325" byte_of(code - 1344 + 128) substr(s, 3)
+        }
+        return s
+}
+function no_spaces(s) {
+        return (s ~ /\343[\201-\203\220-\277]|[\344-\351][\200-\277]/ ||    # kana, Chinese
+                s ~ /\340[\270-\273]/ ||                                # Thai, Lao
+                s ~ /\341[\200-\202\236\237]/)                          # Burmese, Khmer
+}
+'
+
+
 # fetch PATH FILE: copy a file of the source to FILE. Sets problem on failure.
 fetch() {
-        case $source in
+        fetch_from "$source" "$1" "$2"
+}
+
+# fetch_from PLACE PATH FILE: copy PATH of PLACE (a web address, or a
+# folder) to FILE. Sets problem on failure.
+fetch_from() {
+        from=$1
+        shift
+        case $from in
         http://* | https://*)
-                url=${source%/}/$1
+                url=${from%/}/$1
                 if command -v curl > /dev/null 2>&1; then
                         code=$(curl -sSL --max-time 600 -o "$2" -w '%{http_code}' "$url")
                         status=$?
@@ -179,12 +306,12 @@ fetch() {
                 fi
                 ;;
         *)
-                if [ ! -e "$source/$1" ]; then
-                        problem="couldn't read $source/$1 (No such file or directory)"
+                if [ ! -e "$from/$1" ]; then
+                        problem="couldn't read $from/$1 (No such file or directory)"
                         return 1
                 fi
-                if ! cp "$source/$1" "$2" 2> /dev/null; then
-                        problem="couldn't read $source/$1"
+                if ! cp "$from/$1" "$2" 2> /dev/null; then
+                        problem="couldn't read $from/$1"
                         return 1
                 fi
                 ;;
@@ -192,23 +319,149 @@ fetch() {
         return 0
 }
 
-# The English translations, one per line in $tmp/list: name, tab, title.
-english_translations() {
+# Every translation, one per line in $tmp/all: name, tab, its language's
+# code (as en, es, grc), tab, title.
+all_translations() {
         fetch "$LIST_PATH" "$tmp/list.md" || return 1
         $AWK "$PLAIN"'
-        # - **BSB (en)**: BSB: Berean Standard Bible
-        /^- \*\*[^ \t]+ \(en\)\*\*: / {
+        # - **SpaRV (es)**: SpaRV: La Santa Biblia Reina-Valera (1909)
+        /^- \*\*[^ \t]+ \([A-Za-z0-9-]+\)\*\*: / {
                 name = substr($0, 5)
                 name = substr(name, 1, index(name, " ") - 1)
+                code = substr($0, index($0, " (") + 2)
+                code = tolower(substr(code, 1, index(code, ")") - 1))
                 title = substr($0, index($0, "**: ") + 4)
                 sub(/^[^ \t]+: /, "", title)        # the short name again
-                print name "\t" plain(title)
-        }' "$tmp/list.md" > "$tmp/list"
-        if [ ! -s "$tmp/list" ]; then
-                problem="found no English translations in the list at $source"
+                print name "\t" code "\t" plain(title)
+        }' "$tmp/list.md" > "$tmp/all"
+        if [ ! -s "$tmp/all" ]; then
+                problem="found no translations in the list at $source"
                 return 1
         fi
         return 0
+}
+
+# The translations of one language (by its code), in $tmp/list: name, tab,
+# title.
+translations_of() {
+        $AWK -F '\t' -v code="$1" '$2 == code { print $1 "\t" $3 }' "$tmp/all" > "$tmp/list"
+}
+
+# The names of the languages, kept in languages.cache (beside this program):
+# code, tab, its name in English, tab, its name in itself, tab, the code
+# whose names they are (when only a shorter code has any: cop for cop-sa).
+# A language's names come from Unicode the first time its code is seen in
+# the list of translations, and again a month later; a code Unicode has no
+# names for is shown as it is. Without the Internet, or when Unicode can't
+# be reached, the names already kept are used.
+language_names() {
+        cache=$here/languages.cache
+        if [ -f "$cache" ] && [ -n "$(find "$cache" -mtime +30 2> /dev/null)" ]; then
+                rm -f "$cache"          # (a month old: the names again)
+        fi
+        [ -f "$cache" ] || : > "$cache" 2> /dev/null
+        missing=$($AWK -F '\t' 'FILENAME == ARGV[1] { kept[$1] = 1; next }
+                !($2 in kept) && !($2 in seen) { seen[$2] = 1; print $2 }' \
+                "$cache" "$tmp/all")
+        [ -n "$missing" ] || return 0
+        echo "Getting the names of the languages (from Unicode)..."
+        fetch_from "$names_source" "en/languages.json" "$tmp/en.json" || return 0
+        for code in $missing; do
+                # Unicode's name for the code: zh-hant is its zh-Hant (a
+                # script, of 4 letters, with a capital; a region, of 2, in
+                # capitals). If it has none, the code before the "-".
+                full=$(printf '%s\n' "$code" | $AWK -F - '{
+                        out = $1
+                        for (i = 2; i <= NF; i++)
+                                if (length($i) == 4)
+                                        out = out "-" toupper(substr($i, 1, 1)) substr($i, 2)
+                                else if (length($i) == 2)
+                                        out = out "-" toupper($i)
+                                else
+                                        out = out "-" $i
+                        print out }')
+                base=${code%%-*}
+                names_for=$full
+                : > "$tmp/own.json"
+                if ! fetch_from "$names_source" "$full/languages.json" "$tmp/own.json"; then
+                        : > "$tmp/own.json"
+                        if [ "$base" != "$full" ] &&
+                           fetch_from "$names_source" "$base/languages.json" "$tmp/own.json"; then
+                                names_for=$base
+                        fi
+                fi
+                $AWK -v code="$code" -v full="$(printf '%s' "$full" | tr 'A-Z' 'a-z')" \
+                    -v base="$base" -v ownfor="$(printf '%s' "$names_for" | tr 'A-Z' 'a-z')" '
+                # a line of languages.json:    "es": "espanol",
+                function value(line) {
+                        sub(/^[ \t]*"[^"]*": "/, "", line)
+                        sub(/",?[ \t\r]*$/, "", line)
+                        return line
+                }
+                function key(line) {
+                        sub(/^[ \t]*"/, "", line)
+                        return tolower(substr(line, 1, index(line, "\"") - 1))
+                }
+                /^[ \t]*"[^"]*": "/ {
+                        k = key($0)
+                        if (FILENAME == ARGV[1]) english[k] = value($0)
+                        else own[k] = value($0)
+                }
+                END {
+                        # the names of the whole code, or else of the code
+                        # before its "-" (then shown with the whole code)
+                        e = ""; o = ""; shorter = 0
+                        if (full in english) e = english[full]
+                        else if (base in english) { e = english[base]; shorter = 1 }
+                        if (ownfor == full && (full in own)) o = own[full]
+                        else if (base in own) { o = own[base]; if (full != base) shorter = 1 }
+                        print code "\t" e "\t" o "\t" (shorter ? base : code)
+                }' "$tmp/en.json" "$tmp/own.json" >> "$cache" 2> /dev/null
+        done
+        return 0
+}
+
+# The languages, one per line in $tmp/langs, in the order shown (English
+# first, then by their names in English): code, tab, the name shown (its
+# own name, then the English, as "Espanol, Spanish" with its accent), tab,
+# its number of translations, tab, 1 if some of them are added, tab, 1 if it
+# is written without spaces between words.
+languages() {
+        language_names
+        listed_translations > "$tmp/listed"
+        $AWK -F '\t' "$CHARS"'
+        FILENAME == ARGV[1] { added[$0] = 1; next }
+        FILENAME == ARGV[2] { english[$1] = $2; own[$1] = $3; whose[$1] = $4; next }
+        {
+                count[$2]++
+                if ($1 in added) some[$2] = 1
+                if (no_spaces($3)) nosp[$2] = 1
+        }
+        END {
+                for (code in count) {
+                        e = english[code]; o = own[code]
+                        if (o != "") o = title_first(o)
+                        if (o != "" && no_spaces(o)) nosp[code] = 1
+                        if (o != "" && e != "" && tolower(o) != tolower(e))
+                                shown = o ", " e
+                        else if (e != "")
+                                shown = e
+                        else if (o != "")
+                                shown = o
+                        else
+                                shown = code
+                        if (whose[code] != "" && whose[code] != code)
+                                shown = shown " [" code "]"
+                        if (code == "en")
+                                order = "0"
+                        else if (e != "")
+                                order = "1" tolower(e)
+                        else
+                                order = "2" code
+                        print order "\t" code "\t" shown "\t" count[code] "\t" ((code in some) ? 1 : 0) "\t" ((code in nosp) ? 1 : 0)
+                }
+        }' "$tmp/listed" "$here/languages.cache" "$tmp/all" 2> /dev/null |
+                sort -t "$(printf '\t')" -k1,1 | cut -f2- > "$tmp/langs"
 }
 
 # The folders 'trans' lists, one per line.
@@ -230,7 +483,7 @@ lookup() {
 }
 
 title_of() {
-        $AWK -F '\t' -v n="$1" '$1 == n { print $2; exit }' "$tmp/list"
+        $AWK -F '\t' -v n="$1" '$1 == n { print $3; exit }' "$tmp/all"
 }
 
 # The index program, built with make if it isn't there.
@@ -459,6 +712,19 @@ add_to() {
           without_line "$name"; } > "$tmp/trans" &&
                 cat "$tmp/trans" > "$here/trans"   # (keeps its owner and mode)
         printf '%s: done. %s is ready: start EBaC and press C to choose it.\n' "$name" "$title"
+        # Words without spaces between them (as Chinese, Japanese and Thai
+        # are often written): EBaC's search goes word by word
+        if [ -f "$tmp/text" ] && $AWK '/^\[[0-9]+:[0-9]+\] / {
+                        t = substr($0, index($0, "] ") + 2)
+                        sub(/[ \t\r]+$/, "", t)
+                        if (t == "")
+                                next            # (a verse with no text)
+                        verses++
+                        if (index(t, " ")) spaced++
+                }
+                END { exit !(verses > 0 && spaced * 2 < verses) }' "$tmp/text"; then
+                printf '%s: note: its text has no spaces between words, so searching it works poorly.\n' "$name"
+        fi
         return 0
 }
 
@@ -533,11 +799,12 @@ read_line() {
         return 1
 }
 
-choose() {
+# Show the languages a screenful at a time, and ask for one. Sets lang to
+# its code, and lang_name and lang_nospace; lang is "" to stop.
+choose_language() {
         first=0
         note=""
-        count=$($AWK 'END { print NR }' "$tmp/list")
-        listed_translations > "$tmp/listed"
+        count=$($AWK 'END { print NR }' "$tmp/langs")
         while :; do
                 resized=0               # (set by the WINCH trap)
                 screen_size
@@ -547,8 +814,83 @@ choose() {
                 [ $first -le $(( (pages - 1) * per_page )) ] || first=$(( (pages - 1) * per_page ))
                 if [ -n "$from_ebac" ]; then back="back to EBaC"; else back="stop"; fi
                 clear_screen
-                $AWK -F '\t' -v first="$first" -v per_page="$per_page" \
-                    -v pages="$pages" -v cols="$cols" -v note="$note" -v back="$back" '
+                $AWK -F '\t' -v first="$first" -v per_page="$per_page" -v pages="$pages" \
+                    -v cols="$cols" -v note="$note" "$CHARS"'
+                {
+                        shown[NR] = $2 " (" $3 ")"
+                        some[NR] = $4
+                        if ($4) any = 1
+                }
+                END {
+                        heading = "Add or remove translations: choose a language"
+                        if (pages > 1)
+                                heading = heading " (page " (int(first / per_page) + 1) " of " pages ")"
+                        print cut_cols(heading, cols - 1)
+                        print any ? "* = has translations added" : ""
+                        for (i = first + 1; i <= first + per_page && i <= NR; i++) {
+                                n = i ""
+                                while (length(n) < 2) n = " " n
+                                print cut_cols((some[i] ? "*" : " ") n ") " shown[i], cols - 1)
+                        }
+                        print cut_cols(note, cols - 1)
+                        if (cols - 1 >= 40)
+                                print "Type the number of a language; then Enter."
+                        else
+                                print "A language: its number, Enter."
+                }' "$tmp/langs"
+                pg=""
+                if [ $((cols - 1)) -ge 66 ]; then
+                        [ $pages -gt 1 ] && pg="n, p: next, previous page; "
+                        printf '(%sEnter alone: %s): ' "$pg" "$back"
+                else
+                        [ $pages -gt 1 ] && pg="n/p: page; "
+                        printf '(%sEnter: %s): ' "$pg" "$back"
+                fi
+                typing_mode
+                read_line
+                [ $? -eq 2 ] && continue        # resized: draw the list again
+                note=""
+                set -- $answer
+                case $(printf '%s\n' "$1" | tr 'A-Z' 'a-z') in
+                ""|x|q) lang=""; return 0 ;;
+                n) [ $((first + per_page)) -lt $count ] && first=$((first + per_page)); continue ;;
+                p) [ $first -gt 0 ] && first=$((first - per_page)); continue ;;
+                esac
+                case $1 in
+                *[!0-9]*) ;;
+                *)
+                        if [ $# -eq 1 ] && [ "$1" -ge 1 ] && [ "$1" -le "$count" ]; then
+                                lang=$($AWK -F '\t' -v n="$1" 'NR == n { print $1 }' "$tmp/langs")
+                                lang_name=$($AWK -F '\t' -v n="$1" 'NR == n { print $2 }' "$tmp/langs")
+                                lang_nospace=$($AWK -F '\t' -v n="$1" 'NR == n { print $5 }' "$tmp/langs")
+                                return 0
+                        fi
+                        ;;
+                esac
+                note="Not in the list: $answer"
+        done
+}
+
+# Show the translations of the language chosen (in $tmp/list) a screenful
+# at a time, and ask which to add or remove. Sets chosen to them (as +NAME
+# or -NAME); "" to go back to the languages.
+choose() {
+        first=0
+        note=""
+        count=$($AWK 'END { print NR }' "$tmp/list")
+        listed_translations > "$tmp/listed"
+        while :; do
+                resized=0               # (set by the WINCH trap)
+                screen_size
+                per_page=$((rows - 5 - lang_nospace))
+                [ $per_page -ge 3 ] || per_page=3
+                pages=$(( (count + per_page - 1) / per_page ))
+                [ $first -le $(( (pages - 1) * per_page )) ] || first=$(( (pages - 1) * per_page ))
+                back="languages"
+                clear_screen
+                $AWK -F '\t' -v first="$first" -v per_page="$per_page" -v pages="$pages" \
+                    -v cols="$cols" -v note="$note" -v language="$lang_name" \
+                    -v nospace="$lang_nospace" "$CHARS"'
                 FILENAME == ARGV[1] { added[$0] = 1; next }
                 {
                         name[FNR] = $1
@@ -557,22 +899,26 @@ choose() {
                                 any = 1
                 }
                 END {
-                        heading = "Add or remove translations"
+                        heading = "Add or remove translations: " language
                         if (pages > 1)
                                 heading = heading " (page " (int(first / per_page) + 1) " of " pages ")"
-                        print substr(heading, 1, cols - 1)
+                        print cut_cols(heading, cols - 1)
+                        if (nospace)    # (search goes word by word)
+                                print cut_cols("Note: often written without spaces between words; searching such a translation works poorly.", cols - 1)
                         print any ? "* = added already" : ""
                         # those already added are marked with a * before the number
                         for (i = first + 1; i <= first + per_page && i <= FNR; i++) {
                                 line = sprintf("%s%2d) %-12s", (name[i] in added) ? "*" : " ",
                                                i, name[i])
+                                if (length(name[i]) >= 12)
+                                        line = line " "    # (a long name: a space still)
                                 t = title[i]
                                 room = cols - 1 - length(line)
-                                if (length(t) > room)
-                                        t = (room > 3) ? substr(t, 1, room - 3) "..." : ""
-                                print substr(line t, 1, cols - 1)
+                                if (cut_cols(t, room) != t)
+                                        t = (room > 3) ? cut_cols(t, room - 3) "..." : ""
+                                print cut_cols(line t, cols - 1)
                         }
-                        print substr(note, 1, cols - 1)
+                        print cut_cols(note, cols - 1)
                         if (cols - 1 >= 66)
                                 print "Type numbers to add, as 6 14, or r6 to remove 6; then Enter."
                         else
@@ -657,10 +1003,12 @@ usage() {
         echo "  --list          only list the translations"
         echo "  --source PLACE  where the translations are: a web address, or a folder"
         echo "                  with a copy of bible_databases (default: $SOURCE)"
+        echo "  --names-source PLACE  where the names of languages are (Unicode's CLDR)"
 }
 
 # ---- the arguments
 source=$SOURCE
+names_source=$NAMES_SOURCE
 list_only=no
 names=""
 while [ $# -gt 0 ]; do
@@ -670,6 +1018,9 @@ while [ $# -gt 0 ]; do
                 [ $# -ge 2 ] || { usage >&2; exit 2; }
                 source=$2; shift ;;
         --source=*) source=${1#--source=} ;;
+        --names-source)
+                [ $# -ge 2 ] || { usage >&2; exit 2; }
+                names_source=$2; shift ;;
         --remove)
                 [ $# -ge 2 ] || { usage >&2; exit 2; }
                 names="$names -$2"; shift ;;
@@ -689,7 +1040,7 @@ trap interrupted INT
 resized=0
 trap 'resized=1' WINCH 2> /dev/null     # the window changed size (see read_line)
 
-if ! english_translations; then
+if ! all_translations; then
         printf 'add-translation: %s\n' "$problem"
         if [ -n "$from_ebac" ]; then
                 press_any_key
@@ -699,13 +1050,18 @@ if ! english_translations; then
 fi
 
 if [ $list_only = yes ]; then
-        echo "English translations that can be added to EBaC:"
-        echo
-        listed_translations > "$tmp/listed"
+        echo "Translations that can be added to EBaC, by language:"
+        languages
+        # (print, not printf, for the names: an awk such as macOS's can't
+        # printf text beyond ASCII)
         $AWK -F '\t' 'FILENAME == ARGV[1] { added[$0] = 1; next }
-                { printf "%s%2d) %-12s %s\n", ($1 in added) ? "*" : " ", FNR, $1, $2 }
-                END { print "\n* = added already" }' \
-                "$tmp/listed" "$tmp/list"
+                FILENAME == ARGV[2] { shown[$1] = $2; order[++languages] = $1; next }
+                { names[$2] = names[$2] (($1 in added) ? " *" : " ") $1 }
+                END {
+                        for (i = 1; i <= languages; i++)
+                                print "\n" shown[order[i]] ":" names[order[i]]
+                        print "\n* = added already"
+                }' "$tmp/listed" "$tmp/langs" "$tmp/all"
         exit 0
 fi
 
@@ -713,16 +1069,25 @@ chosen=""
 for word in $names; do         # (by name: numbers are only for the list)
         sign=+
         case $word in -*) sign=-; word=${word#-} ;; esac
-        found=$($AWK -F '\t' -v w="$word" 'tolower($1) == tolower(w) { print $1; exit }' "$tmp/list")
+        found=$($AWK -F '\t' -v w="$word" 'tolower($1) == tolower(w) { print $1; exit }' "$tmp/all")
         if [ -z "$found" ]; then
-                printf '%s: not in the list of English translations.\n' "$word"
+                printf '%s: not in the list of translations.\n' "$word"
                 failed=$((failed + 1))
         else
                 chosen="$chosen $sign$found"
         fi
 done
 if [ -z "$names" ]; then
-        choose
+        # a language, then its translations (Enter alone there: the
+        # languages again)
+        languages
+        while :; do
+                choose_language
+                [ -n "$lang" ] || break
+                translations_of "$lang"
+                choose
+                [ -n "$chosen" ] && break
+        done
         [ -n "$chosen" ] && clear_screen
 fi
 
