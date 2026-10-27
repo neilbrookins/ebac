@@ -905,8 +905,7 @@ importer shows its license and asks the person adding it to agree:
 
   KJV: King James Version (1769)
   License: GPL
-  Details: https://crosswire.org/sword/modules/
-    ModInfo.jsp?modName=KJV
+  Details: https://crosswire.org/sword/modules/ModInfo.jsp?modName=KJV
   Do you agree to these terms (y/n)?
 
   - The license line comes from the translation's README.md in the
@@ -919,7 +918,11 @@ importer shows its license and asks the person adding it to agree:
   - "Details" is the translation's information page at CrossWire,
     whose modules the source is made from: ModInfo.jsp?modName=NAME,
     the name as the source has it (case matters). It is longer than a
-    phone's 52 columns, so it is broken before "ModInfo.jsp".
+    phone's 52 columns, but is printed whole, on one line, for the
+    terminal to wrap: a line broken by the program would take two
+    selections to copy (a double-click selects a wrapped line whole).
+  - The window changing size while the question waits (as a phone's
+    keyboard coming up does, several times) doesn't ask it again.
   - Every translation is asked about, public domain or not: one
     question, the same each time.
   - y adds it. n skips it, says so, and goes on to the next of those

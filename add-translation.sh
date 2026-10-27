@@ -563,8 +563,9 @@ agree() {
         # (print, not printf: the title may be beyond ASCII)
         $AWK -v l="$1: $2" -v cols="$cols" "$CHARS"'BEGIN { print cut_cols(l, cols - 1) }'
         printf 'License: %s\n' "$license_line"
-        # (broken in two, to fit a phone's screen)
-        printf 'Details: %s\n  ModInfo.jsp?modName=%s\n' "$CROSSWIRE" "$1"
+        # (one line, never broken: the terminal wraps it on a narrow screen,
+        # and a double-click still selects it whole, to copy)
+        printf 'Details: %sModInfo.jsp?modName=%s\n' "$CROSSWIRE" "$1"
         if [ "$agree_all" = yes ]; then
                 printf 'Agreed to, with --agree.\n'
                 agreed="with --agree"
@@ -577,9 +578,13 @@ agree() {
         while :; do
                 printf 'Do you agree to these terms (y/n)? '
                 typing_mode
-                read_line
-                status=$?
-                [ $status -eq 2 ] && { resized=0; continue; }   # (resized: ask again)
+                # (the window changing size, as when a phone's keyboard comes
+                # up, isn't an answer: read on, without asking again; what
+                # was typed is kept)
+                resized=0
+                while read_line; status=$?; [ $status -eq 2 ]; do
+                        resized=0
+                done
                 [ $status -eq 1 ] && answer=n                     # (end of input)
                 case $(printf '%s\n' "$answer" | tr 'A-Z' 'a-z') in
                 y|yes) agreed="typed y"; return 0 ;;
