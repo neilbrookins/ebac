@@ -140,6 +140,7 @@ void tty_resume P((void));
 void change_translations P((void));
 int verse_to_book P((long int sequ_verse_number));
 struct bcv_array_type *get_verse P((long int sequ_verse_number));
+FILE *root_fopen P((char *name));
 #ifdef RAMDISK
 struct TEMPFILE *find_word P((char *word, int positions));
 #else
@@ -148,6 +149,7 @@ long int *find_word P((char *word, int positions));
 
 /* process.c */
 void initlogname P((void));
+void load_groups P((void));
 char *get_line P((int mode));
 #ifdef RAMDISK
 struct TEMPFILE *process_words P((void));
@@ -157,6 +159,7 @@ long int *process_words P((void));
 
 /* userint.c */
 int match_it P((char *book_str, int update_screen));
+void print_book_matches P((char *book_str));
 void Erase_word P((int length));
 
 /* curses.c or cure.c */

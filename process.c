@@ -41,7 +41,8 @@ static void exact_oper P((long int n, int mode));
 static int is_exact P((char *arg));
 static void add_rev P((char *word));
 static int del_rev P((void));
-static void store_book P((int bnumber));
+static void store_books P((char *set));
+static int group_set P((char *spec, char *set, int report));
 static int is_operator P((char *arg));
 static int valid_search P((char *line));
 static char *next_term P((char **pos));
@@ -1349,44 +1350,378 @@ static int del_rev(void)
 }
 
 /*
-** store list of every verse in a particular book into element on stack
+** Groups of books (EBaC 2.2): "=nt" in a search is every verse of a group
+** of books, defined in the groups files, and "=rom..phm" every verse from
+** one book to another. See "Groups of books" in readme.architecture.
+**
+** The files are read when a translation is chosen (load_groups()): each
+** line, a name and its members, is kept in groups_text, and found by its
+** name (group_name[], group_members[]). A set of books is a char for each
+** book, TRUE if it is in the set.
 */
-static void store_book(int bnumber)
+#ifndef COCO
+#       define GROUPS_SIZE 8192 /* bytes of the groups files kept */
+#       define MAXGROUPS 64
+#       define MAXSETBOOKS 256  /* the most books a set can hold */
+#else
+#       define GROUPS_SIZE 1024
+#       define MAXGROUPS 24
+#       define MAXSETBOOKS 67
+#endif
+#define MAXGROUPLINE 256
+#define MAXGROUPDEPTH 8         /* groups within groups */
+#define NO_BOOK (-1)            /* book_index(): no such book */
+#define BAD_BOOK (-2)           /* book_index(): an error, reported */
+
+static char groups_text[GROUPS_SIZE];
+static int groups_used = 0, num_groups = 0;
+static char *group_name[MAXGROUPS], *group_members[MAXGROUPS];
+
+static char *keep_text P((char *text));
+static void read_groups P((FILE *file));
+static int find_group P((char *typed, int report));
+static int book_index P((char *typed, char *group, int strict, int report));
+static int members_set P((char *members, char *set, char *group, int depth, int report));
+static int member_set P((char *member, char *set, char *group, int depth, int report));
+
+/* Purpose: keep a copy of text in groups_text. Returns: it, or NULL */
+static char *keep_text(char *text)
+{
+        char *copy;
+
+        if (groups_used + (int) strlen(text) + 1 > GROUPS_SIZE)
+                return (NULL);
+        copy = &groups_text[groups_used];
+        strcpy(copy, text);
+        groups_used += strlen(text) + 1;
+        return (copy);
+}
+
+/*
+** Purpose: read a groups file (if there is one: file may be NULL). Each
+**          group replaces any of the same name read before it. A name is
+**          kept in lower case.
+*/
+static void read_groups(FILE *file)
+{
+        char line[MAXGROUPLINE], *p, *name, *members;
+        int i;
+
+        if (file == NULL)
+                return;
+        while (fgets(line, sizeof(line), file) != NULL)
+        {
+                for (p = line; *p != '\0' && *p != '#' && *p != '\n' &&
+                               *p != '\r'; p++)
+                        ;
+                *p = '\0';              /* (a comment, or the line's end) */
+                for (p = line; *p == ' ' || *p == '\t'; p++)
+                        ;
+                if (*p == '\0')
+                        continue;       /* a blank line */
+                name = p;
+                while (*p != '\0' && *p != ' ' && *p != '\t')
+                {
+                        *p = tolower(UCHAR(*p));
+                        p++;
+                }
+                if (*p != '\0')
+                        *p++ = '\0';
+                while (*p == ' ' || *p == '\t')
+                        p++;
+                members = p;
+                for (; *p != '\0'; p++)
+                        if (*p == '\t')
+                                *p = ' ';       /* (members are split at spaces) */
+                for (i = 0; i < num_groups; i++)
+                        if (strcmp(group_name[i], name) == 0)
+                                break;
+                if (i == num_groups)
+                {
+                        if (num_groups == MAXGROUPS ||
+                            (group_name[i] = keep_text(name)) == NULL)
+                                break;  /* (no room for more) */
+                        num_groups++;
+                }
+                if ((group_members[i] = keep_text(members)) == NULL)
+                {
+                        num_groups = i; /* (no room: this group goes) */
+                        break;
+                }
+        }
+        fclose(file);
+}
+
+/*
+** Purpose: read the groups for the translation now chosen (etla): from
+**          "groups" and "groups.NAME" in the EBaC folder, then "groups" in
+**          the translation's folder, each replacing the groups of the same
+**          name before it.
+*/
+void load_groups(void)
+{
+        char name[80];
+
+        groups_used = num_groups = 0;
+        read_groups(root_fopen("groups"));
+        if (strlen(etla) < sizeof(name) - 8)
+        {
+                sprintf(name, "groups.%s", etla);
+                read_groups(root_fopen(name));
+        }
+        read_groups(fopen("groups", "r"));
+}
+
+/*
+** Purpose: find the group a name, or the start of one, is: one group whose
+**          name starts with it, or whose whole name it is.
+** Returns: the group's index; or -1, if there is none or more than one
+**          (and if report, says so).
+*/
+static int find_group(char *typed, int report)
+{
+        char lower[MAXGROUPLINE];
+        int i, len, count = 0, found = -1, shown = 0;
+
+        for (len = 0; typed[len] != '\0' && len < MAXGROUPLINE - 1; len++)
+                lower[len] = tolower(UCHAR(typed[len]));
+        lower[len] = '\0';
+        for (i = 0; i < num_groups; i++)
+                if (strcmp(group_name[i], lower) == 0)
+                        return (i);     /* its whole name */
+        if (len > 0)
+                for (i = 0; i < num_groups; i++)
+                        if (strncmp(group_name[i], lower, len) == 0)
+                        {
+                                count++;
+                                found = i;
+                        }
+        if (count == 1)
+                return (found);
+        if (report)
+        {
+                if (len == 0)
+                        printf("\n\"=\" needs the name of a group of books after it, as in:  =nt\n");
+                else if (count == 0)
+                        printf("\nThere is no group of books called \"%s\".\n", typed);
+                else
+                {
+                        printf("\n=%s matches ", typed);
+                        for (i = 0; i < num_groups; i++)
+                                if (strncmp(group_name[i], lower, len) == 0)
+                                        printf("%s=%s", ++shown == 1 ? "" :
+                                               shown == count ? " and " : ", ",
+                                               group_name[i]);
+                        printf(". Type more of its name.\n");
+                }
+        }
+        return (-1);
+}
+
+/*
+** Purpose: the book a name, or the start of one, is (as after "@"), for a
+**          group (named, if group isn't NULL) or a range.
+** Returns: the book's index (0 for the first); NO_BOOK if the translation
+**          has none of that name (and if strict, an error: BAD_BOOK); or
+**          BAD_BOOK if it matches more than one. If report, an error is
+**          explained.
+*/
+static int book_index(char *typed, char *group, int strict, int report)
+{
+        char lower[MAXGROUPLINE];
+        int n;
+
+        strncpy(lower, typed, MAXGROUPLINE - 1);
+        lower[MAXGROUPLINE - 1] = '\0';
+        n = (lower[0] == '\0') ? -1 : match_it(lower, FALSE);
+        if (n > 0)
+                return (n - 1);
+        if (n == -1 && !strict)
+                return (NO_BOOK);
+        if (report)
+        {
+                printf("\n");
+                if (group != NULL)
+                        printf("In the group =%s, ", group);
+                else
+                        printf("In the range, ");
+                if (n == -1)
+                        printf("there is no book \"%s\".\n", typed);
+                else
+                {
+                        printf("%s matches ", typed);
+                        print_book_matches(typed);
+                        printf(".\n");
+                }
+        }
+        return (BAD_BOOK);
+}
+
+/*
+** Purpose: the books of one member of a group (or of a search's "=a..b"):
+**          a book, a range a..b, every book (*), or another group (=name),
+**          into set (which it clears first).
+** Returns: FALSE after an error (explained, if report).
+*/
+static int member_set(char *member, char *set, char *group, int depth, int report)
+{
+        char first[MAXGROUPLINE], *dots;
+        int i, a, b, strict = (group == NULL);
+
+        for (i = 0; i < numbooks; i++)
+                set[i] = FALSE;
+        if (strcmp(member, "*") == 0)
+        {
+                for (i = 0; i < numbooks; i++)
+                        set[i] = TRUE;
+                return (TRUE);
+        }
+        if (member[0] == '=')
+        {
+                if (depth >= MAXGROUPDEPTH)
+                {
+                        if (report)
+                                printf("\nThe group =%s refers to itself (through =%s).\n",
+                                       group, &member[1]);
+                        return (FALSE);
+                }
+                if ((i = find_group(&member[1], report)) < 0)
+                        return (FALSE);
+                return (members_set(group_members[i], set, group_name[i],
+                                    depth + 1, report));
+        }
+        if ((dots = strstr(member, "..")) != NULL)
+        {
+                strncpy(first, member, MAXGROUPLINE - 1);
+                first[MAXGROUPLINE - 1] = '\0';
+                first[dots - member] = '\0';
+                if ((a = book_index(first, group, strict, report)) == BAD_BOOK ||
+                    (b = book_index(dots + 2, group, strict, report)) == BAD_BOOK)
+                        return (FALSE);
+                if (a == NO_BOOK || b == NO_BOOK)
+                        return (TRUE);  /* (no such book here: none) */
+                if (a > b)
+                {
+                        if (report)
+                        {
+                                printf("\n");
+                                if (group != NULL)
+                                        printf("In the group =%s, ", group);
+                                printf("%s comes after %s: a range goes from the earlier book.\n",
+                                       first, dots + 2);
+                        }
+                        return (FALSE);
+                }
+                for (i = a; i <= b; i++)
+                        set[i] = TRUE;
+                return (TRUE);
+        }
+        if ((a = book_index(member, group, strict, report)) == BAD_BOOK)
+                return (FALSE);
+        if (a != NO_BOOK)
+                set[a] = TRUE;
+        return (TRUE);
+}
+
+/*
+** Purpose: the books of a group's members (members, as in the groups file),
+**          taken in order from no books: each adds its books, or with "-"
+**          before it takes them away.
+** Returns: FALSE after an error (explained, if report).
+*/
+static int members_set(char *members, char *set, char *group, int depth, int report)
+{
+        char copy[MAXGROUPLINE], *pos, *member;
+        char *add;
+        int i, remove, ok = TRUE;
+
+        if ((add = (char *) malloc(MAXSETBOOKS)) == NULL)
+        {
+                printf("Out of RAM\n");
+                exit_program(1);
+        }
+        for (i = 0; i < numbooks; i++)
+                set[i] = FALSE;
+        strncpy(copy, members, MAXGROUPLINE - 1);
+        copy[MAXGROUPLINE - 1] = '\0';
+        pos = copy;
+        for (member = next_term(&pos); member != NULL; member = next_term(&pos))
+        {
+                remove = (member[0] == '-');
+                if (!member_set(remove ? &member[1] : member, add, group,
+                                depth, report))
+                {
+                        ok = FALSE;
+                        break;
+                }
+                for (i = 0; i < numbooks; i++)
+                        if (add[i])
+                                set[i] = !remove;
+        }
+        free(add);
+        return (ok);
+}
+
+/*
+** Purpose: the books a search's "=" term means (spec, after the "="): a
+**          group, or a range a..b, into set.
+** Returns: FALSE after an error (explained, if report).
+*/
+static int group_set(char *spec, char *set, int report)
+{
+        int g;
+
+        if (numbooks > MAXSETBOOKS)
+        {
+                if (report)
+                        printf("\nThis translation has too many books for groups (%d at most).\n",
+                               MAXSETBOOKS);
+                return (FALSE);
+        }
+        if (strstr(spec, "..") != NULL)
+                return (member_set(spec, set, (char *) NULL, 0, report));
+        if ((g = find_group(spec, report)) < 0)
+                return (FALSE);
+        return (members_set(group_members[g], set, group_name[g], 1, report));
+}
+
+/*
+** store the list of every verse of a set of books (set[i] TRUE for each
+** book in it, as for @book a set of one) into an element on the stack
+*/
+static void store_books(char *set)
 {
 #ifdef RAMDISK
         struct TEMPFILE *book_file;
-        long int cur_node;
 #else
         struct stackptr *stack;
         long int *cur_node;
-        long int i;
 #endif
         struct bcv_type bcv;
-        long int first_verse, last_verse;
+        long int first_verse[MAXSETBOOKS], last_verse[MAXSETBOOKS], v;
+        int i;
 
-        bcv.book_number = bnumber;
-        bcv.chapter_number = 1;
-        bcv.verse_number = 1;
-
-        first_verse = bcv_search(&bcv);
-
-        bcv.book_number = bnumber + 1;
-        bcv.chapter_number = 1;
-        bcv.verse_number = 0;
-
-        last_verse = bcv_search(&bcv);
-/*
-** printf("Storing from: %d to %d. Hit any key.\n", first_verse, last_verse);
-** ugetchar();
-*/
-
-        num_verses = last_verse - first_verse + 1; /* a global variable */
+        num_verses = 0;         /* a global variable */
+        for (i = 0; i < numbooks && i < MAXSETBOOKS; i++)
+        {
+                if (!set[i])
+                        continue;
+                bcv.book_number = i + 1;
+                bcv.chapter_number = 1;
+                bcv.verse_number = 1;
+                first_verse[i] = bcv_search(&bcv);
+                bcv.book_number = i + 2;
+                bcv.chapter_number = 1;
+                bcv.verse_number = 0;
+                last_verse[i] = bcv_search(&bcv);
+                num_verses += last_verse[i] - first_verse[i] + 1;
+        }
 #ifdef RAMDISK
         book_file = tmpopen();
-        for (cur_node = first_verse; cur_node <= last_verse; cur_node++)
-        {
-                fputl(cur_node, book_file->fname);
-        }
+        for (i = 0; i < numbooks && i < MAXSETBOOKS; i++)
+                if (set[i])
+                        for (v = first_verse[i]; v <= last_verse[i]; v++)
+                                fputl(v, book_file->fname);
         fputl(0L, book_file->fname); /* terminate the list */
         push(book_file);
 #else
@@ -1397,15 +1732,15 @@ static void store_book(int bnumber)
              exit_program(1);
         }
         if ((cur_node = stack->node = (long int *) malloc(sizeof(long int) *
-                                (last_verse - first_verse + 2))) == NULL)
+                                (num_verses + 1))) == NULL)
         {
              printf("Out of RAM\n");
              exit_program(1);
         }
-        for (i = first_verse; i <= last_verse; i++)
-        {
-                *cur_node++ = i;
-        }
+        for (i = 0; i < numbooks && i < MAXSETBOOKS; i++)
+                if (set[i])
+                        for (v = first_verse[i]; v <= last_verse[i]; v++)
+                                *cur_node++ = v;
         *cur_node = 0; /* terminate the list */
         stack->width = VERSES;
         stack->next = top;
@@ -1463,7 +1798,8 @@ static int plain_phrase = FALSE;
 */
 static int valid_search(char *line)
 {
-        static char copy[MAXSEARCHLEN];
+        static char copy[MAXSEARCHLEN], name[MAXSEARCHLEN];
+        static char set[MAXSETBOOKS];
         char *arg, *pos;
         char kind[MAXHIGHWORDS + 1];
         int depth = 0;    /* number of results the stack would hold */
@@ -1509,19 +1845,32 @@ static int valid_search(char *line)
                 }
                 if (*arg == '@')
                 {
-                        switch (match_it(&arg[1], FALSE))
+                        strncpy(name, &arg[1], MAXSEARCHLEN - 1);
+                        name[MAXSEARCHLEN - 1] = '\0';
+                        switch (match_it(name, FALSE))
                         {
                         case -1:
                                 printf("\nNo such book: %s\n", &arg[1]);
                                 depth = -1;
                                 break;
                         case 0:
-                                printf("\nNot unique: %s\n", &arg[1]);
+                                printf("\n@%s matches ", &arg[1]);
+                                print_book_matches(&arg[1]);
+                                printf(". Type more of its name.\n");
                                 depth = -1;
                                 break;
                         }
                         if (depth < 0)
                                 break;
+                        books++;
+                }
+                if (*arg == '=')        /* a group of books, or a range */
+                {
+                        if (!group_set(&arg[1], set, TRUE))
+                        {
+                                depth = -1;
+                                break;
+                        }
                         books++;
                 }
                 if (++operands >= MAXHIGHWORDS)
@@ -1530,7 +1879,7 @@ static int valid_search(char *line)
                         depth = -1;
                         break;
                 }
-                kind[depth++] = (*arg == '@') ? 's' : 'w';
+                kind[depth++] = (*arg == '@' || *arg == '=') ? 's' : 'w';
         }
         if (arg == NULL) /* reached the end of the line without an error */
         {
@@ -1595,6 +1944,7 @@ long int *process_words(void)
 #endif
         char *arg;  /* Points to argument within search line */
         int i;
+        static char set[MAXSETBOOKS];   /* the books of @book or =group */
         char end_of_list;
         int book_number;
         int terms = 0; /* words, books and operators in the search */
@@ -1652,9 +2002,17 @@ long int *process_words(void)
                         default:
 /* this add_rev() is a kluge so the and_not doesn't remove wanted stuff */
                                 add_rev("xyzzy");
-                                store_book(book_number);
+                                for (i = 0; i < numbooks && i < MAXSETBOOKS; i++)
+                                        set[i] = (i == book_number - 1);
+                                store_books(set);
                                 break;
                         }       
+                }
+                else if (*arg == '=')   /* a group of books, or a range */
+                {
+                        group_set(&arg[1], set, FALSE); /* (valid_search() checked it) */
+                        add_rev("xyzzy");
+                        store_books(set);
                 }
                 else if (strlen (arg) > 0)
                 {

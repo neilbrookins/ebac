@@ -1,0 +1,6 @@
+# groups.KJVA -- groups of books for the King James Version with the
+# Apocrypha (KJVA), replacing those of the same name in "groups". Its
+# Apocrypha is a section of its own, between Malachi and Matthew.
+
+apocrypha       1es..2ma        # I Esdras to II Maccabees
+ot              * -=nt -=apocrypha

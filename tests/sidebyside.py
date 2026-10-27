@@ -96,7 +96,14 @@ SCENARIOS = [
                                  "s", "jesus wept ~1\r", "x", "s", "love hate +0\r", "x", "e"]),
     ("invalid: phrase",         ["s", "love hate 0 god .\r", " ", "s", "in the beginning . .\r", " ",
                                  "s", "@gen in .\r", " ", "s", "in .\r", " ", "e"]),
-    ("invalid: unknown book",   ["s", "amen @zzz 0\r", " ", "e"]),
+    ("invalid: unknown book",   ["s", "amen @zzz 0\r", " ", "s", "amen @1t 0\r", " ", "e"]),
+    # groups of books (=name, from the file "groups") and ranges (=a..b)
+    ("groups of books",         ["s", "=nt\r", "x", "s", "faith =ot 0\r", "x", "s", "love =go 0\r", " ", "x",
+                                 "s", "=rom..phile\r", " ", "p", "x", "s", "=n =go -\r", "x", "e"]),
+    ("groups with operators",   ["s", "grace =paul 0 =pastoral -\r", "x", "s", "amen =law 0 =john ,\r", "x",
+                                 "s", "love hate 2 =minorprophets 0\r", "x", "s", "in the . beginning . =joh 0\r", "x", "e"]),
+    ("invalid: groups",         ["s", "=p\r", " ", "s", "=x\r", " ", "s", "=\r", " ", "s", "=rom..phm\r", " ",
+                                 "s", "=phile..rom\r", " ", "s", "love =g 0\r", " ", "e"]),
     ("change translation",      ["c", "1", "s", "amen\r", "x", "e"]),
     # Keys that send ESC sequences (TERM=xterm, so terminfo gives ESC O x),
     # plus the Linux-console forms (ESC [ x), which are accepted too.
@@ -247,6 +254,9 @@ def main():
         with open(os.path.join(bibleroot, "trans"), "w") as f:
             f.writelines(av)
         os.symlink(os.path.join(repo, "AV"), os.path.join(bibleroot, "AV"))
+        # the groups of books (=nt), as given with EBaC
+        if os.path.exists(os.path.join(repo, "groups")):
+            os.symlink(os.path.join(repo, "groups"), os.path.join(bibleroot, "groups"))
     fails = 0
     try:
         for name, keys in SCENARIOS:

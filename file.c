@@ -76,8 +76,15 @@ long int offset; /* number of bytes offset from the beginning of a book that
                     a particular verse begins at. */
 int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
 
+#ifdef MSDOS
+#	define SLASH '\\'
+#else
+#	define SLASH '/'
+#endif
+
 /* functions used only in this file */
 static void open_new_trans P((void));
+static void print_trans P((int i, int used));
 static int index_format_ok P((char *name));
 static int next_number P((FILE *file, long int *n));
 static long int getcvarraydat P((long int sequ_verse_number));
@@ -662,6 +669,28 @@ static int index_format_ok(char *name)
 }
 
 /*
+** Purpose: open a file in the EBaC folder (BIBLEROOT), such as "groups",
+**          for reading, from the translation's folder (where EBaC is).
+** Returns: the file, or NULL if there is none.
+*/
+FILE *root_fopen(char *name)
+{
+        char path[1024 + 64];
+
+        if (strlen(name) > 60)
+                return (NULL);
+#ifdef UNIXV
+        if (root_dir[0] != '\0')
+        {
+                sprintf(path, "%s%c%s", root_dir, SLASH, name);
+                return (fopen(path, "r"));
+        }
+#endif
+        sprintf(path, "..%c%s", SLASH, name);
+        return (fopen(path, "r"));
+}
+
+/*
 ** The index files: their formats, and why, are in readme.architecture.
 ** Every number in bvarray.dat and chapter.dat is 4 bytes.
 */
@@ -746,6 +775,8 @@ static void open_new_trans(void)
         references_file = mfopen("references.dat", READMODE);
         position_file = mfopen("position.dat", READMODE);
         plainpos_file = mfopen("plainpos.dat", READMODE);
+
+        load_groups();  /* the groups of books (=nt), for this translation */
 }
 
 /*
@@ -759,19 +790,29 @@ static void open_new_trans(void)
 **          number needs Enter, "transenter" (for the Home Assistant app's
 **          gestures; see scr_mode()).
 */
+/*
+** Purpose: print a translation's line of 'trans' (number i), on one line:
+**          cut to the window's width, where used columns are taken already.
+*/
+static void print_trans(int i, int used)
+{
+	int k, w;
+
+	for (k = 0, w = used; trans[i][k] != '\n' && trans[i][k] != '\0' &&
+	     w < s_cols - 1; k++, w++)
+		putchar(trans[i][k]);
+	putchar('\n');
+}
+
 void change_translations(void)
 {
-#ifdef MSDOS
-#	define SLASH '\\'
-#else
-#	define SLASH '/'
-#endif
 	static char digit_letters[] = "qwertyuiop"; /* stand for 1-9, 0 */
 	int i = -1;
 	int c; /* character the user types */
 	int n; /* number the user selects */
 	int count; /* how many translations there are */
-	int per_page, first, k, typed, w;
+	int per_page, first, typed;
+	int spaced;     /* a blank line between the translations */
 	char *digit;
 	char new_dir[1024 + MAX_ETLA + 2]; /* example: ../nrsv */
 	char name[MAX_ETLA];    /* the translation chosen */
@@ -790,12 +831,29 @@ void change_translations(void)
 			printf("Please select the number of the translation desired:\n\n");
 		else
 			printf("Choose a translation:\n\n");
+		/*
+		** With a blank line between the translations, each is easy to
+		** tap on a touch screen, as on the main menu (see gestures.js in
+		** the Home Assistant app): when they all fit on the screen so.
+		** Otherwise one to a line, as many as fit. The window's size is
+		** looked at again whenever it changes (a phone turned, say).
+		*/
 		if (count <= 9)
 		{
+			spaced = (2 * count + 2 <= s_lines); /* heading, list, cursor */
 			for (i = 0; i < count; i++)
-				printf("%d) %s", i + 1, trans[i]);
+			{
+				if (spaced && i > 0)
+					putchar('\n');
+				printf("%d) ", i + 1);
+				print_trans(i, 3);
+			}
 			scr_mode("trans");
+			redraw_on_resize = TRUE;
 			c = ugetchar();
+			redraw_on_resize = FALSE;
+			if (c == KEY_REDRAW)
+				continue;       /* drawn again, for the new size */
 			if (!isdigit(c) && (digit = find_char(digit_letters, tolower(c))) != NULL)
 				c = "1234567890"[digit - digit_letters];
 			if (!isdigit(c))
@@ -805,8 +863,10 @@ void change_translations(void)
 				return;
 			break;
 		}
-		/* a page: as many as fit between the heading and the prompt */
-		per_page = s_lines - 4;
+		/* a page: as many as fit between the heading and the prompt
+		   (all of them, spaced, if they fit so) */
+		spaced = (2 * count - 1 <= s_lines - 4);
+		per_page = spaced ? count : s_lines - 4;
 		if (per_page < 1)
 			per_page = 1;
 		if (first >= count)
@@ -814,12 +874,10 @@ void change_translations(void)
 		first -= first % per_page;
 		for (i = first; i < count && i < first + per_page; i++)
 		{
+			if (spaced && i > first)
+				putchar('\n');
 			printf("%2d) ", i + 1);
-			/* one line each: cut to the window's width */
-			for (k = 0, w = 4; trans[i][k] != '\n' && trans[i][k] != '\0' &&
-			     w < s_cols - 1; k++, w++)
-				putchar(trans[i][k]);
-			putchar('\n');
+			print_trans(i, 4);
 		}
 		printf("\n");
 		if (s_cols - 1 >= 62)

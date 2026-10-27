@@ -1,0 +1,36 @@
+# groups -- groups of books for EBaC's searches: "=nt" is every verse of
+# the group nt (EBaC 2.2). See "Groups of books" in readme.architecture.
+#
+# One group to a line: its name, then its members, which are taken in
+# order, starting from no books:
+#
+#   rom        a book, written as after "@" (enough of its name to be
+#              unique; a number may stand for a Roman numeral: 1co)
+#   rom..phil  the books from one to the other, in the translation's order
+#   *          every book
+#   =nt        the books of another group
+#   -member    takes those books away again
+#
+# A book the translation doesn't have is left out. A group's name may be
+# shortened in a search to as many letters as make it unique ("=n", "=go").
+#
+# These are for every translation. groups.NAME (such as groups.KJVA), or
+# "groups" in a translation's folder, replaces any of them for one
+# translation whose publisher arranges its books differently.
+
+ot              * -=nt          # the Old Testament: all but the New,
+                                # as each translation arranges its books
+nt              mat..rev        # the New Testament
+
+law             gen exo lev num deu
+history         jos judg ruth 1sa 2sa 1ki 2ki 1ch 2ch ezr neh est
+poetry          job psa pro ecc son
+majorprophets   isai jer lam eze dan
+minorprophets   hos joe amo oba jon mic nah hab zep hag zec mal
+
+gospels         mat mar luk joh
+synoptics       mat mar luk
+paul            rom..phile      # Romans to Philemon
+pastoral        1ti 2ti tit
+general         jam..jude       # James to Jude
+john            joh 1jo 2jo 3jo rev

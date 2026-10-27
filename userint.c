@@ -18,7 +18,7 @@
 ** or from version.txt in a downloaded archive), as EBAC_COMMIT, and a
 ** package such as the Home Assistant app can name itself in EBAC_PACKAGE.
 */
-#define EBAC_RELEASE "2.1"
+#define EBAC_RELEASE "2.2"
 #ifndef EBAC_COMMIT
 #       define EBAC_COMMIT ""
 #endif
@@ -198,6 +198,46 @@ static int number_matches(char *typed, char *name)
         return (TRUE);
 }
 
+/*
+** Purpose: does a partial bookname, in lower case, match the start of a
+**          book's name (any case), or (see number_matches()) its number?
+*/
+static int name_starts(char *typed, char *name)
+{
+        int i;
+
+        for (i = 0; typed[i] != '\0'; i++)
+                if (tolower(UCHAR(name[i])) != typed[i])
+                        return (number_matches(typed, name)); /* (name[i] '\0' too) */
+        return (TRUE);
+}
+
+/*
+** Purpose: print the names of the books a partial bookname matches, for an
+**          error: "1Thessalonians, 1Timothy and 1Peter".
+*/
+void print_book_matches(char *book_str)
+{
+#ifndef COCO
+        extern struct bva *book;
+#else
+        extern struct bva book[];
+#endif
+        char typed[MAXWORDLEN];
+        int i, count = 0, shown = 0;
+
+        for (i = 0; i < MAXWORDLEN - 1 && book_str[i] != '\0'; i++)
+                typed[i] = tolower(UCHAR(book_str[i]));
+        typed[i] = '\0';
+        for (i = 0; i < numbooks; i++)
+                if (name_starts(typed, book[i].name))
+                        count++;
+        for (i = 0; i < numbooks; i++)
+                if (name_starts(typed, book[i].name))
+                        printf("%s%s", ++shown == 1 ? "" :
+                               shown == count ? " and " : ", ", book[i].name);
+}
+
 /* Purpose: Takes a partial, or complete, bookname and sees how many
             books begin with that string. Prints partial string to the
             screen, or if match is unique prints complete name.
@@ -228,9 +268,8 @@ int match_it(char *book_str,
 #else
         extern struct bva book[];
 #endif
-        int i, j, savei = 0, len_str;
+        int i, savei = 0;
         int count = 0;  /* Number of matches found */
-        char lower_name[MAXWORDLEN];
 
 	if (update_screen)
         	Erase_word(last_len);
@@ -244,14 +283,7 @@ int match_it(char *book_str,
 
                 for (i = 0; i < numbooks; i++)
                 {
-                        len_str = strlen(book[i].name);
-                        for (j = 0; j <= len_str; j++)
-                                lower_name[j] = tolower(UCHAR(book[i].name[j]));
-/*
-**printf("%s--%s--%d--%s\n", book[i].name, lower_name, len_str, book_str);
-*/
-                        if (!(strncmp(lower_name, book_str, strlen(book_str))) ||
-                            number_matches(book_str, book[i].name))
+                        if (name_starts(book_str, book[i].name))
                         {
                                 count++;
                                 savei = i;
@@ -1446,6 +1478,7 @@ printf("CTRL-a or CTRL-x  beginning            CTRL-e or CTRL-r  end\n");
 printf("CTRL-u  undo line                      CTRL-d  delete\n");
 #endif
 printf("\nPrefix bookname with \"@\", as in: @Genesis\n");
+printf("A group of books with \"=\", as in: =nt  =ot  =gospels  =rom..phile\n");
 printf("Words alone are a phrase, as in: in the beginning\n");
 printf("Use postfix (reverse Polish) notation to combine words with operators:\n");
 printf("   0  and (same verse)     N  within N verses      ,  or\n");

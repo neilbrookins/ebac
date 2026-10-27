@@ -216,9 +216,13 @@ Searches use postfix (reverse Polish) notation. Put the operator after the two t
 | `cain abel +1` | "abel" in the verse after one with "cain" (and both verses) |
 | `amen @rev 0` | "amen" in the book of Revelation |
 | `food @gen -` | "food" anywhere except Genesis |
-| `@mat @mar , @lu , @joh , blessed 0` | "blessed" in the four Gospels |
+| `blessed =gospels 0` | "blessed" in the four Gospels (a group of books) |
+| `faith =nt 0` | "faith" in the New Testament |
+| `grace =rom..phile 0` | "grace" from Romans to Philemon (a range of books) |
 
 Operators: a number for AND (`0` = same verse; `2` = within two verses, either way), `+2`, `-2` and `~2` for exactly two verses after, before, or apart either way, `,` for OR, `-` for AND NOT, and `.` for a phrase: the word just before it comes next. Books are written `@` plus enough of the name to be unique.
+
+Groups of books are written `=` plus enough of the group's name to be unique (`=n`, `=go`), and a range of books `=` plus two books (`=rom..phile`, in the translation's own order). The groups are defined in the file `groups`, not in the program: `ot` and `nt`; `law`, `history`, `poetry`, `majorprophets` and `minorprophets`; `gospels`, `synoptics`, `paul`, `pastoral`, `general` and `john`. Each translation keeps its own arrangement of books: the Old Testament of the Douay-Rheims Bible includes Tobit and the others, as published, and the King James Version with the Apocrypha (KJVA) has `apocrypha` as well, from `groups.KJVA`. Edit `groups` to add your own; [readme.architecture](readme.architecture) describes the file.
 
 Phrases find words next to each other, in order, whatever the punctuation between them, and they run on from the end of one verse into the start of the next (so a phrase broken by a verse number is still found), across chapters and books too. Words in [square brackets] (in the King James Version, the words its translators supplied, in italics in printed Bibles) may be left out or included: `darkness upon the face` and `darkness was upon` both find Genesis 1:2, "darkness [was] upon the face of the deep". In a search with other operators, build a phrase with `.` after each word but the first: `in the . beginning .`. How the index makes this possible is in [readme.architecture](readme.architecture). If a search is malformed, EBaC tells you what is wrong. While typing a search, **Up** and **Down** (or CTRL-G and CTRL-V) recall earlier searches, which are kept in `~/.ebac_log`. **Left**, **Right**, **Home**, **End** and **Delete** edit the line. CTRL-B, CTRL-F, CTRL-A or CTRL-X, CTRL-E or CTRL-R, and CTRL-D do the same.
 

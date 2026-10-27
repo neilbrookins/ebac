@@ -6,6 +6,36 @@ changed between versions and why, so that the reasons are not lost.
 It is plain text, to be read with any editor.
 
 
+EBaC 2.2 compared with EBaC 2.1
+-------------------------------
+
+  EBaC 2.1   index format 2
+  EBaC 2.2   index format 2 (unchanged: no index needs to be made again)
+
+  1. Groups of books. "=name" in a search is every verse of a group of
+     books, as "@name" is every verse of one book: "faith =nt 0" finds
+     "faith" in the New Testament. The groups are defined in data
+     files, not in the program: each translation's books are its own,
+     with its own names and order, so a group is written with the same
+     short book names that are typed after "@" (see "Groups of books"
+     below).
+
+  2. Ranges of books. "=rom..phm" in a search is every verse from
+     Romans to Philemon, in the translation's own order.
+
+  3. Numbers for Roman numerals in book names. A number typed at the
+     start of a book's name also matches a Roman numeral of the same
+     value at the start of a name: "2th" matches IIThessalonians as
+     well as 2Thessalonians, so the same typing works in every
+     translation. This is so at the book prompt and after "@" (and in
+     the groups files). Only that way round: "i" still matches only an
+     I, so that in the King James Version "is" is still Isaiah alone
+     (with I for 1 too, "is" and "isa" would match 1Samuel as well).
+
+  4. A name that matches more than one book or group is an error that
+     says what it matches: "=p matches paul, pastoral and poetry".
+
+
 EBaC 2.1 compared with EBaC 2.0
 -------------------------------
 
@@ -247,6 +277,8 @@ operator pops two lists and pushes the result. The operators:
   , or |         OR
   - or !         AND NOT (a "-" alone: "-" with a number is the above)
   @book          (an operand, not an operator) every verse of the book
+  =group         (2.2; an operand) every verse of a group of books, or
+  =a..b          of the books from a to b (see "Groups of books")
   .              (2.1) phrase: the second word right after the first
 
 The distance operators list the verses that match from both sides, as
@@ -332,6 +364,90 @@ the existing operators):
 
 Highlighting. As before, every word searched for is shown in reverse
 video wherever it appears in the verses found.
+
+
+Groups of books
+---------------
+
+(EBaC 2.2.) "=name" is every verse of a group of books; "=a..b" every
+verse from book a to book b, in the translation's own order. "@" stays
+for one book, and "=" for more than one: a different mark, so that no
+group's name can ever be mistaken for a book's, whatever books a
+translation (or one added later) may have.
+
+Names. A group's name, like a book's, may be shortened to as many
+letters as make it unique among the groups, or typed in full: "=n" or
+"=nt", "=go" for the gospels. Case doesn't matter. If what is typed is
+the whole name of one group and the start of others, it is that group.
+A name that matches several groups, or none, is an error, reported
+before the search is done (by valid_search()), with what it matches.
+
+Why data, not code. Translations differ in their books' names
+(Revelation, RevelationofJoh), their numbers (1Thessalonians,
+IThessalonians), which books they have (a New Testament alone; the
+Apocrypha) and their order: most put Genesis to Malachi, then Matthew
+to Revelation; the KJV with the Apocrypha (KJVA) puts the Apocrypha
+between the two; the Douay-Rheims Bible and the CPDV have Tobit,
+Judith, Wisdom and the others among the books of the Old Testament, as
+they are published; and the JPS Bible has the Hebrew order (the Law,
+the Prophets, the Writings), so that Malachi is not its last book. The
+source of the translations (see "The translation importer") gives each
+book only its name. So no rule in the program could say which books
+are the Old Testament; the groups files do, in the same short names
+that are typed after "@", which work across spellings.
+
+The groups files. Plain text, one group to a line:
+
+  name   member member ...
+
+after "#", the rest of a line is a comment. A member is
+
+  rom        a book, as typed after "@" (unique among the books)
+  rom..phm   the books from the one to the other, in order
+  *          every book
+  =nt        the books of another group
+  -member    takes those books away (from the members before it)
+
+and the members are taken in order, from no books at all. So the
+Old Testament is "ot * -=nt": every book but the New Testament's, in
+whatever arrangement a translation has.
+
+A member that names no book of the translation, or a range with an end
+that does, is left out without an error: "=nt" in the JPS Bible is no
+books, and finds no verses. A member that names more than one book is
+an error, naming the group and the books; so is a range from a later
+book to an earlier one, and a group that refers back to itself.
+
+Three files are read, each one's groups replacing any of the same name
+before it:
+
+  groups          in the EBaC folder (beside trans): every translation
+  groups.NAME     in the EBaC folder: one translation (NAME, such as
+                  KJVA), for one whose publisher arranges its books
+                  differently from the rest
+  NAME/groups     in the translation's folder: the same, kept with it
+
+They are read when a translation is chosen, into memory; a search
+looks a group up there, and its books' verses come from bvarray.dat,
+as an @book's do. Nothing is read in sequence at search time.
+
+How a group is searched. Its books' verses, in the books' order, are
+pushed as one verse list, so the rest of the search is as for @book,
+in both builds.
+
+The groups given. In "groups":
+
+  ot   * -=nt                 nt   mat..rev
+  law  the five books of Moses
+  history, poetry, majorprophets, minorprophets
+  gospels, synoptics, paul, pastoral, general, john
+
+The Old Testament's are listed book by book, not as ranges, so that
+they are right in the Hebrew order too; the New Testament's order is
+the same in every translation. In "groups.KJVA": apocrypha, the books
+between Malachi and Matthew (published there as a section of their
+own), and ot without them. The Douay-Rheims Bible and the CPDV need no
+file: their Old Testament is every book before Matthew, as published.
 
 
 Widths in the program
@@ -444,3 +560,21 @@ was written:
     bytes, so that the three files are laid out alike.
   - Both builds (NORAMDISK, RAMDISK) are kept alike; that is a high
     priority.
+
+Settled in a second review (October 2026), for EBaC 2.2:
+
+  - Groups of books are defined in data files, never in the program,
+    so that they can be right for every translation and changed
+    without changing the program.
+  - "@" is for one book and "=" for a group or a range, so that a
+    group's name can never clash with a book's, now or in a translation
+    added later.
+  - A group's name may be shortened as a book's may: as many letters
+    as make it unique. Every keystroke counts. An ambiguous name is an
+    error that lists what it matches.
+  - Each translation's books are taken as its publisher arranges them
+    (Tobit in the Old Testament of the Douay-Rheims Bible and the
+    CPDV; the Apocrypha as a section of its own in the KJVA), not made
+    alike.
+  - A number for a Roman numeral, in book names, one way only (see
+    "EBaC 2.2 compared with EBaC 2.1", point 3).
