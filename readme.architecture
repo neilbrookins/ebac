@@ -804,6 +804,35 @@ and "which translation is this?" / "what translation are you reading?".
     verse's reference as well as the first's.
   - "Which translation": its name and title, then the others installed.
 
+A search's results, as on EBaC's screens (design review of October 2026).
+EBaC has two levels: the list a search finds, and a verse picked from
+it, read with the verses around it; x goes back to the list where it was
+left. By voice, each device keeps both: the verse it is reading (the
+place, as above) and the last search (its words, the translation, how
+many verses, and which result it is at). Not the list itself: a search
+for "the" finds 27,000 verses; each step asks ebac-api for the results
+it needs (search?q=...&start=6&max=5).
+
+  search the Bible for WORDS   one verse: read; several: "3 verses have
+                               WORDS: 1, Matthew 26:75; 2, Mark 14:72;
+                               3, John 11:35", five at a time
+  more results / earlier       the next or the previous five
+    results
+  result two / the second      that result, as "Result 2 of 3. Mark
+    result                     chapter 14, verse 72. ..."; it becomes
+                               the place, for "next verse"
+  next result / previous       the result after or before the one at
+    result
+  next verse / previous verse  within the passage, as now; the search
+                               keeps its own place
+  back to the results          the five around the result at, and which
+                               that was
+
+After the translation is changed, the same words are searched again in
+the new one (its results differ), from its first result. "next result"
+used to be taken by Home Assistant's media player ("no device is
+playing"): EBaC's sentence is matched first now.
+
 5. Not yet
 
 Languages other than English, for the sentences and the spoken numbers

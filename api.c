@@ -660,6 +660,8 @@ static void search(void)
 {
         char q[256];                    /* (MAXSEARCHLEN, in process.c) */
         long max = number_param("max", 10), count = 0, i;
+        long start = number_param("start", 1);  /* (the first wanted: 1 for
+                                                   the first result) */
         long int *list;
         int len;
 
@@ -679,11 +681,14 @@ static void search(void)
         printf(", \"count\": %ld", count);
         if (count_word[0] != '\0')
                 printf(", \"word\": \"%s\", \"times\": %ld", count_word, num_found);
-        printf(", \"verses\": [");
-        for (i = 0; i < count && i < max; i++)
+        if (start < 1)
+                start = 1;
+        printf(", \"start\": %ld, \"verses\": [", start);
+        /* each with its whole reference: results aren't a passage */
+        for (i = start - 1; i < count && i < start - 1 + max; i++)
         {
-                printf(i > 0 ? ",\n  " : "\n  ");
-                print_verse(list[i], TRUE);
+                printf(i > start - 1 ? ",\n  " : "\n  ");
+                print_verse(list[i], 0L);
         }
         printf("]}\n");
 }
