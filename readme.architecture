@@ -862,7 +862,11 @@ names, and in each language for its own name, as "espanol" with an
 accent for es). A code is looked up as CLDR writes it (zh-Hant: a
 script with a capital), or else the code before its "-" (cop for
 cop-sa, then shown with the code: "Coptic [cop-sa]"); a code CLDR has no
-names for is shown as it is (hbo). The names are kept in
+names for gets its English name from IANA's registry of language codes
+(BCP 47, the Language Subtag Registry: "Subtag: hbo", "Description:
+Ancient Hebrew"; EBaC 2.4.1), fetched only when there is such a code,
+and kept in the cache like the rest; a code neither names is shown as
+it is. The names are kept in
 languages.cache, beside the importer, so that the list comes up at once:
 a language's names are fetched the first time its code appears, and all
 of them again after a month. (Its first line says what it is: in 2.3.2,

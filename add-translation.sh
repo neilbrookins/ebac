@@ -91,7 +91,11 @@ LIST_PATH=docs/main_readme/translation_list.md
 # Unicode's Common Locale Data Repository (CLDR): the list of translations
 # gives each one's language only as a code (such as es).
 NAMES_SOURCE=https://raw.githubusercontent.com/unicode-org/cldr-json/main/cldr-json/cldr-localenames-full/main
-CACHE_FORMAT="# languages.cache: code, English name, own name, code named (EBaC 2.3.3)"
+# For a code Unicode has no names for (hbo, ancient Hebrew; tsg, Tausug):
+# its English name from IANA's registry of language codes (BCP 47), which
+# names every code.
+REGISTRY_SOURCE=https://www.iana.org/assignments/language-subtag-registry
+CACHE_FORMAT="# languages.cache: code, English name, own name, code named (EBaC 2.4.1)"
 
 here=$(cd "$(dirname "$0")" && pwd)
 
@@ -440,6 +444,31 @@ language_names() {
                         print code "\t" e "\t" o "\t" (shorter ? base : code)
                 }' "$tmp/en.json" "$tmp/own.json" >> "$cache" 2> /dev/null
         done
+        # Codes Unicode has no English name for: IANA's, from its registry
+        # (records between %% lines: "Type: language", "Subtag: hbo",
+        # "Description: Ancient Hebrew"; the first description is the name)
+        unnamed=$($AWK -F '\t' '$1 !~ /^#/ && $2 == "" { print $1 }' "$cache")
+        if [ -n "$unnamed" ] &&
+           fetch_from "$REGISTRY_SOURCE" "language-subtag-registry" "$tmp/registry"; then
+                $AWK -F '\t' -v OFS='\t' '
+                FILENAME == ARGV[1] {
+                        if ($0 ~ /^%%/) { type = ""; tag = ""; next }
+                        if ($0 ~ /^Type: /) type = substr($0, 7)
+                        else if ($0 ~ /^Subtag: /) tag = tolower(substr($0, 9))
+                        else if ($0 ~ /^Description: / && type == "language" &&
+                                 tag != "" && !(tag in name))
+                                name[tag] = substr($0, 14)
+                        next
+                }
+                $1 !~ /^#/ && $2 == "" {
+                        base = $1
+                        sub(/-.*/, "", base)
+                        if ($1 in name) { $2 = name[$1]; $4 = $1 }
+                        else if (base in name) { $2 = name[base]; $4 = base }
+                }
+                { print }' "$tmp/registry" "$cache" > "$tmp/cache" &&
+                        cat "$tmp/cache" > "$cache"
+        fi
         return 0
 }
 
