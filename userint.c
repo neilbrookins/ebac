@@ -707,9 +707,27 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
            if (bcv_arrays->book_array[0] != '\0' &&
               (top_of_screen || strcmp(bcv_arrays->book_array, previous_book)))
            {
+              int indent, width;
+
               if (top_of_screen == FALSE)
                  printf("\n");
-              printf("                            ");
+              /* 28 spaces on a screen of 80 columns or more; one fewer
+                 for every 2 columns less (14 on a phone's 52), and never
+                 so many that the heading wraps */
+              indent = 28;
+              if (s_cols < 80)
+                 indent -= (80 - s_cols) / 2;
+              width = u8_cols(bcv_arrays->book_array, strlen(bcv_arrays->book_array)) +
+                      3 + strlen(etla);       /* (and " (AV)") */
+              if (isdigit(UCHAR(bcv_arrays->book_array[0])) &&
+                  isupper(UCHAR(bcv_arrays->book_array[1])))
+                 width++;                     /* ("1 John") */
+              if (indent > s_cols - 1 - width)
+                 indent = s_cols - 1 - width;
+              if (indent < 0)
+                 indent = 0;
+              while (indent-- > 0)
+                 putchar(' ');
               underline();
 				  if (isdigit (UCHAR(bcv_arrays->book_array[0])) &&
 					   isupper (UCHAR(bcv_arrays->book_array[1])) &&
