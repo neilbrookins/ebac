@@ -854,9 +854,12 @@ add_to() {
 
 # Tell the web page EBaC runs in, in the Home Assistant app, that the user
 # is typing a line (see scr_mode() in curses.c): a tap brings up the phone's
-# keyboard, and a swipe left erases a character.
+# keyboard. typing_mode alone: a swipe left erases a character (as at the
+# license question). typing_mode addlist: one of the lists of languages and
+# translations, where a swipe up is the next page (n, Enter), down the
+# previous (p, Enter), and left or right Enter (what was typed, or back).
 typing_mode() {
-        [ -n "${EBAC_GESTURES:-}" ] && printf '\033]7766;input\007'
+        [ -n "${EBAC_GESTURES:-}" ] && printf '\033]7766;%s\007' "${1:-input}"
         return 0
 }
 
@@ -974,7 +977,7 @@ choose_language() {
                         [ $pages -gt 1 ] && pg="n/p: page; "
                         printf '(%sEnter: %s): ' "$pg" "$back"
                 fi
-                typing_mode
+                typing_mode addlist
                 read_line
                 [ $? -eq 2 ] && continue        # resized: draw the list again
                 note=""
@@ -1067,7 +1070,7 @@ choose() {
                         [ $pages -gt 1 ] && pg="n/p: page; "
                         printf '(%sEnter: %s): ' "$pg" "$back"
                 fi
-                typing_mode
+                typing_mode addlist
                 read_line
                 [ $? -eq 2 ] && continue        # resized: draw the list again
                 note=""
