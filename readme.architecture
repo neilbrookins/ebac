@@ -652,7 +652,7 @@ with {"error": "..."}):
                           reference and text as to be read aloud
                           (brackets and braces taken out, "John chapter
                           3, verse 16."; after the first verse, only what
-                          is new: "Verse 17.", "Chapter 4, verse 1.")
+                          is new: "17.", "Chapter 4, verse 1.")
   /next?svn=N&n=1&t=AV    the n verses after SVN N (the SVN runs on
                           across chapters and books, so after John 3:36
                           comes John 4:1); /previous likewise. Verses

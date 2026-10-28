@@ -316,7 +316,9 @@ static int has_text(long svn)
 */
 /* Purpose: print verse svn as JSON; its "spoken" form says as much of
    the reference as is new since the verse before (prev; 0 for none): the
-   book and chapter, the chapter, or only the verse */
+   book and chapter, the chapter, or only the verse's number ("16.", not
+   "Verse 16.": in a run of verses, the word again and again distracts
+   from the text, and the numbers counting up say what they are) */
 static void print_verse(long svn, long prev)
 {
         struct bcv_array_type *v;
@@ -339,8 +341,8 @@ static void print_verse(long svn, long prev)
         else if (strcmp(prev_chapter, v->chapt_array) != 0)
                 sprintf(spoken, "Chapter %s, verse %s. %s", v->chapt_array,
                         v->verse_array, text);
-        else
-                sprintf(spoken, "Verse %s. %s", v->verse_array, text);
+        else            /* (the next of a run: its number alone, "16.") */
+                sprintf(spoken, "%s. %s", v->verse_array, text);
         printf("{\"ref\": ");
         sprintf(text, "%s %s:%s", name, v->chapt_array, v->verse_array);
         json_string(text);
