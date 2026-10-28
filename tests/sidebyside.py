@@ -105,6 +105,7 @@ SCENARIOS = [
     ("invalid: groups",         ["s", "=p\r", " ", "s", "=x\r", " ", "s", "=\r", " ", "s", "=rom..phm\r", " ",
                                  "s", "=phile..rom\r", " ", "s", "love =g 0\r", " ", "e"]),
     ("change translation",      ["c", "1", "s", "amen\r", "x", "e"]),
+    ("default translation",     ["c", "d", "1", "e"]),
     # Keys that send ESC sequences (TERM=xterm, so terminfo gives ESC O x),
     # plus the Linux-console forms (ESC [ x), which are accepted too.
     ("arrow keys edit line",    ["s", "lovx\x7f", "e\x1bOD\x1bOD\x1b[C", "Z", "\x1bOH", "\x1b[3~",

@@ -144,6 +144,7 @@ void tty_suspend P((void));
 void tty_resume P((void));
 #endif
 void change_translations P((void));
+extern int default_translation_set;   /* (see make_default(), in file.c) */
 int verse_to_book P((long int sequ_verse_number));
 struct bcv_array_type *get_verse P((long int sequ_verse_number));
 FILE *root_fopen P((char *name));

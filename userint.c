@@ -121,7 +121,14 @@ static int main_menu(void)
         cls();
         printf("\n\n");
         printf("Welcome to EBaC, Electronic Bible and Concordance\n");
-        printf("Selected translation: %s\n", etla);
+        printf("Selected translation: %s", etla);
+        /* just made the default (d and a number, on C)hange: said once */
+        if (default_translation_set > 0)
+                printf(", now the default");
+        else if (default_translation_set < 0)
+                printf(" (couldn't make it the default: trans)");
+        default_translation_set = 0;
+        printf("\n");
         underline();
         printf("\nMain Menu\n");
         underend();

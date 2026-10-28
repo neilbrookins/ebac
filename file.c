@@ -862,6 +862,90 @@ static void print_trans(int i, int used)
 	putchar('\n');
 }
 
+/*
+** Purpose: make translation name the one EBaC starts with (its line first
+**          in 'trans'), keeping every other line (comments and blank lines
+**          too) in order. The file is read whole, not from trans[], which
+**          keeps 80 bytes of each line. And trans[] is put in the same
+**          order, so the list shows it.
+** Returns: TRUE if done.
+*/
+int default_translation_set = FALSE;    /* (for the main menu to say so) */
+
+static int make_default(char *name, int n)
+{
+	char path[1024 + 8], *buf, *line, *end = NULL, *p, held[80];
+	char newpath[1024 + 8 + 16];   /* (and ".PID") */
+	FILE *f;
+	long size;
+	int k, len = strlen(name), moved = FALSE;
+
+#ifdef UNIXV
+	if (root_dir[0] != '\0')
+		sprintf(path, "%s%ctrans", root_dir, SLASH);
+	else
+#endif
+	sprintf(path, "..%ctrans", SLASH);
+	if ((f = fopen(path, "r")) == NULL)
+		return (FALSE);
+	fseek(f, 0L, 2);
+	size = ftell(f);
+	fseek(f, 0L, 0);
+	if (size <= 0 || (buf = (char *) malloc((unsigned) size + 2)) == NULL)
+	{
+		fclose(f);
+		return (FALSE);
+	}
+	size = (long) fread(buf, 1, (unsigned) size, f);
+	fclose(f);
+	if (size > 0 && buf[size - 1] != '\n')
+		buf[size++] = '\n';            /* (a last line without one) */
+	buf[size] = '\0';
+	/* the line naming it: its first word, after any spaces */
+	for (line = buf; *line != '\0'; line = end + 1)
+	{
+		end = find_char(line, '\n');
+		for (p = line; *p == ' ' || *p == '\t'; p++)
+			;
+		if (strncmp(p, name, len) == 0 &&
+		    (isspace(UCHAR(p[len])) || p[len] == '\0'))
+			break;
+	}
+	/* Written beside it, then renamed in its place, in one step: another
+	   EBaC starting meanwhile (another user, in the Home Assistant app)
+	   never reads it half written. (Written in place where there may be
+	   no rename(), on the vintage systems.) */
+#ifdef UNIXV
+	sprintf(newpath, "%s.%ld", path, (long) getpid());  /* (its own) */
+#else
+	strcpy(newpath, path);
+#endif
+	if (*line == '\0' || (f = fopen(newpath, "w")) == NULL)
+	{
+		free(buf);
+		return (FALSE);
+	}
+	fwrite(line, 1, (unsigned) (end - line + 1), f);       /* first */
+	fwrite(buf, 1, (unsigned) (line - buf), f);           /* those before */
+	fputs(end + 1, f);                                    /* and after */
+	moved = (fclose(f) == 0);
+#ifdef UNIXV
+	if (moved)
+		moved = (rename(newpath, path) == 0);
+	if (!moved)
+		remove(newpath);
+#endif
+	free(buf);
+	/* trans[] the same: line n to the top */
+	for (k = 0; k < 80 && trans[n][k] != '\0'; k++)
+		held[k] = trans[n][k];
+	held[k] = '\0';
+	for (k = n; k > 0; k--)
+		strcpy(trans[k], trans[k - 1]);
+	strcpy(trans[0], held);
+	return (moved);
+}
+
 void change_translations(void)
 {
 	static char digit_letters[] = "qwertyuiop"; /* stand for 1-9, 0 */
@@ -874,6 +958,7 @@ void change_translations(void)
 	char *digit;
 	char new_dir[1024 + MAX_ETLA + 2]; /* example: ../nrsv */
 	char name[MAX_ETLA];    /* the translation chosen */
+	int make_it_default;    /* d typed first: start with it from now on */
 
 	while (trans[++i][0] != '\0')
 		;
@@ -881,6 +966,7 @@ void change_translations(void)
 	first = 0;              /* the first translation on the page shown */
 	typed = 0;              /* digits typed so far */
 	n = 0;
+	make_it_default = FALSE;
 	for(;;)
 	{
 		cls();
@@ -898,7 +984,8 @@ void change_translations(void)
 		*/
 		if (count <= 9)
 		{
-			spaced = (2 * count + 2 <= s_lines); /* heading, list, cursor */
+			/* (heading, list, a blank line, the hint, the cursor) */
+			spaced = (2 * count + 4 <= s_lines);
 			for (i = 0; i < count; i++)
 			{
 				if (spaced && i > 0)
@@ -906,12 +993,24 @@ void change_translations(void)
 				printf("%d) ", i + 1);
 				print_trans(i, 3);
 			}
+			if (make_it_default)
+				printf("\nThe default: its number (x: back): ");
+			else if (s_cols - 1 >= 62)
+				printf("\nd and a number: choose it, and start with it from now on. ");
+			else
+				printf("\nd, number: choose, and start with it. ");
+			fflush(stdout);
 			scr_mode("trans");
 			redraw_on_resize = TRUE;
 			c = ugetchar();
 			redraw_on_resize = FALSE;
 			if (c == KEY_REDRAW)
 				continue;       /* drawn again, for the new size */
+			if ((c == 'd' || c == 'D') && !make_it_default)
+			{
+				make_it_default = TRUE;   /* (and the number next) */
+				continue;
+			}
 			if (!isdigit(c) && (digit = find_char(digit_letters, tolower(c))) != NULL)
 				c = "1234567890"[digit - digit_letters];
 			if (!isdigit(c))
@@ -938,13 +1037,14 @@ void change_translations(void)
 			print_trans(i, 4);
 		}
 		printf("\n");
-		if (s_cols - 1 >= 62)
-			printf("Type a number and Enter (space, p: next, previous page; x: back): ");
+		if (s_cols - 1 >= 66)
+			printf("A number and Enter, d first to start with it (space, p: page; x: back): ");
 		else
-			printf("Number, Enter (space/p: page; x: back): ");
+			printf("Number, Enter; d5: default (n/p: page; x: back): ");
 		fflush(stdout);
 		typed = 0;
 		n = 0;
+		make_it_default = FALSE;
 		scr_mode("transenter");
 		for(;;)
 		{
@@ -977,10 +1077,30 @@ void change_translations(void)
 			}
 			if (c == 'x' || c == 'X' || c == 0x1b)
 				return;
+			if ((c == 'd' || c == 'D') && typed == 0 && !make_it_default)
+			{
+				putchar('d');           /* "d12": the default, 12 */
+				make_it_default = TRUE;
+				fflush(stdout);
+				continue;
+			}
+			if ((c == '\b' || c == '\177') && typed == 0 && make_it_default)
+			{
+				printf("\b \b");
+				make_it_default = FALSE;
+				fflush(stdout);
+				continue;
+			}
 			if (c == '\n' || c == '\r')
 			{
-				if (typed == 0)
+				if (typed == 0 && !make_it_default)
 					return;         /* Enter alone: back */
+				if (typed == 0)
+				{
+					putchar('\7');  /* "d" alone: its number, please */
+					fflush(stdout);
+					continue;
+				}
 				if (n >= 1 && n <= count)
 					break;
 				putchar('\7');         /* no such number: try again */
@@ -1079,6 +1199,9 @@ void change_translations(void)
 */
 	a_new_translation = TRUE;
 	open_new_trans();
+	/* d and the number: it is the one EBaC starts with, from now on */
+	if (make_it_default)
+		default_translation_set = make_default(name, n) ? 1 : -1;
 }
 
 static long int getcvarraydat(long int sequ_verse_number)
