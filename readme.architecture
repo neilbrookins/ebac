@@ -1176,6 +1176,130 @@ importer shows its license and asks the person adding it to agree:
     ("agreed with --agree").
 
 
+Texts from Project Gutenberg
+----------------------------
+
+(Design review of October 29, 2026; not built yet.) Some texts EBaC
+should read, such as the Book of Mormon, aren't in scrollmapper's
+collection but are on Project Gutenberg (gutenberg.org) as plain text,
+in chapter and verse. They are added by hand, one at a time:
+
+  1. The person finds the text on gutenberg.org themselves (its search),
+     opens its "Plain Text UTF-8" file in a browser, and checks it is
+     what they want.
+  2. They copy that page's address and give it to EBaC: P)roject
+     Gutenberg on the main menu, where it is pasted.
+  3. EBaC downloads it, splits it into its books, indexes it, makes it
+     the first translation of trans (EBaC starts with it), and says so.
+
+So, unlike A, nothing is listed or searched in EBaC: the person's own
+choice, checked in a browser, is what is added.
+
+A script of its own. add-gutenberg.sh, beside add-translation.sh, not a
+part of it: the two sources differ in everything but the end (a folder
+of books, indexed, in trans), and each script stays simple for its own.
+Some of what they do is alike (downloading, typographic punctuation, the
+index, trans, the license and version files), written in each. Each adds
+and removes only its own: add-translation.sh doesn't remove a Gutenberg
+text, nor add-gutenberg.sh one of scrollmapper's.
+
+One text at a time, one format at a time. Gutenberg's texts are laid out
+in many ways. The script knows a text by its ebook number, from a list
+built in: the short name EBaC uses for it (its folder, and its line in
+trans), its books' names, and which of the formats the script reads it
+is in. A text not in the list is refused, saying so; each new one (the
+Pearl of Great Price, the Doctrine and Covenants) is looked at by hand,
+and added to the list, with a format of its own if it needs one. The
+first:
+
+  17   BOM   The Book of Mormon (format: "Book Chapter N", then "C:V
+             text")
+
+Addresses. Any of Gutenberg's addresses of a text's plain text, read for
+its number: https://www.gutenberg.org/cache/epub/17/pg17.txt;
+.../ebooks/17.txt.utf-8; and the files/ tree, where a number's digits
+but its last are folders (#12345: files/1/2/3/4/12345/12345-0.txt).
+Other addresses are refused: P isn't a way to download any file. What is
+downloaded is the address given (a person's single download, as
+Gutenberg allows; nothing is fetched in bulk).
+
+The license. Gutenberg's texts here are public domain in the United
+States; Gutenberg's own license covers its name and the file's header.
+As for A: shown, agreed to (y), and kept in the folder's license file,
+with the text's page, https://www.gutenberg.org/ebooks/17, as Details.
+
+The same version: refused, as for A, by the file's fingerprint (its
+ETag), kept in the folder's version file; removing it first (in P, as
+r) lets it be downloaded again.
+
+The Book of Mormon's file (pg17.txt, checked October 29, 2026; 31,572
+lines, UTF-8, CRLF line ends):
+
+  - Gutenberg's header (to "*** START OF THE PROJECT GUTENBERG EBOOK")
+    and its license after "*** END OF" are left out.
+  - Front matter: the title page, two paragraphs of the abridgment,
+    "Translated by Joseph Smith, Jun.", the Testimony of Three Witnesses
+    and the Testimony of Eight Witnesses (with their names), and a
+    Contents list (left out: the books themselves are its contents).
+  - 15 books. Each starts with a heading, its title in capitals
+    indented one space ("THE BOOK OF JACOB"), some with a second line
+    ("THE BROTHER OF NEPHI") and a paragraph summing it up. The ten of
+    several chapters then have a line per chapter, "Jacob Chapter 1",
+    which gives the book's name; the five of one chapter (Enos, Jarom,
+    Omni, Words of Mormon, 4 Nephi) have none, so the list built in
+    names each book, from its heading.
+  - 239 chapters, 6,604 verses: "C:V text", wrapped onto lines of their
+    own, a blank line between verses. Six verses start in the middle of
+    a line, some with the book's name: "...created them. 2:13 Neither",
+    "Alma 24:18" (at the end of a line), "Helaman 10:5", "3 Nephi
+    11:2", "3 Nephi 28:40"; and every verse of 4 Nephi is "4 Nephi 1:1
+    ...". So a verse starts at the next verse number expected (with the
+    book's name before it or not), never at any number: a text quoting
+    "3:16" isn't split.
+  - No headnotes between chapters in this edition: the only text before
+    a chapter's verse 1 is a book's heading and summary.
+  - Curly apostrophes and dashes become plain ASCII, as for A.
+
+Verse 0: the text before a chapter's verse 1. A book's heading and
+summary (and, before 1 Nephi, the front matter) are kept, as verse 0 of
+its chapter 1, so that they can be read and searched ("Sariah", in 1
+Nephi's summary, is found).
+
+  - Shown above verse 1 as plain text, without a "0" in the verse
+    column: the 0 isn't in the source, and would puzzle. Reached as any
+    verse: comma or up arrow from 1:1 shows it; Enter three times still
+    starts at 1:1; "Jacob 1:0" goes to it.
+  - Only where there is such text: a chapter with nothing before its
+    verse 1 has no verse 0, not an empty one.
+  - By voice: "Jacob chapter 1, introduction", and "Jacob 1:0" too;
+    read as "Jacob, introduction."
+  - What EBaC changes. EBaC numbers verses by place, not by the numbers
+    in the text: a chapter starts at the verse numbered :1, and Jacob
+    1:5 is the chapter's start plus 4. A verse 0 just before :1 is
+    already found that way (the start minus 1), but would otherwise be
+    counted as one more verse of the chapter before: listed as 2 Nephi
+    33:16 among search results, and counted in that chapter's verses.
+    So the index keeps which chapters have a verse 0, and turning a
+    verse's place into its reference, and counting a chapter's verses,
+    use it. The index's format changes; the app indexes added
+    translations again, as for any such change. The two builds, the 67
+    scenarios and make coco stay as they are.
+  - Length: a verse is read into a buffer of 4,000 bytes (700 on the
+    CoCo). 1 Nephi 1:0, front matter and all, is about 5,700: either
+    the buffer grows, or the front matter is left shorter (to be
+    decided). (The CoCo can't hold several of this text's verses, of up
+    to 740 bytes, either.)
+
+P)roject Gutenberg on EBaC's main menu (shown where add-gutenberg.sh is,
+as A is): it asks for the address, pasted (on a phone, the keyboard's
+typing mode), or r and a number to remove a text it added; then as A
+does, back to EBaC with the text added.
+
+Not yet: voice (ebac-admin) for Gutenberg's texts; more texts and
+formats, one by one; headnotes between chapters, when a text has them
+(the same verse 0).
+
+
 Testing
 -------
 
@@ -1313,6 +1437,22 @@ For licenses (design review of October 2026):
   - Every translation is asked about, public domain too.
   - What was agreed to is kept in the translation's folder (license).
   - From a script, only with --agree; otherwise nothing is added.
+
+For texts from Project Gutenberg (design review of October 29, 2026):
+
+  - Added by hand: the person finds and checks the text on
+    gutenberg.org, and pastes its address into EBaC (P); nothing is
+    listed or searched in EBaC.
+  - A script of its own, add-gutenberg.sh, separate from
+    add-translation.sh; each adds and removes only its own.
+  - One text and one format at a time, from a list built in (ebook
+    number, short name, books' names, format): the Book of Mormon (17,
+    BOM) first; others when looked at; anything else refused.
+  - Short names from the list, not made from the ebook number (PG17
+    says nothing to a reader).
+  - The text before a chapter's verse 1 is its verse 0: searched, shown
+    without a "0", read by voice as the introduction; front matter goes
+    into 1 Nephi 1:0, not a book of its own.
 
 For changing the translation by voice (October 2026):
 
