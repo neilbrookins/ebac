@@ -1240,7 +1240,12 @@ lines, UTF-8, CRLF line ends):
   - Front matter: the title page, two paragraphs of the abridgment,
     "Translated by Joseph Smith, Jun.", the Testimony of Three Witnesses
     and the Testimony of Eight Witnesses (with their names), and a
-    Contents list (left out: the books themselves are its contents).
+    Contents list.
+  - Nothing the supplier gives is left out (the user's rule, October
+    29, 2026: testimonies, introductions, summaries and contents are
+    the text too). Only Gutenberg's own header and license around it,
+    and the "Jacob Chapter 1" lines (the chapter numbers, kept as the
+    verses' numbers), are dropped.
   - 15 books. Each starts with a heading, its title in capitals
     indented one space ("THE BOOK OF JACOB"), some with a second line
     ("THE BROTHER OF NEPHI") and a paragraph summing it up. The ten of
@@ -1261,8 +1266,8 @@ lines, UTF-8, CRLF line ends):
   - Curly apostrophes and dashes become plain ASCII, as for A.
 
 Verse 0: the text before a chapter's verse 1. A book's heading and
-summary (and, before 1 Nephi, the front matter) are kept, as verse 0 of
-its chapter 1, so that they can be read and searched ("Sariah", in 1
+summary are kept as verse 0 of its chapter 1 (all under about 1,000
+bytes here), so that they can be read and searched ("Sariah", in 1
 Nephi's summary, is found).
 
   - Shown above verse 1 as plain text, without a "0" in the verse
@@ -1284,11 +1289,44 @@ Nephi's summary, is found).
     use it. The index's format changes; the app indexes added
     translations again, as for any such change. The two builds, the 67
     scenarios and make coco stay as they are.
-  - Length: a verse is read into a buffer of 4,000 bytes (700 on the
-    CoCo). 1 Nephi 1:0, front matter and all, is about 5,700: either
-    the buffer grows, or the front matter is left shorter (to be
-    decided). (The CoCo can't hold several of this text's verses, of up
-    to 740 bytes, either.)
+
+Chapter 0: the front matter. What comes before the first book (about
+4,800 bytes) is chapter 0 of that book, 1 Nephi, a verse for each of
+its parts, in order: the title page; the abridgment's first paragraph;
+its second; "Translated by Joseph Smith, Jun."; the Testimony of Three
+Witnesses with their names; the Testimony of Eight Witnesses with
+theirs; the Contents. Rather than one verse 0 of it all:
+
+  - each part is found by itself: a search for "Cowdery" lists 1 Nephi
+    0:5, the Three Witnesses;
+  - by voice, "next verse" reads the next part, not all of it at once;
+  - the largest part (the Three Witnesses, about 1,540 bytes) fits the
+    verse buffer as it is (4,000 bytes; 700 on the CoCo), which so
+    stays as it is.
+
+Its numbers (0:1 to 0:7) aren't in the source either: shown, as verse 0
+is, as plain text, without numbers in the verse column. It is under 1
+Nephi, though it belongs to the whole volume: it is where a reader opens
+the text, and there is no book of its own (the user's choice). A
+chapter, like verse 0, only where there is such text.
+
+What EBaC changes for chapter 0: as for verse 0, a chapter starts at
+the verse numbered :1, so 0:1 would be counted as 1 Nephi's chapter 1,
+and every chapter after it one off. So the index keeps which books have
+a chapter 0, and finding a chapter, and turning a verse's place into its
+reference, use it. Made with verse 0, in the same change of the index's
+format.
+
+Verses taller than the screen. The passage screen shows whole verses
+only: a verse taller than the screen isn't shown at all, and paging goes
+past it. Never so far (a Bible verse is a few lines), but the Three
+Witnesses are about 30 lines on a phone (52 columns, about 25 rows), and
+later texts' introductions may be longer. So such a verse is shown a
+screenful at a time, paging on through it as through verses; needed
+whichever way the text is stored.
+
+The CoCo stays at 700 bytes a verse: it can't take this text (verses
+of up to 740 bytes) anyway.
 
 P)roject Gutenberg on EBaC's main menu (shown where add-gutenberg.sh is,
 as A is): it asks for the address, pasted (on a phone, the keyboard's
@@ -1451,8 +1489,14 @@ For texts from Project Gutenberg (design review of October 29, 2026):
   - Short names from the list, not made from the ebook number (PG17
     says nothing to a reader).
   - The text before a chapter's verse 1 is its verse 0: searched, shown
-    without a "0", read by voice as the introduction; front matter goes
-    into 1 Nephi 1:0, not a book of its own.
+    without a "0", read by voice as the introduction.
+  - Front matter before the first book is that book's chapter 0, a verse
+    for each part (testimonies, contents...), not one verse 0 nor a
+    book of its own: found, read and shown part by part, and the verse
+    buffer stays as it is.
+  - Nothing the supplier gives is left out: only Gutenberg's header and
+    license, and the repeated chapter lines.
+  - A verse taller than the screen is shown a screenful at a time.
 
 For changing the translation by voice (October 2026):
 
