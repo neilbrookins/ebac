@@ -833,12 +833,171 @@ the new one (its results differ), from its first result. "next result"
 used to be taken by Home Assistant's media player ("no device is
 playing"): EBaC's sentence is matched first now.
 
+More of EBaC by voice (design review of October 29, 2026; not built
+yet). The aim: what EBaC's menus do, Assist can do, so that the
+integration has no gaps beside the app. From the review's list of what
+the app does and the integration doesn't:
+
+  C  change translation      by voice already; now behind a permission
+                             (below). d (the app's default) stays the
+                             app's: the integration keeps its own.
+  A  add or remove           new, below
+  V  view                    verse forward and back, and "read on", by
+                             voice already; new: page back, chapters,
+                             books (below)
+  S  search                  words, phrases and EBaC's own syntax said
+                             literally ("jesus wept 0"), as now. Spoken
+                             operators and groups of books: later (see
+                             "Not yet")
+  I  information             new: EBaC's version, where to get help, a
+                             translation's license
+  E  exit                    nothing to do by voice
+
+Permissions. Three checkboxes in the integration's setup and in its
+Configure screen, each off unless checked, each allowing more than the
+one before it. Each says what someone could do with it, because anyone
+who can talk to a speaker can use it, with no user name or password:
+there is no telling who is speaking.
+
+  Allow Assist to change the translation
+      Someone could switch to a translation you keep private (your own
+      diary, imported as one) and hear it read aloud.
+  Allow Assist to add translations (needs: change)
+      Someone could add every translation of a language and fill Home
+      Assistant's disk.
+  Allow Assist to remove translations (needs: add)
+      Someone could delete a translation you paid for, such as the NIV.
+
+  - Home Assistant's forms can't grey out a checkbox until another is
+    checked, so Submit refuses a box whose box above isn't checked, and
+    says which. Checked from the top down, it never comes up.
+  - Remove needs add, as in the app, where removing is part of A.
+    Add needs change: a translation added but never read would be of no
+    use.
+  - Change off: Assist reads only the translation in the options, and
+    "change translation to ..." is refused. "Which translation is
+    this?" names only that one, not the others installed, since their
+    names may be private too.
+  - On upgrade, every box is off, change too, though it was allowed by
+    voice before: the safer way, as an upgrade asks nothing. The
+    integration's release notes and the app's changelog say so, and
+    where to check it again.
+
+The app's own locks. The checkboxes guard only the voice path: ebac-api
+answers anything on Home Assistant's internal network, so once it can
+write, another app there could ask it to. So the app has two options of
+its own, off unless checked: allow ebac-api to add translations, and
+to remove them. Writing needs both the app's option and the
+integration's checkbox; until then ebac-api only reads, as now.
+
+The language group. In the app, A always asks for the language and
+then the translation: like buying a car, where the maker comes first
+(a Highlander is at the Toyota dealer, not the Ford one) and then the
+model. The integration remembers the maker. It keeps a language (the
+language group), set at setup (English unless chosen) and in Configure,
+and changed by voice:
+
+  use Klingon translations / switch to Klingon translations /
+  manipulate translations Klingon
+
+Then "add translation X" looks for X only in that language, so adding is
+one step, not two; X in another language isn't found, and the answer
+says which language it looked in. Not "set the language": that is
+Assist's own setting. The sentences stay in English: the group is only
+what can be added. Removing a translation doesn't change the group.
+
+Listing, a few at a time ("more", "earlier", as for search results):
+
+  which languages are there?
+  what translations are there (in Klingon)?
+  which translations are added?
+
+A name that fits several (by short name, then title words, as for
+changing) gets them listed, and nothing is done.
+
+Adding by voice. "Add translation LITV" (in the language group):
+
+  - Already added, the same version: refused, as in the app ("you
+    already have this version").
+  - The license is read, and Assist asks "Do you agree?", keeping the
+    conversation open for the answer (Home Assistant can); yes adds it,
+    anything else doesn't. Kept in the license file as agreed by voice,
+    and from which device. (If the open conversation doesn't work out,
+    the checkbox could instead mean the owner agrees ahead, as
+    --agree.)
+  - Adding takes longer than Assist waits for an answer (the download,
+    then the index), so the answer comes at once ("Adding Green's
+    Literal Translation; it takes a minute or two"), and the add goes
+    on. When done: announced on that device, if it is a voice speaker
+    (an Assist satellite); a notification to the phone, if asked from
+    the Home Assistant app, whose user is known. If it fails: a repair
+    in Home Assistant (Settings, Repairs) saying which translation,
+    what went wrong and from which device, removed when it is next added
+    successfully.
+  - It becomes the integration's translation (its option), not the
+    app's default: added by voice, it goes at the end of trans, not the
+    top, so that a voice user doesn't change what the app starts with.
+  - Two adds at once (two voices, or a voice and the app): not new, the
+    app has it already with several people; not handled yet.
+  - A language with no voice in the text-to-speech: added anyway; the
+    owner sees to the voice (see "Not yet").
+
+Removing by voice. "Remove translation NIV":
+
+  - Assist asks "Are you sure?" and waits for the answer; only yes
+    removes it.
+  - EBaC's own translations (in the repository, such as AV) can't be
+    removed, as in the app; nor the last in trans.
+  - The translation in use may be removed: the integration then reads
+    from the app's default (the first of trans after it), and says so
+    ("Removed NIV. Now reading from the King James Version.").
+
+Moving through the text, for speech, which has no screens to page:
+
+  next chapter / previous chapter   the first verses of that chapter,
+                                    as "Psalm 23" reads now (5 unless
+                                    set otherwise), then "next verse"
+                                    and "read on" go on from there
+  start of the chapter              its first verses
+  read back                         the verses before, as many as "read
+                                    on" reads (page back)
+  next book / previous book         the first verses of that book (f
+                                    and b in the app)
+  start of the book                 its first verses
+
+Each runs on across chapters and books with no stop between them (after
+Malachi 4, Matthew 1, saying the new book's name), as the SVN does;
+only before Genesis 1 and after the last chapter of the translation is
+there nothing, and Assist says so.
+
+Information:
+
+  what version of EBaC is this?     the release and commit, and where to
+                                    get help (the three repositories)
+  what's the license of this        from the license file kept when it
+    translation?                    was added; "not recorded" for those
+                                    added before 2.4.1
+
 5. Not yet
 
 Languages other than English, for the sentences and the spoken numbers
 (the parser and the sentence files are made per language); speaking a
 translation in its own language's voice; an action, ebac.read, for
 automations ("read the verse of the day at 7").
+
+From the review of October 29, 2026, for later:
+
+  - Searching groups of books by voice ("search the Gospels for
+    blessed", as =gospels blessed). No word-or-operator ambiguity, as
+    the group names are a fixed list; left for later all the same.
+  - Spoken search operators ("love and not hate"). EBaC's operators are
+    postfix symbols and numbers, which the text doesn't have as words;
+    spoken as English words, "and" could be the word searched for or the
+    operator, and there is no reliable telling which. Until then a
+    search by voice is EBaC's syntax said literally.
+  - Two adds at once.
+  - Choosing the text-to-speech voice from the translation's language,
+    when Assist can switch language in a reply.
 
 6. Order of work
 
@@ -1140,4 +1299,27 @@ For changing the translation by voice (October 2026):
   - The name is matched in the handler (short name, then title words),
     after fixed words, rather than from a list in the sentence file, so
     that a long title needn't be said exactly.
+
+For more of EBaC by voice (design review of October 29, 2026):
+
+  - The aim is no gaps: what the app's menus do, Assist can do.
+  - Anything beyond reading is a permission, off unless checked:
+    change, then add (needs change), then remove (needs add). Off
+    on upgrade too, change included: safest, and said in the release
+    notes.
+  - The app has its own locks for ebac-api writing (add, remove), off
+    unless checked, since the integration's checkboxes don't guard the
+    API.
+  - The integration remembers a language group, so that adding by
+    voice is one step; the app keeps asking language then translation
+    every time.
+  - Licenses agreed by voice, in an open conversation ("Do you
+    agree?"); --agree-style agreement only if that doesn't work.
+  - Adding by voice changes the integration's translation, not the
+    app's default (trans isn't reordered).
+  - A failed add is a repair in Home Assistant.
+  - Removing asks "Are you sure?"; EBaC's own translations can't be
+    removed by voice, as in the app.
+  - Chapters and books by voice, a few verses at a time, never stopping
+    at a book's end. Spoken search operators and groups: later.
   - With it, a question: which translation is in use.
