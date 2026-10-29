@@ -386,7 +386,7 @@ Some texts EBaC can read, such as the Book of Mormon, aren't among the translati
 2. Note its ebook number: the **EBook-No.** on its page, or the number in its address (`gutenberg.org/ebooks/17` is 17, the Book of Mormon).
 3. At EBaC's main menu, press **P**, type the number and press Enter.
 
-EBaC asks [Gutendex](https://gutendex.com), a catalogue of Gutenberg's ebooks, for the address of that ebook's plain text in UTF-8 (only an address on gutenberg.org is taken), downloads it, shows its license (Gutenberg's, from the file) and asks whether you agree, then splits it into its books, indexes it, and adds it at the top of `trans`, as **A** does. The same version isn't downloaded twice: remove it first (**P**, then **r** and its number). **P** removes only texts it added; **A** only its own.
+EBaC downloads that ebook's plain text in UTF-8 from Gutenberg (`https://www.gutenberg.org/ebooks/17.txt.utf-8`), shows its license (Gutenberg's, from the file) and asks whether you agree, then splits it into its books, indexes it, and adds it at the top of `trans`, as **A** does. The same version isn't downloaded twice: remove it first (**P**, then **r** and its number). **P** removes only texts it added; **A** only its own.
 
 Gutenberg's texts are laid out in many ways, so EBaC knows each one by its ebook number, and is taught them one at a time; a number it doesn't know yet is refused, saying so. It knows:
 

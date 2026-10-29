@@ -8,19 +8,15 @@
 #                                      scripts: no one to answer)
 #   sh add-gutenberg.sh --remove BOM   remove one added by this script
 #   sh add-gutenberg.sh --list         list those added by this script
-#   sh add-gutenberg.sh --file PATH --json PATH 17
-#                                      read the text, and Gutendex's answer,
-#                                      from files instead (for testing)
+#   sh add-gutenberg.sh --file PATH 17 read the text from PATH instead of
+#                                      downloading it (for testing)
 #
 # The person adding a text finds it on gutenberg.org themselves, checks it
 # is the one, and gives its ebook number here (17, the Book of Mormon: the
 # "EBook-No." on its page, or the number in its address). Nothing is
 # searched or listed here: what is added is their own choice. The address
-# of its plain text isn't typed: it is asked of Gutendex
-# (https://gutendex.com/books/17), a catalogue of Gutenberg's ebooks in
-# JSON, whose "formats" give it as "text/plain; charset=utf-8" (such as
-# https://www.gutenberg.org/ebooks/17.txt.utf-8), and only an address on
-# gutenberg.org is taken from it. So two requests: Gutendex, then the text.
+# of its plain text isn't typed: it is made from the number, as Gutenberg
+# gives it, https://www.gutenberg.org/ebooks/17.txt.utf-8 (see PLAIN_TEXT).
 # Then, as add-translation.sh does for scrollmapper's texts, this:
 #
 #   1. downloads it (refused first, by its fingerprint, if it is the same
@@ -192,34 +188,6 @@ known_detail() {
         printf '%s\n' "$KNOWN" | $AWK -F '\t' -v n="$1" '
                 $1 ~ /^[0-9]+$/ { this = ($1 == n); next }
                 this && ($1 == "book" || $1 == "front") { print }'
-}
-
-# ebook_number URL: the text's ebook number, from any of Gutenberg's
-# addresses of its plain text; "" if it isn't one
-ebook_number() {
-        printf '%s\n' "$1" | $AWK '{
-                u = $0
-                sub(/^[ \t]+/, "", u); sub(/[ \t]+$/, "", u)
-                if (u !~ /^https?:\/\/(www\.)?gutenberg\.org\//) exit
-                sub(/^https?:\/\/(www\.)?gutenberg\.org\//, "", u)
-                sub(/[?#].*$/, "", u)
-                if (u ~ /^cache\/epub\/[0-9]+\/pg[0-9]+\.txt$/) {
-                        split(u, p, "/")
-                        n = p[3]
-                        if ("pg" n ".txt" == p[4]) print n
-                } else if (u ~ /^ebooks\/[0-9]+\.txt(\.utf-8)?$/) {
-                        n = u; sub(/^ebooks\//, "", n); sub(/\..*$/, "", n)
-                        print n
-                } else if (u ~ /^files\/([0-9]\/)*[0-9]+\/[0-9]+(-[08])?\.txt$/) {
-                        k = split(u, p, "/")
-                        n = p[k - 1]
-                        f = p[k]; sub(/(-[08])?\.txt$/, "", f)
-                        # (the folders: the number'\''s digits but its last)
-                        d = ""
-                        for (i = 2; i < k - 1; i++) d = d p[i]
-                        if (f == n && d == substr(n, 1, length(n) - 1)) print n
-                }
-        }'
 }
 
 # fetch URL FILE (sets problem on failure)
@@ -532,43 +500,11 @@ add() {
         return 0
 }
 
-# plain_text_url NUMBER: the address of the ebook's plain text (UTF-8),
-# from Gutendex's answer about it ("formats": {"text/plain;
-# charset=utf-8": "https://..."}). Sets url, or problem.
-GUTENDEX=https://gutendex.com/books
-plain_text_url() {
-        if [ -n "$from_json" ]; then
-                cp "$from_json" "$tmp/book.json" || { problem="couldn't read $from_json"; return 1; }
-        else
-                fetch "$GUTENDEX/$1" "$tmp/book.json" || return 1
-        fi
-        # (JSON on one line or several: the value after the key, its \/
-        # unescaped; no jq needed)
-        url=$(tr '\n' ' ' < "$tmp/book.json" | $AWK '{
-                k = index($0, "\"text/plain; charset=utf-8\"")
-                if (!k) exit
-                rest = substr($0, k + 27)
-                if (!match(rest, /^[ \t]*:[ \t]*"[^"]*"/)) exit
-                v = substr(rest, RSTART, RLENGTH)
-                sub(/^[ \t]*:[ \t]*"/, "", v); sub(/"$/, "", v)
-                gsub(/\\\//, "/", v)
-                print v
-        }')
-        if [ -z "$url" ]; then
-                if grep -q '"detail"' "$tmp/book.json" 2> /dev/null; then
-                        problem="Gutendex has no ebook $1"
-                else
-                        problem="Gutendex gives no plain text in UTF-8 for ebook $1"
-                fi
-                return 1
-        fi
-        # (only Gutenberg's own address of this very ebook)
-        if [ "$(ebook_number "$url")" != "$1" ]; then
-                problem="Gutendex gave an address that isn't ebook $1's plain text on gutenberg.org: $url"
-                return 1
-        fi
-        return 0
-}
+# The address of an ebook's plain text in UTF-8, from its number:
+# Gutenberg's own form, https://www.gutenberg.org/ebooks/17.txt.utf-8
+# (which leads on to the file). Made here, not looked up (Gutendex, a
+# catalogue that gives it, refused the app's requests: HTTP 403).
+PLAIN_TEXT=https://www.gutenberg.org/ebooks/%s.txt.utf-8
 
 # add_number NUMBER: from the ebook number to the text added
 add_number() {
@@ -591,8 +527,7 @@ add_number() {
                 problem="a translation named $name is there already, not from Project Gutenberg"
                 return 1
         fi
-        printf '%s: asking Gutendex for ebook %s...\n' "$name" "$number"
-        plain_text_url "$number" || return 1
+        url=$(printf "$PLAIN_TEXT" "$number")
         version_now=$(version_of "$url")
         kept=$(kept_version "$name")
         if [ -n "$version_now" ] && [ -f "$here/$name/gutenberg" ] &&
@@ -622,14 +557,13 @@ add_number() {
 }
 
 usage() {
-        echo "usage: sh add-gutenberg.sh [--agree] [--file PATH] [--json PATH] NUMBER | --remove NAME | --list"
+        echo "usage: sh add-gutenberg.sh [--agree] [--file PATH] NUMBER | --remove NAME | --list"
         echo "Adds a text from Project Gutenberg to EBaC by its ebook number, or removes one."
 }
 
 # ---- the arguments
 agree_all=no
 from_file=""
-from_json=""
 number_arg=""
 remove_name=""
 list_only=no
@@ -638,7 +572,6 @@ while [ $# -gt 0 ]; do
         --agree) agree_all=yes ;;
         --list) list_only=yes ;;
         --file) [ $# -ge 2 ] || { usage >&2; exit 2; }; from_file=$2; shift ;;
-        --json) [ $# -ge 2 ] || { usage >&2; exit 2; }; from_json=$2; shift ;;
         --remove) [ $# -ge 2 ] || { usage >&2; exit 2; }; remove_name=$2; shift ;;
         --from-ebac) [ $# -ge 3 ] || { usage >&2; exit 2; }; from_ebac=$2; start_with=$3; shift; shift ;;
         -h|--help) usage; exit 0 ;;

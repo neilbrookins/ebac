@@ -1221,19 +1221,13 @@ first:
 
 The address, from the number. The number is looked up first in the
 list built in (a number not there is refused, with no request made).
-Then Gutendex (https://gutendex.com/books/17), a catalogue of Gutenberg's
-ebooks in JSON, is asked for it; its "formats" give the plain text in
-UTF-8 as "text/plain; charset=utf-8" (such as
-https://www.gutenberg.org/ebooks/17.txt.utf-8, a JSON string, perhaps
-with its / written \/). The script reads it with awk (no jq needed), and
-takes it only if it is Gutenberg's own address of that same ebook (any of
-its forms: cache/epub/17/pg17.txt, ebooks/17.txt.utf-8, or the files/
-tree, where a number's digits but its last are folders, as
-files/1/2/3/4/12345/12345-0.txt); anything else is refused. So two
-requests: Gutendex, then the text, a person's single download, as
-Gutenberg allows; nothing is fetched in bulk. Gutendex isn't
-Gutenberg's own: if it has no plain text in UTF-8 for a number, or is
-down, the text isn't added, saying why.
+The address of its plain text in UTF-8 is then made from it, in
+Gutenberg's own form: https://www.gutenberg.org/ebooks/17.txt.utf-8
+(which leads on to the file), one request, a person's single download,
+as Gutenberg allows; nothing is fetched in bulk. (At first it was asked
+of Gutendex, gutendex.com/books/17, a catalogue in JSON; but Gutendex
+refused the app's requests, HTTP 403, October 29, 2026, so the address is
+made here instead, and no JSON is read.)
 
 The license. Gutenberg's texts here are public domain in the United
 States; Gutenberg's own license covers its name and the file's header.
@@ -1493,8 +1487,8 @@ For texts from Project Gutenberg (design review of October 29, 2026):
 
   - Added by hand: the person finds and checks the text on
     gutenberg.org, and types its ebook number into EBaC (P); the
-    address of its plain text comes from Gutendex; nothing is listed or
-    searched in EBaC.
+    address of its plain text is made from the number
+    (ebooks/N.txt.utf-8); nothing is listed or searched in EBaC.
   - A script of its own, add-gutenberg.sh, separate from
     add-translation.sh; each adds and removes only its own.
   - One text and one format at a time, from a list built in (ebook
