@@ -81,6 +81,7 @@ static struct tree *store_word(struct tree *node);
 static void note_last(struct list *occurrence);
 static int new_verse(void);
 static int new_chapter(void);
+static void verse_numbers(long int *c, long int *v);
 static void inorder_traversal(struct tree *node);
 static long int l_bit_twiddle(long int number);
 static void visit_node(struct tree *node);
@@ -348,8 +349,18 @@ static int new_verse(void)
                         /* or, contains only colon(s),   eg: :    */
 }
 
+/* Purpose: the chapter and verse numbers of word, a verse number (c:v) */
+static void verse_numbers(long int *c, long int *v)
+{
+        char *colon = strchr(word, ':');
+
+        *c = atol(word);
+        *v = (colon != NULL) ? atol(colon + 1) : 0L;
+}
+
 /* Purpose: returns TRUE iff word contains ":1" which indicates a new
-            chapter has been reached.
+            chapter has been reached. (Verse 0 and chapter 0, the text before
+            verse 1 in some texts, are seen to in main().)
    Bugs: Assumes that new_verse() is TRUE, which it always will be prior
          to calling new_chapter().
 */
@@ -510,8 +521,23 @@ static void note_brackets(void)
                 plain_position = ++plain_count;
 }
 
+/*
+** Verse 0 and chapter 0 (see "Texts from Project Gutenberg" in
+** readme.architecture): the text before a chapter's verse 1 is its verse
+** 0, and before a book's chapter 1, its chapter 0. A chapter starts at its
+** first verse, 0 or 1; zero.dat says which chapters start at 0 ("v" and
+** the chapter's number, from 0, as in chapter.dat) and which books start
+** at chapter 0 ("c" and the book's number, from 0). It is written only for
+** a text that has them, so that every other index is as it was.
+*/
+#define MAXZEROS 4000
+long int zero_verses[MAXZEROS], zero_chapters[MAXZEROS];
+int num_zero_verses = 0, num_zero_chapters = 0;
+
 int main(int argc, char **argv)
 {
+long int this_c, this_v, last_c = -1, last_v = -1, books_read = 0;
+int starts;
 #ifdef COCO
 	pflinit(); /* needed to link libraries to print _long_ integers */
 #endif
@@ -539,6 +565,7 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
   book_file = mfopen(book_name, "r");
   fputl(sequence, bvarray_file);
   fputl(chapter, bvarray_file);
+  last_c = last_v = -1;                 /* (a new book) */
   printf("Reading from book: %s\n", book_name);
   for(;;){
         read_word(book_file);
@@ -551,11 +578,26 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
         {
                 end_verse();            /* the verse before it ends */
                 sequence++;
-                if (new_chapter())
+                verse_numbers(&this_c, &this_v);
+                /* a chapter starts at :1, as always; or at :0, its verse
+                   0, and then its :1 doesn't start another */
+                if (this_v == 0)
+                        starts = TRUE;
+                else
+                        starts = new_chapter() &&
+                                 !(last_c == this_c && last_v == 0);
+                if (starts)
                 {
+                        if (this_v == 0 && num_zero_verses < MAXZEROS)
+                                zero_verses[num_zero_verses++] = chapter;
+                        if (this_c == 0 && last_c == -1 &&
+                            num_zero_chapters < MAXZEROS)
+                                zero_chapters[num_zero_chapters++] = books_read;
                         chapter++;
                         fputl(sequence, chapter_file);
                 }
+                last_c = this_c;
+                last_v = this_v;
 /*
 ** Where the verse number starts in the book: the word as it was there,
 ** such as [1:1] with its brackets, not as it is after its punctuation was
@@ -572,6 +614,7 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
   }
   end_verse();                          /* the book's last verse ends */
   mfclose(book_file, book_name);
+  books_read++;
 }
 fputl(sequence, bvarray_file); /* Added, so that we see where the end of */
 fputl(chapter, bvarray_file);  /* Revelation is. */
@@ -580,6 +623,20 @@ mfclose(book_list, "booklist");
 mfclose(bvarray_file, "bvarray.dat");
 mfclose(cvarray_file, "cvarray.dat");
 mfclose(chapter_file, "chapter.dat");
+
+if (num_zero_verses > 0 || num_zero_chapters > 0)
+{
+        int k;
+
+        format_file = mfopen("zero.dat", "w");  /* (plain text) */
+        for (k = 0; k < num_zero_chapters; k++)
+                fprintf(format_file, "c %ld\n", zero_chapters[k]);
+        for (k = 0; k < num_zero_verses; k++)
+                fprintf(format_file, "v %ld\n", zero_verses[k]);
+        mfclose(format_file, "zero.dat");
+}
+else
+        remove("zero.dat");     /* (an index made before, of other text) */
 
 words_file = mfopen("words.dat", WRITEMODE);
 references_file = mfopen("references.dat", WRITEMODE);

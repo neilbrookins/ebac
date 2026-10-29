@@ -74,6 +74,16 @@ int interactive = TRUE;
         struct bva book[67];
 	long int pach[1190];
 #endif
+/*
+** Verse 0 and chapter 0 (zero.dat; see index.c): for each chapter, TRUE if
+** it starts at verse 0, and for each book, if it starts at chapter 0. NULL
+** for a translation without them (most). Not on the CoCo, whose texts have
+** none.
+*/
+#ifndef COCO
+static char *zero_verse = NULL, *zero_chapter = NULL;
+#endif
+
 long int offset; /* number of bytes offset from the beginning of a book that
                     a particular verse begins at. */
 int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
@@ -744,6 +754,59 @@ FILE *root_fopen(char *name)
 ** The index files: their formats, and why, are in readme.architecture.
 ** Every number in bvarray.dat and chapter.dat is 4 bytes.
 */
+#ifndef COCO
+/* Purpose: read zero.dat, if the translation has one (see above) */
+static void read_zeros(void)
+{
+        FILE *f;
+        char kind;
+        long n;
+
+        free(zero_verse);
+        free(zero_chapter);
+        zero_verse = zero_chapter = NULL;
+        if ((f = fopen("zero.dat", "r")) == NULL)
+                return;
+        zero_verse = (char *) calloc((size_t) numchapters + 1, 1);
+        zero_chapter = (char *) calloc((size_t) numbooks + 1, 1);
+        if (zero_verse == NULL || zero_chapter == NULL)
+        {
+                printf("Out of RAM\n");
+                exit_program(1);
+        }
+        while (fscanf(f, " %c %ld", &kind, &n) == 2)
+        {
+                if (kind == 'v' && n >= 0 && n <= numchapters)
+                        zero_verse[n] = TRUE;
+                else if (kind == 'c' && n >= 0 && n <= numbooks)
+                        zero_chapter[n] = TRUE;
+        }
+        fclose(f);
+}
+#endif
+
+/* Purpose: the number of book b's first chapter (from 0): 0 if it has a
+   chapter 0 (front matter, in some texts), else 1 */
+int first_chapter(int b)
+{
+#ifndef COCO
+        if (zero_chapter != NULL && b >= 0 && b <= numbooks && zero_chapter[b])
+                return (0);
+#endif
+        return (1);
+}
+
+/* Purpose: the number of the first verse of chapter ch (its number in
+   chapter.dat, from 0): 0 if it has a verse 0, else 1 */
+int first_verse(long int ch)
+{
+#ifndef COCO
+        if (zero_verse != NULL && ch >= 0 && ch <= numchapters && zero_verse[ch])
+                return (0);
+#endif
+        return (1);
+}
+
 static void open_new_trans(void)
 {
         int i;
@@ -792,6 +855,9 @@ static void open_new_trans(void)
         for (i = 0; i <= numchapters; i++)
                 pach[i] = fgetl(chapter_file);
         mfclose(chapter_file, "chapter.dat");
+#ifndef COCO
+        read_zeros();
+#endif
 
         book_list = mfopen("booklist", "r");
         for (i = 0; i < numbooks; i++)

@@ -232,22 +232,76 @@ static void choose_translation(void)
 
 /* ---- books and verses ---------------------------------------------- */
 
-/* the number of chapters of book b (0 for the first) */
+/*
+** A book may start at chapter 0, and a chapter at verse 0 (the text before
+** chapter 1 or verse 1, in some texts: see index.c). The chapters and verses
+** counted here are those numbered from 1, as a reference names them.
+*/
+
+/* chapter c of book b (0 for the first), as its number in chapter.dat */
+static long chapter_index(int b, int c)
+{
+        return book[b].chapt + c - first_chapter(b);
+}
+
+/* the number of chapters of book b (0 for the first): its last chapter's
+   number */
 static int chapters_of(int b)
 {
-        return (int) (book[b + 1].chapt - book[b].chapt);
+        return (int) (book[b + 1].chapt - book[b].chapt) - (first_chapter(b) == 0);
 }
 
-/* the sequential number of verse 1 of chapter c (1 for the first) of book b */
+/* the sequential number of verse 1 of chapter c (1 for the first) of book b
+   (verse 0, if it has one, is the one before) */
 static long chapter_start(int b, int c)
 {
-        return pach[book[b].chapt + c - 1];
+        long ch = chapter_index(b, c);
+
+        return pach[ch] + (first_verse(ch) == 0);
 }
 
-/* the number of verses of chapter c of book b */
+/* the number of verses of chapter c of book b: its last verse's number */
 static int verses_of(int b, int c)
 {
-        return (int) (pach[book[b].chapt + c] - pach[book[b].chapt + c - 1]);
+        long ch = chapter_index(b, c);
+
+        return (int) (pach[ch + 1] - pach[ch]) - (first_verse(ch) == 0);
+}
+
+/*
+** Purpose: take a verse 0 or chapter 0 out of a reference's text, which the
+**          parser (0 there meaning "none said") doesn't read: "Jacob 1:0"
+**          and "Jacob 1 introduction" are Jacob 1 (*zero_v set), "1 Nephi
+**          0:3" is 1 Nephi 1:3 (*zero_c set).
+*/
+static void zero_parts(char *text, int *zero_c, int *zero_v)
+{
+        int n = strlen(text), i;
+
+        *zero_c = *zero_v = FALSE;
+        while (n > 0 && (isspace(UCHAR(text[n - 1])) || text[n - 1] == '.'))
+                text[--n] = '\0';
+        if (n > 13 && strcmp(&text[n - 13], " introduction") == 0)
+        {
+                text[n - 13] = '\0';
+                *zero_v = TRUE;
+                n -= 13;
+        }
+        if (n > 2 && strcmp(&text[n - 2], ":0") == 0 && isdigit(UCHAR(text[n - 3])))
+        {
+                text[n - 2] = '\0';
+                *zero_v = TRUE;
+                return;
+        }
+        /* " 0:N": chapter 0 */
+        for (i = n - 1; i > 1; i--)
+                if (text[i] == ':')
+                        break;
+        if (i > 1 && text[i - 1] == '0' && text[i - 2] == ' ')
+        {
+                text[i - 1] = '1';
+                *zero_c = TRUE;
+        }
 }
 
 /*
@@ -339,7 +393,25 @@ static void print_verse(long svn, long prev)
         }
         v = get_verse(svn);
         plain_text(v->data_array, text, sizeof(text));
-        if (prev == 0 || verse_to_book(prev) != b)
+        if (strcmp(v->chapt_array, "0") == 0)
+        {
+                /* chapter 0, the front matter: what it is, then each part
+                   without a number (the numbers aren't in the text) */
+                if (prev == 0 || strcmp(prev_chapter, "0") != 0)
+                        sprintf(spoken, "%s, before chapter 1. %s", name, text);
+                else
+                        sprintf(spoken, "%s", text);
+        }
+        else if (strcmp(v->verse_array, "0") == 0)
+        {
+                /* verse 0: the chapter's introduction */
+                if (strcmp(v->chapt_array, "1") == 0)
+                        sprintf(spoken, "%s, introduction. %s", name, text);
+                else
+                        sprintf(spoken, "%s chapter %s, introduction. %s", name,
+                                v->chapt_array, text);
+        }
+        else if (prev == 0 || verse_to_book(prev) != b)
                 sprintf(spoken, "%s chapter %s, verse %s. %s", name,
                         v->chapt_array, v->verse_array, text);
         else if (strcmp(prev_chapter, v->chapt_array) != 0)
@@ -458,18 +530,18 @@ static void translations(void)
 */
 static void print_spoken(char *full)
 {
-        static char *words[] = { "", "First", "Second", "Third" };
-        static char *romans[] = { "", "I", "II", "III" };
-        static char *shorts[] = { "", "1st", "2nd", "3rd" };
+        static char *words[] = { "", "First", "Second", "Third", "Fourth" };
+        static char *romans[] = { "", "I", "II", "III", "IV" };
+        static char *shorts[] = { "", "1st", "2nd", "3rd", "4th" };
         char rest[MAXBOOKNAME * 2], v[MAXBOOKNAME * 2];
         int n = 0, i;
 
-        if (full[0] >= '1' && full[0] <= '3' && full[1] == ' ')
+        if (full[0] >= '1' && full[0] <= '4' && full[1] == ' ')
         {
                 n = full[0] - '0';
                 strcpy(rest, &full[2]);
         }
-        for (i = 3; i >= 1 && n == 0; i--)
+        for (i = 4; i >= 1 && n == 0; i--)
                 if (strncmp(full, romans[i], strlen(romans[i])) == 0 &&
                     full[strlen(romans[i])] == ' ')
                 {
@@ -577,8 +649,9 @@ static void books(void)
 static void reference(char *text, long *from, long *to, int *b, int *c, int *v, int *last)
 {
         char why[200], msg[400], name[MAXBOOKNAME * 2];
-        int bk;
+        int bk, zero_c, zero_v;
 
+        zero_parts(text, &zero_c, &zero_v);
         if (!parse_reference(text, b, c, v, last, why))
         {
                 sprintf(msg, "Not a reference I know: %s", why);
@@ -614,6 +687,33 @@ static void reference(char *text, long *from, long *to, int *b, int *c, int *v, 
         {
                 sprintf(msg, "%s %d has %d verses", name, *c, verses_of(bk, *c));
                 fail(msg);
+        }
+        if (zero_c)
+        {
+                if (first_chapter(bk) != 0)
+                {
+                        sprintf(msg, "%s has no chapter 0", name);
+                        fail(msg);
+                }
+                *c = 0;
+                if (*v > (int) (pach[chapter_index(bk, 0) + 1] - pach[chapter_index(bk, 0)]))
+                {
+                        sprintf(msg, "%s 0 has %ld verses", name,
+                                pach[chapter_index(bk, 0) + 1] - pach[chapter_index(bk, 0)]);
+                        fail(msg);
+                }
+                *from = pach[chapter_index(bk, 0)] + *v - 1;
+                *to = *last > 0 ? pach[chapter_index(bk, 0)] + *last - 1 : 0;
+                return;
+        }
+        if (zero_v)
+        {
+                if (first_verse(chapter_index(bk, *c)) != 0)
+                {
+                        sprintf(msg, "%s %d has no introduction", name, *c);
+                        fail(msg);
+                }
+                *v = 0;
         }
         *from = chapter_start(bk, *c) + *v - 1;
         *to = *last > 0 ? chapter_start(bk, *c) + *last - 1 : 0;

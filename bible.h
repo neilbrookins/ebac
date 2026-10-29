@@ -145,7 +145,9 @@ void tty_resume P((void));
 #endif
 void change_translations P((void));
 extern int default_translation_set;
-extern char ebac_release[];          /* "2.3.4" (userint.c) */   /* (see make_default(), in file.c) */
+extern char ebac_release[];
+int first_chapter P((int b));            /* 0 or 1 (file.c) */
+int first_verse P((long int ch));        /* 0 or 1 (file.c) */          /* "2.3.4" (userint.c) */   /* (see make_default(), in file.c) */
 int verse_to_book P((long int sequ_verse_number));
 struct bcv_array_type *get_verse P((long int sequ_verse_number));
 FILE *root_fopen P((char *name));

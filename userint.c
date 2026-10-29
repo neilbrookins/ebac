@@ -37,6 +37,9 @@ static char program_path[512] = "";
 ** translation only when it is set.
 */
 static char importer[600] = "";
+/* and the importer of Project Gutenberg's texts, add-gutenberg.sh, for
+   P)roject Gutenberg, likewise */
+static char gutenberg[600] = "";
 #endif
 
 #define WIDTH (s_cols - 1)
@@ -110,8 +113,8 @@ static void prog_diagnostics P((void));
 static void set_program_path P((char *argv0));
 #ifdef UNIXV
 static int on_path P((char *name));
-static void find_importer P((void));
-static void run_importer P((void));
+static void find_importer P((char *found, int size, char *name));
+static void run_importer P((char *script, char *what));
 #endif
 static int tag_label P((int tag));
 static int key_to_tag P((int key));
@@ -139,14 +142,20 @@ static int main_menu(void)
 #ifdef UNIXV
         if (importer[0] != '\0')
                 printf("A)dd or remove a translation\n\n");
+        if (gutenberg[0] != '\0')
+                printf("P)roject Gutenberg: add a text\n\n");
 #endif
         printf("V)iew by:   Bookname Chapter:Verse\n\n");
         printf("S)earch by: Keyword(s)\n\n");
         printf("I)nformation about EBaC\n\n");
         printf("E)xit Program\n\n");
 #ifdef UNIXV
-        if (importer[0] != '\0')
+        if (importer[0] != '\0' && gutenberg[0] != '\0')
+                printf("Please press C, A, P, V, S, I, or E now.\n");
+        else if (importer[0] != '\0')
                 printf("Please press C, A, V, S, I, or E now.\n");
+        else if (gutenberg[0] != '\0')
+                printf("Please press C, P, V, S, I, or E now.\n");
         else
 #endif
         printf("Please press C, V, S, I, or E now.\n");
@@ -619,6 +628,32 @@ static void print_visual(char *s, char *hi)
                 standend();
 }
 
+/*
+** A verse taller than the screen (see view_in_context()) is shown a part at
+** a time: dis_verse() leaves out its first dv_skip lines and then shows at
+** most dv_left (-1: all of it). With dv_body_only, display_verse() shows
+** neither the book's heading nor the verse's number (a later part).
+*/
+static int dv_skip = 0, dv_left = -1, dv_body_only = FALSE;
+
+/* Purpose: one line of a verse, as dis_verse() wraps it: indented, but for
+   the first, which follows the verse's number; or left out (see above) */
+static void verse_line(char *strg, int indent, int firstTime)
+{
+        if (dv_skip > 0)
+        {
+                dv_skip--;
+                return;
+        }
+        if (dv_left == 0)
+                return;
+        if (dv_left > 0)
+                dv_left--;
+        if (firstTime == FALSE || dv_body_only)
+                printf("%s", spaces + MAXINDENT - indent);
+        dis_one_line(strg);
+}
+
 /* Purpose: performs word wrapping by inserting a '\0' at appropriate location
             and calls dis_one_line to print one line of the verse, up to the
             '\0'. Then it recursively calls itself to handle the remainder
@@ -634,19 +669,15 @@ static void dis_verse(char *strg, int indent, int firstTime)
         {
                 if ((strg[0] == '\0') && (firstTime == FALSE))
                         return;
-                if (firstTime == FALSE)
-                        printf("%s", spaces + MAXINDENT - indent);
-                dis_one_line(strg);
+                verse_line(strg, indent, firstTime);
                 return;
         }
         for (i = fit; i > 0; i--)
         {
                 if (strg[i] == ' ')
                 {
-                        if (firstTime == FALSE)
-                                printf("%s", spaces + MAXINDENT - indent);
                         strg[i] = '\0';
-                        dis_one_line(strg);
+                        verse_line(strg, indent, firstTime);
                         strg[i] = ' ';
                         dis_verse(&strg[i + 1], indent, FALSE);
                         return;
@@ -659,12 +690,10 @@ static void dis_verse(char *strg, int indent, int firstTime)
                 exit_program(1);
         }
 
-        if (firstTime == FALSE)
-                printf("%s", spaces + MAXINDENT - indent);
         for (i = 0; i < fit; i++)
                 outstr[i] = strg[i];
         outstr[i] = '\0';
-        dis_one_line(outstr);
+        verse_line(outstr, indent, firstTime);
         free(outstr);
         dis_verse(&strg[i], indent, FALSE);
         return;
@@ -710,6 +739,8 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
             else
                printf("%s", spaces + MAXINDENT - 16);
         }
+        else if (dv_body_only)
+           ;    /* (a later part of a tall verse: its text only) */
         else
         {
            if (bcv_arrays->book_array[0] != '\0' &&
@@ -750,12 +781,26 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
               printf(" (%s)\n", etla);
            }
         }
-        printf("%s:", bcv_arrays->chapt_array);
-        printf("%s", bcv_arrays->verse_array);
-        cv_length = strlen(bcv_arrays->chapt_array);
-        cv_length++;  /* Count the colon */
-        cv_length += strlen(bcv_arrays->verse_array);
-        printf("%s", spaces + cv_length + MAXINDENT - 8);
+        if (dv_body_only)
+                ;       /* (indented by verse_line()) */
+        else if (tag == -1 && (strcmp(bcv_arrays->chapt_array, "0") == 0 ||
+                          strcmp(bcv_arrays->verse_array, "0") == 0))
+        {
+                /* verse 0 or chapter 0, the text before verse 1 or chapter
+                   1 (see index.c): plain text, without the 0, which isn't
+                   in the source (in a list of search results, its
+                   reference is shown, as any verse's) */
+                printf("%s", spaces + MAXINDENT - 8);
+        }
+        else
+        {
+                printf("%s:", bcv_arrays->chapt_array);
+                printf("%s", bcv_arrays->verse_array);
+                cv_length = strlen(bcv_arrays->chapt_array);
+                cv_length++;  /* Count the colon */
+                cv_length += strlen(bcv_arrays->verse_array);
+                printf("%s", spaces + cv_length + MAXINDENT - 8);
+        }
         dis_verse(bcv_arrays->data_array, verIndent, TRUE);
         strcpy(previous_book, bcv_arrays->book_array);
 }
@@ -838,12 +883,51 @@ static int check_limits(long int cur_verse)
 ** book or a verse from Genesis 1:1, on a book or a screen from the end)
 ** beeps and leaves the screen as it is.
 */
+/*
+** Purpose: show the first verse of a screen when it is taller than the
+**          screen (as a long introduction can be): the part of it from
+**          line shown of its text, as much as fits. Returns the lines of
+**          its text shown so far (shown and this part's), or 0 if this was
+**          its last part.
+*/
+static int show_tall_verse(struct bcv_array_type *bcv_arrays, int shown)
+{
+        int total, text_lines, avail = s_lines - 1, part;
+
+        total = count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array, 8, TRUE);
+        text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE);
+        if (shown == 0)
+        {
+                part = avail - (total - text_lines);    /* (its heading first) */
+                if (part < 1)
+                        part = 1;
+        }
+        else
+                part = avail;
+        if (shown + part > text_lines)
+                part = text_lines - shown;
+        dv_skip = shown;
+        dv_left = part;
+        dv_body_only = (shown > 0);
+        display_verse(-1, bcv_arrays, 8, TRUE);
+        dv_skip = 0;
+        dv_left = -1;
+        dv_body_only = FALSE;
+        shown += part;
+        return (shown >= text_lines ? 0 : shown);
+}
+
 static void view_in_context(long int cur_verse)
 {
         long int first_verse, start;
         int num_lines;
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;
+        /* a verse taller than the screen, shown a part at a time: which
+           verse, the lines of it shown before this screen, after it (0 when
+           its last part is showing), and whether n goes on in it */
+        long int tall_verse = 0;
+        int tall_shown = 0, tall_next = 0, tall_continue = FALSE;
 
         if (cur_verse < 1)
                 cur_verse = 1;
@@ -854,7 +938,26 @@ static void view_in_context(long int cur_verse)
                 num_lines = s_lines;
                 first_verse = cur_verse; /* a legal value */
                 top_of_screen = TRUE;
-                for(;;)
+                tall_shown = (tall_continue && cur_verse == tall_verse) ? tall_next : 0;
+                tall_continue = FALSE;
+                tall_next = 0;
+                if (check_limits(cur_verse))
+                {
+                    bcv_arrays = get_verse(cur_verse);
+                    if (tall_shown > 0 ||
+                        count_lines(-1, bcv_arrays->book_array,
+                                    bcv_arrays->data_array, 8, TRUE) > s_lines - 1)
+                    {
+                        /* taller than the screen: a part of it, alone */
+                        tall_verse = cur_verse;
+                        tall_next = show_tall_verse(bcv_arrays, tall_shown);
+                        /* (one past the next to show: itself, or the next) */
+                        cur_verse += (tall_next > 0) ? 1 : 2;
+                        top_of_screen = FALSE;
+                        num_lines = 0;
+                    }
+                }
+                for(;num_lines > 0;)
                 {
                     if (!check_limits(cur_verse))
                     {
@@ -923,13 +1026,20 @@ get_command:    scr_mode("passage");
                         }
 /*
 ** This verse didn't fit on the current screen; so it becomes the first
-** verse on the next screen
+** verse on the next screen (or, of a tall verse, its next part)
 */
+                        tall_continue = (tall_next > 0);
                         cur_verse--;
                         break;
                 case '.':
                 case '>':
                 case 0xe: /* Down Arrow on MM/1 */
+                        if (tall_next > 0)      /* (within a tall verse: on in it) */
+                        {
+                                tall_continue = TRUE;
+                                cur_verse--;
+                                break;
+                        }
                         if (check_limits(cur_verse - 1))
                         {
                                 bcv_arrays = get_verse(cur_verse++ - 1);
@@ -980,6 +1090,12 @@ get_command:    scr_mode("passage");
                         if (first_verse == -1)
                                 first_verse = scrolled_top(cur_verse - 2);
                         cur_verse = first_verse;
+                        if (tall_verse == first_verse)
+                        {
+                                /* (a tall verse: the same part again) */
+                                tall_next = tall_shown;
+                                tall_continue = (tall_shown > 0);
+                        }
                         break;
                 default:
                         cls();
@@ -1101,8 +1217,21 @@ static void view_match_list(long int *verse_list)
                     if (tag > MAXTAGS) /* no label left for another entry */
                         break;
                     bcv_arrays = get_verse(cur_verse);
-                    num_lines -= count_lines(tag, bcv_arrays->book_array,
+                    n = count_lines(tag, bcv_arrays->book_array,
                              bcv_arrays->data_array, MAXINDENT, top_of_screen);
+                    if (top_of_screen && n > num_lines - 1 && num_lines > 1)
+                    {
+                        /* taller than the screen (a long introduction): as
+                           much of it as fits, to choose it by (its label
+                           shows it all, a screenful at a time) */
+                        dv_left = num_lines - 1;
+                        display_verse(tag++, bcv_arrays, MAXINDENT, top_of_screen);
+                        dv_left = -1;
+                        top_of_screen = FALSE;
+                        num_lines = 1;  /* (the next entry: the next screen) */
+                        continue;
+                    }
+                    num_lines -= n;
                     if (num_lines < 1)
                         break;
                     display_verse(tag++, bcv_arrays, MAXINDENT, top_of_screen);
@@ -1465,26 +1594,26 @@ static int on_path(char *name)
 **          before initialize() changes folder, so that a BIBLEROOT given
 **          relative to the current folder works too.
 */
-static void find_importer(void)
+static void find_importer(char *found, int size, char *name)
 {
         char *root = getenv("BIBLEROOT");
-        static char name[] = "/add-translation.sh";
 
-        importer[0] = '\0';
+        found[0] = '\0';
         if (root == NULL || *root == '\0' || !on_path("sh"))
                 return;
         if (root[0] != '/' &&
-            getcwd(importer, sizeof(importer) - 2) != NULL)
-                strcat(importer, "/");
-        if (strlen(importer) + strlen(root) + sizeof(name) > sizeof(importer))
+            getcwd(found, size - 2) != NULL)
+                strcat(found, "/");
+        if (strlen(found) + strlen(root) + strlen(name) + 2 > (size_t) size)
         {
-                importer[0] = '\0';
+                found[0] = '\0';
                 return;
         }
-        strcat(importer, root);
-        strcat(importer, name);
-        if (access(importer, R_OK) != 0)
-                importer[0] = '\0';
+        strcat(found, root);
+        strcat(found, "/");
+        strcat(found, name);
+        if (access(found, R_OK) != 0)
+                found[0] = '\0';
 }
 
 /*
@@ -1496,13 +1625,13 @@ static void find_importer(void)
 **          EBaC, and which translation this one was showing.
 ** Returns: only if the importer couldn't be started, after saying so.
 */
-static void run_importer(void)
+static void run_importer(char *script, char *what)
 {
         char *args[6];
         int fd, err;
 
         args[0] = "sh";
-        args[1] = importer;
+        args[1] = script;
         args[2] = "--from-ebac";
         args[3] = (program_path[0] != '\0') ? program_path : "bible";
         args[4] = etla;
@@ -1518,8 +1647,8 @@ static void run_importer(void)
 
         err = errno;                            /* still here: it failed */
         tty_resume();
-        printf("\nThe translation importer couldn't be started:\n");
-        printf("sh %s: %s\n\n", importer, strerror(err));
+        printf("\nThe %s couldn't be started:\n", what);
+        printf("sh %s: %s\n\n", script, strerror(err));
         printf("Press any key to go back to the main menu.\n");
         fflush(stdout);
         scr_mode("anykey");
@@ -1542,7 +1671,8 @@ int main(int argc, char **argv)
         if (argc > 1)
                 start_trans = argv[1];  /* "bible BSB": start with BSB */
 #ifdef UNIXV
-        find_importer();
+        find_importer(importer, sizeof(importer), "add-translation.sh");
+        find_importer(gutenberg, sizeof(gutenberg), "add-gutenberg.sh");
 #endif
         initialize();
         cls();
@@ -1556,7 +1686,13 @@ int main(int argc, char **argv)
 #ifdef UNIXV
 		case 'a':
 			if (importer[0] != '\0')
-				run_importer();
+				run_importer(importer, "translation importer");
+			else
+				putchar('\7');
+			break;
+		case 'p':
+			if (gutenberg[0] != '\0')
+				run_importer(gutenberg, "Project Gutenberg importer");
 			else
 				putchar('\7');
 			break;

@@ -1179,7 +1179,9 @@ importer shows its license and asks the person adding it to agree:
 Texts from Project Gutenberg
 ----------------------------
 
-(Design review of October 29, 2026; not built yet.) Some texts EBaC
+(Design review of October 29, 2026; built: add-gutenberg.sh, zero.dat
+from index.c, verse 0 and chapter 0 in EBaC and ebac-api, tall verses,
+P on the main menu.) Some texts EBaC
 should read, such as the Book of Mormon, aren't in scrollmapper's
 collection but are on Project Gutenberg (gutenberg.org) as plain text,
 in chapter and verse. They are added by hand, one at a time:

@@ -37,8 +37,8 @@ static char *units[] = { "zero", "one", "two", "three", "four", "five", "six",
         NULL };
 static char *tens[] = { "", "", "twenty", "thirty", "forty", "fifty", "sixty",
         "seventy", "eighty", "ninety", NULL };
-static char *ordinals[] = { "", "first", "second", "third", NULL };
-static char *short_ordinals[] = { "", "1st", "2nd", "3rd", NULL };
+static char *ordinals[] = { "", "first", "second", "third", "fourth", NULL };
+static char *short_ordinals[] = { "", "1st", "2nd", "3rd", "4th", NULL };
 
 static int word_in P((char *word, char *list[]));
 static int roman P((char *word));
@@ -236,10 +236,10 @@ static int book_at(int *i)
                                 n = -1;
                                 if ((n = word_in(tokens[k], ordinals)) < 1 &&
                                     (n = word_in(tokens[k], short_ordinals)) < 1 &&
-                                    !((n = word_in(tokens[k], units)) >= 1 && n <= 3) &&
-                                    !((n = roman(tokens[k])) >= 1 && n <= 3) &&
+                                    !((n = word_in(tokens[k], units)) >= 1 && n <= 4) &&
+                                    !((n = roman(tokens[k])) >= 1 && n <= 4) &&
                                     !(isdigit(UCHAR(tokens[k][0])) && tokens[k][1] == '\0' &&
-                                      (n = tokens[k][0] - '0') >= 1 && n <= 3))
+                                      (n = tokens[k][0] - '0') >= 1 && n <= 4))
                                         n = 0;
                                 if (n > 0)
                                 {

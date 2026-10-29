@@ -166,14 +166,15 @@ long int seq_chapter, seq_verse;
 ** chapter gives 0 or numverses + 1, verses that don't exist, which the
 ** passage screen shows as such.
 */
+/* (a book may start at chapter 0, and a chapter at verse 0: see index.c) */
 seq_chapter = book[(bcvptr->book_number) - 1].chapt;
-seq_chapter += (long) bcvptr->chapter_number - 1;
+seq_chapter += (long) bcvptr->chapter_number - first_chapter(bcvptr->book_number - 1);
 if (seq_chapter < 0)
         return(0);
 if (seq_chapter > numchapters) /* pach[numchapters] is the end mark */
         return(numverses + 1);
 
-seq_verse = pach[seq_chapter] + (long) bcvptr->verse_number - 1;
+seq_verse = pach[seq_chapter] + (long) bcvptr->verse_number - first_verse(seq_chapter);
 if (seq_verse < 0)
         seq_verse = 0;
 if (seq_verse > numverses + 1)

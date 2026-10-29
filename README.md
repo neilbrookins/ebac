@@ -51,6 +51,7 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 - [Searching](#searching)
 - [Adding other translations](#adding-other-translations)
   - [Downloading a translation](#downloading-a-translation)
+  - [Adding a text from Project Gutenberg](#adding-a-text-from-project-gutenberg)
   - [Adding one by hand](#adding-one-by-hand)
   - [How `make` keeps the indexes up to date](#how-make-keeps-the-indexes-up-to-date)
 - [History](#history)
@@ -376,6 +377,33 @@ The 34 English translations include the American Standard Version, the Berean St
 Each translation keeps its own book names, as one word (EBaC's book prompt and `@book` searches take one word), shortened to fit the list of search results: `I Samuel` becomes `ISamuel`, so type `isam` for it, or `1s`: a number typed at the start of a book's name also matches a Roman numeral there, so `2th` finds `IIThessalonians` as well as `2Thessalonians`, in any translation (at the book prompt and in `@book` searches). Curly quotes and dashes become plain ones, as in EBaC's own text, so that searches find the words beside them. Verse numbers keep the brackets they have there, `[1:1]`: EBaC reads both `[1:1]` and `1:1`.
 
 On the **C** screen, a translation's number chooses it for now, and **d** before the number chooses it and makes it the default, the one EBaC starts with from then on: **d** then **3**, say (its line is moved to the top of `trans`, and the main menu says "now the default"). With more than nine translations, the **C** screen shows them a page at a time: type a number and press Enter, or **d** and a number, such as `d12` (**space** and **p** turn the page, **x** goes back). Adding a translation changes `trans`; if a later `git pull` then says `Your local changes ... would be overwritten`, see [If something goes wrong](#if-something-goes-wrong). In the Home Assistant app, added translations are kept in the app's own storage, so updates of the app keep them (and Home Assistant's backups include them).
+
+### Adding a text from Project Gutenberg
+
+Some texts EBaC can read, such as the Book of Mormon, aren't among the translations **A** offers, but are on [Project Gutenberg](https://www.gutenberg.org) as plain text in chapters and verses. To add one:
+
+1. Find it on gutenberg.org with its search, open its **Plain Text UTF-8** file in your browser, and check it is the one you want.
+2. Copy that page's address, such as `https://www.gutenberg.org/cache/epub/17/pg17.txt`.
+3. At EBaC's main menu, press **P**, paste the address and press Enter.
+
+EBaC downloads it, shows its license (Gutenberg's, from the file) and asks whether you agree, then splits it into its books, indexes it, and adds it at the top of `trans`, as **A** does. The same version isn't downloaded twice: remove it first (**P**, then **r** and its number). **P** removes only texts it added; **A** only its own.
+
+Gutenberg's texts are laid out in many ways, so EBaC knows each one by its ebook number, and is taught them one at a time; an address of a text it doesn't know yet is refused, saying so. It knows:
+
+| Ebook | Short name | Text |
+|---|---|---|
+| 17 | `BOM` | The Book of Mormon |
+
+Nothing the text gives is left out. The front matter before the first book (in the Book of Mormon: the title page, the testimonies of the witnesses, the contents) is kept as chapter 0 of the first book, a verse for each part, and each book's heading and summary as verse 0 of its chapter 1. EBaC shows them as plain text, above verse 1, without the 0s, which aren't in the text; searches find them, and comma or the up arrow from 1:1 goes back to them (their references, such as `1 Nephi 0:5`, are shown in a list of search results). A verse taller than the screen, as some of them are on a phone, is shown a screenful at a time.
+
+**P** runs `add-gutenberg.sh`, a shell script beside `add-translation.sh`, which can also be run by itself:
+
+```sh
+cd ~/ebac
+sh add-gutenberg.sh https://www.gutenberg.org/cache/epub/17/pg17.txt
+sh add-gutenberg.sh --remove BOM
+sh add-gutenberg.sh --list
+```
 
 ### Adding one by hand
 
