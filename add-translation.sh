@@ -1281,8 +1281,14 @@ if [ -z "$names" ]; then
         [ -n "$chosen" ] && clear_screen
 fi
 
+between=""
 for action in $chosen; do
         name=${action#?}
+        # A blank line between translations: each one's last line is how it
+        # ended, and the blanks count the translations done.
+        printf '%s' "$between"
+        between='
+'
         case $action in
         -*)
                 if remove "$name"; then
