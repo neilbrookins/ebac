@@ -186,8 +186,13 @@ add)
         : > "$jobs/$name.log"
         # (in the background, its output away from the web server, so that
         # the answer goes now; the state says how it ended)
-        setsid sh -c '
+        # (setsid: in a session of its own, untouched by the web server
+        # when the request ends; where there is none, nohup)
+        detach=nohup
+        command -v setsid > /dev/null 2>&1 && detach=setsid
+        $detach sh -c '
                 importer=$1 name=$2 agreed=$3 jobs=$4
+                echo $$ > "$jobs/$name.pid"     # (its own: setsid may fork)
                 if sh "$importer" --agree --agreed-how "$agreed" --at-end "$name" \
                         > "$jobs/$name.log" 2>&1 < /dev/null &&
                    grep -F "$name: done." "$jobs/$name.log" > /dev/null; then
@@ -197,7 +202,8 @@ add)
                 fi
                 rm -f "$jobs/$name.pid"
         ' sh "$importer" "$name" "$agreed" "$jobs" < /dev/null > /dev/null 2>&1 &
-        echo $! > "$jobs/$name.pid"
+        # (until the add writes its own: so that another isn't started)
+        [ -f "$jobs/$name.pid" ] || echo $! > "$jobs/$name.pid"
         headers "200 OK"
         printf '{"name": %s, "started": true}\n' "$(json "$name")"
         ;;
