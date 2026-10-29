@@ -950,8 +950,12 @@ Adding by voice. "Add translation LITV" (in the language group):
     (an Assist satellite); a notification to the phone, if asked from
     the Home Assistant app, whose user is known. If it fails: a repair
     in Home Assistant (Settings, Repairs) saying which translation,
-    what went wrong and from which device, removed when it is next added
-    successfully.
+    what went wrong and from which device. A failed add leaves nothing
+    behind (no folder, trans as it was), so the repair is a notice, not
+    a problem still there: it is "fixable" with nothing to fix, so that
+    Submit clears it (Home Assistant's only other choice, Ignore, keeps
+    it as a problem, which it isn't; the user's review, October 29,
+    2026). Adding it, or removing it, clears it too.
   - It becomes the integration's translation (its option), not the
     app's default: added by voice, it goes at the end of trans, not the
     top, so that a voice user doesn't change what the app starts with.
