@@ -25,6 +25,10 @@
 **   next?svn=N&n=1&t=AV          the n verses after verse N (its
 **                                sequential number); previous likewise
 **   search?q=...&max=10&t=AV     a search in EBaC's own syntax
+**   info                         EBaC's release, commit and package, and
+**                                where to get help
+**   license?t=AV                 the license agreed to when it was added
+**                                (its folder's license file), if kept
 **
 ** An answer is {"...": ...}; an error is {"error": "..."}, with HTTP
 ** status 400. What the shared code would print (as an error) is caught,
@@ -695,6 +699,81 @@ static void search(void)
         printf("]}\n");
 }
 
+/* ---- information -------------------------------------------------- */
+
+#ifndef EBAC_COMMIT
+#       define EBAC_COMMIT ""
+#endif
+#ifndef EBAC_PACKAGE
+#       define EBAC_PACKAGE ""
+#endif
+
+/* EBaC's release, the commit it was built from, the package, and where to
+   get help (as on the Information screen) */
+static void info(void)
+{
+        begin_answer(TRUE);
+        printf("{\"release\": ");
+        json_string(ebac_release);
+        printf(", \"commit\": ");
+        json_string(EBAC_COMMIT);
+        printf(", \"package\": ");
+        json_string(EBAC_PACKAGE);
+        printf(",\n \"help\": [");
+        printf("\n  {\"for\": \"the program\", \"url\": \"https://github.com/neilbrookins/ebac\"},");
+        printf("\n  {\"for\": \"the Home Assistant app\", \"url\": \"https://github.com/neilbrookins/ebac-ha-app\"},");
+        printf("\n  {\"for\": \"the Home Assistant voice integration\", \"url\": \"https://github.com/neilbrookins/ebac-ha-integration\"},");
+        printf("\n  {\"for\": \"the texts to download\", \"url\": \"https://github.com/scrollmapper/bible_databases\"}]}\n");
+}
+
+/*
+** The license of translation t, as kept in its folder when it was added
+** (add-translation.sh: "License:", "Details:", "Agreed:" lines);
+** "recorded": false if there is none (added before EBaC 2.4.1, or one of
+** EBaC's own).
+*/
+static void license(void)
+{
+        char t[80], path[1200], line[1024], *field, *value;
+        char *root = getenv("BIBLEROOT");
+        FILE *f;
+        int k;
+
+        param("t", t, sizeof(t));
+        if (t[0] == '\0' || strchr(t, '/') != NULL || strchr(t, '.') != NULL)
+                fail("no translation named (t=)");
+        sprintf(path, "%.1000s/%.80s/license", root != NULL ? root : ".", t);
+        f = fopen(path, "r");
+        begin_answer(TRUE);
+        printf("{\"name\": ");
+        json_string(t);
+        printf(", \"recorded\": %s", f != NULL ? "true" : "false");
+        while (f != NULL && fgets(line, sizeof(line), f) != NULL)
+        {
+                k = strlen(line);
+                while (k > 0 && isspace(UCHAR(line[k - 1])))
+                        line[--k] = '\0';
+                if ((value = strchr(line, ':')) == NULL)
+                        continue;
+                *value++ = '\0';
+                while (*value == ' ')
+                        value++;
+                field = line;
+                if (strcmp(field, "License") == 0)
+                        printf(", \"license\": ");
+                else if (strcmp(field, "Details") == 0)
+                        printf(", \"details\": ");
+                else if (strcmp(field, "Agreed") == 0)
+                        printf(", \"agreed\": ");
+                else
+                        continue;
+                json_string(value);
+        }
+        if (f != NULL)
+                fclose(f);
+        printf("}\n");
+}
+
 int main(int argc, char **argv)
 {
         char *path, *q, request[64];
@@ -749,7 +828,11 @@ int main(int argc, char **argv)
                 next(-1);
         else if (strcmp(request, "search") == 0)
                 search();
+        else if (strcmp(request, "info") == 0)
+                info();
+        else if (strcmp(request, "license") == 0)
+                license();
         else
-                fail("no such request (translations, books, numbers, parse, verse, next, previous, search)");
+                fail("no such request (translations, books, numbers, parse, verse, next, previous, search, info, license)");
         return (0);
 }

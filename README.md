@@ -436,7 +436,9 @@ export BIBLEROOT=$PWD
 ./ebac-api 'search?q=faith+hope&max=5'
 ```
 
-Its requests (`translations`, `books`, `parse`, `verse`, `next`, `previous`, `search`) are described in [`readme.architecture`](readme.architecture), under "Voice". A translation's `booknames` file gives its books' full names to speak (`Song of Solomon`); downloading a translation writes it.
+Its requests (`translations`, `books`, `numbers`, `parse`, `verse`, `next`, `previous`, `search`, `info`, `license`) are described in [`readme.architecture`](readme.architecture), under "Voice". A translation's `booknames` file gives its books' full names to speak (`Song of Solomon`); downloading a translation writes it.
+
+`ebac-api` only reads. A second CGI program, [`ebac-admin`](ebac-admin) (a shell script), adds and removes translations for other programs, with `add-translation.sh`. It does nothing that changes the disk unless the web server's setup allows it: `EBAC_ALLOW_ADD=yes` for adding, and `EBAC_ALLOW_REMOVE=yes` as well for removing. Its requests (`permissions`, `catalog`, `license`, `check`, `add`, `status`, `remove`) are described at its top. An add runs in the background and agrees to the translation's license as the request says (`agreed=by voice, from Kitchen`), recorded in the translation's `license` file. It goes at the end of `trans`, so EBaC still starts with the same translation.
 
 [↑ Contents](#contents)
 

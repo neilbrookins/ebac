@@ -19,6 +19,7 @@
 ** package such as the Home Assistant app can name itself in EBAC_PACKAGE.
 */
 #define EBAC_RELEASE "2.3.4"
+char ebac_release[] = EBAC_RELEASE;   /* (for ebac-api's info too) */
 #ifndef EBAC_COMMIT
 #       define EBAC_COMMIT ""
 #endif

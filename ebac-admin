@@ -1,0 +1,249 @@
+#!/bin/sh
+# ebac-admin -- add and remove translations for other programs (EBaC 2.4):
+# a CGI program, beside ebac-api, for the EBaC integration's voice commands
+# ("add translation LITV"). ebac-api only reads; this writes, so it is
+# separate, and does nothing that changes the disk unless allowed:
+#
+#   EBAC_ALLOW_ADD=yes      adding (and downloading the list) is allowed
+#   EBAC_ALLOW_REMOVE=yes   removing is allowed (only with adding)
+#
+# which the web server's setup sets (the Home Assistant app: from its
+# options, both off unless checked). See "More of EBaC by voice" in
+# readme.architecture.
+#
+# Requests (PATH_INFO, QUERY_STRING; the answer is JSON; an error is HTTP
+# 400, or 403 when not allowed, or 409 when another add is under way, with
+# {"error": "..."}):
+#
+#   permissions            {"add": true|false, "remove": true|false}
+#   catalog                every language and translation that can be added
+#                          (and whether it is): add-translation.sh --catalog
+#   license?name=LITV      its title, license and details page
+#   check?name=LITV        whether it is added, and if so whether the source
+#                          has the same version (then adding it is refused)
+#   add?name=LITV&agreed=TEXT
+#                          start adding it, in the background (it takes
+#                          minutes): agreeing to its license, as TEXT says
+#                          ("by voice, from Kitchen"); at the end of trans,
+#                          not the top (the app's default stays)
+#   status?name=LITV       how its add is going: running, done or failed
+#                          (with the reason), or none
+#   remove?name=LITV       remove it (not one of EBaC's own, nor the last)
+#
+# By hand, for testing: BIBLEROOT=~/ebac sh ebac-admin 'check?name=LITV'
+#
+# BIBLEROOT is EBaC's folder, with add-translation.sh in it. The adds'
+# progress is kept in BIBLEROOT/.voice-adds: NAME.state (running, done or
+# failed, and when), NAME.log (what add-translation.sh printed) and
+# NAME.pid.
+
+LC_ALL=C
+export LC_ALL
+set -f
+
+root=${BIBLEROOT:-.}
+importer=$root/add-translation.sh
+jobs=$root/.voice-adds
+
+if [ -n "${GATEWAY_INTERFACE:-}" ]; then
+        cgi=yes
+        request=${PATH_INFO:-}
+        query=${QUERY_STRING:-}
+else
+        cgi=no
+        request=${1%%\?*}
+        case $1 in *\?*) query=${1#*\?} ;; *) query="" ;; esac
+fi
+request=${request#/}
+
+# answer STATUS: the CGI headers (HTTP status, as "200 OK")
+headers() {
+        if [ $cgi = yes ]; then
+                [ "$1" = "200 OK" ] || printf 'Status: %s\r\n' "$1"
+                printf 'Content-Type: application/json; charset=utf-8\r\n\r\n'
+        fi
+}
+
+# json TEXT: TEXT as a JSON string
+json() {
+        printf '%s' "$1" | awk 'BEGIN { ORS = ""; print "\"" }
+                { if (NR > 1) print "\\n"
+                  gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); gsub(/\t/, "\\t"); gsub(/\r/, "")
+                  print }
+                END { print "\"" }'
+}
+
+# fail STATUS MESSAGE
+fail() {
+        headers "$1"
+        printf '{"error": %s}\n' "$(json "$2")"
+        exit 0
+}
+
+# param NAME: its value in the query, URL-decoded (+ a space, %XX a byte)
+param() {
+        printf '%s\n' "$query" | awk -v n="$1" 'BEGIN { RS = "&" }
+        {
+                sub(/\n$/, "")
+                if (index($0, n "=") != 1) next
+                v = substr($0, length(n) + 2)
+                gsub(/\+/, " ", v)
+                out = ""
+                while ((i = index(v, "%")) > 0) {
+                        h = toupper(substr(v, i + 1, 2))
+                        if (h !~ /^[0-9A-F][0-9A-F]$/) {
+                                out = out substr(v, 1, i); v = substr(v, i + 1); continue
+                        }
+                        c = index("0123456789ABCDEF", substr(h, 1, 1)) * 16 + index("0123456789ABCDEF", substr(h, 2, 1)) - 17
+                        out = out substr(v, 1, i - 1) sprintf("%c", c)
+                        v = substr(v, i + 3)
+                }
+                printf "%s", out v
+                exit
+        }'
+}
+
+allowed_add() { [ "${EBAC_ALLOW_ADD:-no}" = yes ]; }
+allowed_remove() { allowed_add && [ "${EBAC_ALLOW_REMOVE:-no}" = yes ]; }
+
+# the translation's name from name=: letters, digits, - and _ only
+name_param() {
+        name=$(param name)
+        case $name in
+        "" | *[!A-Za-z0-9_-]*) fail "400 Bad Request" "no translation named (name=), or not a translation's name: $name" ;;
+        esac
+}
+
+bool() { if "$@"; then echo true; else echo false; fi; }
+
+[ -f "$importer" ] || fail "400 Bad Request" "add-translation.sh isn't in $root"
+
+case $request in
+permissions)
+        headers "200 OK"
+        printf '{"add": %s, "remove": %s}\n' "$(bool allowed_add)" "$(bool allowed_remove)"
+        ;;
+
+catalog)
+        # (reading the list is harmless, but downloads it: only with adding)
+        allowed_add || fail "403 Forbidden" "adding translations isn't allowed (the EBaC app's options)"
+        out=$(sh "$importer" --catalog 2> /dev/null) || fail "400 Bad Request" "couldn't read the list of translations"
+        headers "200 OK"
+        printf '%s\n' "$out" | awk -F '\t' '
+        function j(s) {
+                gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s)
+                return "\"" s "\""
+        }
+        $1 == "language" {
+                langs = langs (langs == "" ? "\n  " : ",\n  ") "{\"code\": " j($2) ", \"english\": " j($3) ", \"own\": " j($4) ", \"count\": " ($5 + 0) "}"
+        }
+        $1 == "translation" {
+                trans = trans (trans == "" ? "\n  " : ",\n  ") "{\"name\": " j($2) ", \"language\": " j($3) ", \"title\": " j($4) ", \"added\": " ($5 == 1 ? "true" : "false") "}"
+        }
+        END { print "{\"languages\": [" langs "],\n \"translations\": [" trans "]}" }'
+        ;;
+
+license)
+        allowed_add || fail "403 Forbidden" "adding translations isn't allowed (the EBaC app's options)"
+        name_param
+        out=$(sh "$importer" --license "$name" 2>&1) || fail "400 Bad Request" "$out"
+        headers "200 OK"
+        printf '{"name": %s, "title": %s, "license": %s, "details": %s}\n' "$(json "$name")" \
+                "$(json "$(printf '%s\n' "$out" | sed -n 's/^Title: //p')")" \
+                "$(json "$(printf '%s\n' "$out" | sed -n 's/^License: //p')")" \
+                "$(json "$(printf '%s\n' "$out" | sed -n 's/^Details: //p')")"
+        ;;
+
+check)
+        allowed_add || fail "403 Forbidden" "adding translations isn't allowed (the EBaC app's options)"
+        name_param
+        out=$(sh "$importer" --check "$name" 2>&1) || fail "400 Bad Request" "$out"
+        same=$(printf '%s\n' "$out" | awk -F '\t' '$1 == "same version" { print $2 }')
+        headers "200 OK"
+        printf '{"name": %s, "added": %s, "same_version": %s, "downloaded": %s}\n' "$(json "$name")" \
+                "$([ "$(printf '%s\n' "$out" | head -n 1)" = added ] && echo true || echo false)" \
+                "$([ -n "$same" ] && echo true || echo false)" "$(json "$same")"
+        ;;
+
+add)
+        allowed_add || fail "403 Forbidden" "adding translations isn't allowed (the EBaC app's options)"
+        name_param
+        agreed=$(param agreed)
+        [ -n "$agreed" ] || fail "400 Bad Request" "its license must be agreed to (agreed=: how)"
+        mkdir -p "$jobs" || fail "400 Bad Request" "couldn't make $jobs"
+        # one add at a time (another, still running, is a 409)
+        set +f
+        for pidfile in "$jobs"/*.pid; do
+                [ -f "$pidfile" ] || continue
+                if kill -0 "$(cat "$pidfile")" 2> /dev/null; then
+                        other=${pidfile##*/}
+                        fail "409 Conflict" "already adding ${other%.pid}"
+                fi
+                rm -f "$pidfile"
+        done
+        set -f
+        printf 'running\t%s\n' "$(date '+%Y-%m-%d %H:%M')" > "$jobs/$name.state"
+        : > "$jobs/$name.log"
+        # (in the background, its output away from the web server, so that
+        # the answer goes now; the state says how it ended)
+        setsid sh -c '
+                importer=$1 name=$2 agreed=$3 jobs=$4
+                if sh "$importer" --agree --agreed-how "$agreed" --at-end "$name" \
+                        > "$jobs/$name.log" 2>&1 < /dev/null &&
+                   grep -F "$name: done." "$jobs/$name.log" > /dev/null; then
+                        printf "done\t%s\n" "$(date "+%Y-%m-%d %H:%M")" > "$jobs/$name.state"
+                else
+                        printf "failed\t%s\n" "$(date "+%Y-%m-%d %H:%M")" > "$jobs/$name.state"
+                fi
+                rm -f "$jobs/$name.pid"
+        ' sh "$importer" "$name" "$agreed" "$jobs" < /dev/null > /dev/null 2>&1 &
+        echo $! > "$jobs/$name.pid"
+        headers "200 OK"
+        printf '{"name": %s, "started": true}\n' "$(json "$name")"
+        ;;
+
+status)
+        name_param
+        state=none
+        when=""
+        message=""
+        if [ -f "$jobs/$name.state" ]; then
+                state=$(cut -f1 "$jobs/$name.state")
+                when=$(cut -f2 "$jobs/$name.state")
+                if [ "$state" = running ] && [ -f "$jobs/$name.pid" ] &&
+                   ! kill -0 "$(cat "$jobs/$name.pid")" 2> /dev/null; then
+                        state=failed    # (stopped without saying: as when the app restarted)
+                fi
+                # the reason: add-translation.sh's last line ("NAME: not
+                # added: ...", or what it was doing)
+                [ "$state" = done ] || message=$(grep -v '^[[:space:]]*$' "$jobs/$name.log" 2> /dev/null | tail -n 1)
+                [ "$state" = running ] && [ ! -f "$jobs/$name.pid" ] && state=failed
+        fi
+        headers "200 OK"
+        printf '{"name": %s, "state": %s, "since": %s, "message": %s}\n' "$(json "$name")" \
+                "$(json "$state")" "$(json "$when")" "$(json "$message")"
+        ;;
+
+remove)
+        allowed_remove || fail "403 Forbidden" "removing translations isn't allowed (the EBaC app's options)"
+        name_param
+        # (one of EBaC's own, as the King James Version in the Home
+        # Assistant app: a link into the image, never removed)
+        [ -L "$root/$name" ] && fail "400 Bad Request" "$name is one of EBaC's own, and can't be removed"
+        out=$(sh "$importer" --remove "$name" 2>&1 < /dev/null)
+        case $out in
+        *"$name: removed."*)
+                headers "200 OK"
+                printf '{"name": %s, "removed": true}\n' "$(json "$name")"
+                ;;
+        *)
+                # "NAME: not removed: it is one of EBaC's own" and the like
+                fail "400 Bad Request" "$(printf '%s\n' "$out" | tail -n 1)"
+                ;;
+        esac
+        ;;
+
+*)
+        fail "400 Bad Request" "no such request (permissions, catalog, license, check, add, status, remove)"
+        ;;
+esac

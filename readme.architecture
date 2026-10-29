@@ -833,8 +833,8 @@ the new one (its results differ), from its first result. "next result"
 used to be taken by Home Assistant's media player ("no device is
 playing"): EBaC's sentence is matched first now.
 
-More of EBaC by voice (design review of October 29, 2026; not built
-yet). The aim: what EBaC's menus do, Assist can do, so that the
+More of EBaC by voice (design review of October 29, 2026; being built:
+ebac-api's info and license requests, and ebac-admin, below). The aim: what EBaC's menus do, Assist can do, so that the
 integration has no gaps beside the app. From the review's list of what
 the app does and the integration doesn't:
 
@@ -890,6 +890,19 @@ its own, off unless checked: allow ebac-api to add translations, and
 to remove them. Writing needs both the app's option and the
 integration's checkbox; until then ebac-api only reads, as now.
 
+How: ebac-api itself still only reads. A second CGI program beside it,
+ebac-admin (a shell script, in the ebac repository), does the writing,
+with add-translation.sh, and only as the web server's setup allows:
+EBAC_ALLOW_ADD=yes, and EBAC_ALLOW_REMOVE=yes too for removing (the app
+sets them from its options). Its requests: permissions, catalog (every
+language and translation, and which are added: add-translation.sh
+--catalog), license (to read out), check (added, and the same version?),
+add (started in the background: add-translation.sh --agree --agreed-how
+"by voice, from Kitchen" --at-end NAME), status (running, done, failed
+and why), remove. One add at a time: another while one runs is refused
+(HTTP 409). ebac-api has two requests more for reading: info (release,
+commit, where to get help) and license (the license file kept).
+
 The language group. In the app, A always asks for the language and
 then the translation: like buying a car, where the maker comes first
 (a Highlander is at the Toyota dealer, not the Ford one) and then the
@@ -919,12 +932,17 @@ Adding by voice. "Add translation LITV" (in the language group):
 
   - Already added, the same version: refused, as in the app ("you
     already have this version").
-  - The license is read, and Assist asks "Do you agree?", keeping the
-    conversation open for the answer (Home Assistant can); yes adds it,
-    anything else doesn't. Kept in the license file as agreed by voice,
-    and from which device. (If the open conversation doesn't work out,
-    the checkbox could instead mean the owner agrees ahead, as
-    --agree.)
+  - The license is read, and Assist asks "Do you agree?"; yes adds it,
+    no doesn't. Kept in the license file as agreed by voice, and from
+    which device. The question waits five minutes for the answer, from
+    the same speaker or phone (or user). Found when building it: Home
+    Assistant keeps listening after a question only for an AI
+    conversation agent; for its own sentences (Assist, as EBaC's are),
+    the answer is never marked to go on (checked in Home Assistant's
+    code, October 2026). So on a speaker the answer needs the wake word
+    first; in the Home Assistant app the dialog stays open anyway. (The
+    checkbox meaning the owner agrees ahead, as --agree, stays the
+    fallback, if the answer by voice proves awkward.)
   - Adding takes longer than Assist waits for an answer (the download,
     then the index), so the answer comes at once ("Adding Green's
     Literal Translation; it takes a minute or two"), and the add goes
@@ -1313,7 +1331,7 @@ For more of EBaC by voice (design review of October 29, 2026):
   - The integration remembers a language group, so that adding by
     voice is one step; the app keeps asking language then translation
     every time.
-  - Licenses agreed by voice, in an open conversation ("Do you
+  - Licenses agreed by voice, by a question answered yes ("Do you
     agree?"); --agree-style agreement only if that doesn't work.
   - Adding by voice changes the integration's translation, not the
     app's default (trans isn't reordered).

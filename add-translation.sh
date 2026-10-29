@@ -11,6 +11,24 @@
 #   sh add-translation.sh --remove BSB  remove this one
 #   sh add-translation.sh --list      just list them
 #
+# For programs (ebac-admin, which adds and removes translations for the
+# EBaC integration's voice commands), plain lines separated by tabs:
+#
+#   --catalog         every language ("language", code, English name, own
+#                     name, number of translations) and translation
+#                     ("translation", name, language code, title, 1 if
+#                     added), one per line
+#   --license NAME    its title, license and details page, a line each
+#                     ("Title:", "License:", "Details:")
+#   --check NAME      "added" or "not added"; then, if added and the source
+#                     has the same version, "same version", and the date
+#                     downloaded
+#   --at-end          adding: the translation goes at the end of 'trans',
+#                     not the top (so that EBaC doesn't start with it: the
+#                     integration's voice users don't change the app's)
+#   --agreed-how TEXT with --agree: how it was agreed to, for its license
+#                     file ("by voice, from Kitchen")
+#
 # The translations come from the plain-text Bibles of the bible_databases
 # project (https://github.com/scrollmapper/bible_databases), made from
 # CrossWire's SWORD modules. Each is one file: a "### Book" heading for each
@@ -602,8 +620,13 @@ agree() {
         # and a double-click still selects it whole, to copy)
         printf 'Details: %sModInfo.jsp?modName=%s\n' "$CROSSWIRE" "$1"
         if [ "$agree_all" = yes ]; then
-                printf 'Agreed to, with --agree.\n'
-                agreed="with --agree"
+                if [ -n "$agreed_how" ]; then
+                        printf 'Agreed to, %s.\n' "$agreed_how"
+                        agreed=$agreed_how
+                else
+                        printf 'Agreed to, with --agree.\n'
+                        agreed="with --agree"
+                fi
                 return 0
         fi
         if [ ! -t 0 ]; then
@@ -879,10 +902,19 @@ add_to() {
         fi
 
         # at the top of trans (moved there, if it was listed already), so that
-        # EBaC starts with it from now on
-        { printf '%-11s %s\n' "$name" "$title"
-          without_line "$name"; } > "$tmp/trans" &&
-                cat "$tmp/trans" > "$here/trans"   # (keeps its owner and mode)
+        # EBaC starts with it from now on; with --at-end, at the end (or
+        # where it was, if listed already)
+        if [ "$at_end" = yes ]; then
+                if ! is_listed "$name"; then
+                        { cat "$here/trans" 2> /dev/null
+                          printf '%-11s %s\n' "$name" "$title"; } > "$tmp/trans" &&
+                                cat "$tmp/trans" > "$here/trans"
+                fi
+        else
+                { printf '%-11s %s\n' "$name" "$title"
+                  without_line "$name"; } > "$tmp/trans" &&
+                        cat "$tmp/trans" > "$here/trans"   # (keeps its owner and mode)
+        fi
         printf '%s: done. %s is ready: start EBaC and press C to choose it.\n' "$name" "$title"
         # Words without spaces between them (as Chinese, Japanese and Thai
         # are often written): EBaC's search goes word by word
@@ -1189,6 +1221,8 @@ usage() {
         echo "  --agree         agree to the license of each translation added (when"
         echo "                  run with no one to answer, as from a script)"
         echo "  --list          only list the translations"
+        echo "  --catalog, --license NAME, --check NAME, --at-end, --agreed-how TEXT:"
+        echo "                  for programs (see the comments at the top)"
         echo "  --source PLACE  where the translations are: a web address, or a folder"
         echo "                  with a copy of bible_databases (default: $SOURCE)"
         echo "  --names-source PLACE  where the names of languages are (Unicode's CLDR)"
@@ -1200,10 +1234,22 @@ names_source=$NAMES_SOURCE
 list_only=no
 agree_all=no
 names=""
+mode=""                 # catalog, license or check: for programs
+mode_name=""
+at_end=no
+agreed_how=""
 while [ $# -gt 0 ]; do
         case $1 in
         --list) list_only=yes ;;
         --agree) agree_all=yes ;;
+        --catalog) mode=catalog ;;
+        --license|--check)
+                [ $# -ge 2 ] || { usage >&2; exit 2; }
+                mode=${1#--}; mode_name=$2; shift ;;
+        --at-end) at_end=yes ;;
+        --agreed-how)
+                [ $# -ge 2 ] || { usage >&2; exit 2; }
+                agreed_how=$2; shift ;;
         --source)
                 [ $# -ge 2 ] || { usage >&2; exit 2; }
                 source=$2; shift ;;
@@ -1238,6 +1284,43 @@ if ! all_translations; then
         fi
         exit 1
 fi
+
+# For programs: plain lines, tab-separated (see the top)
+case $mode in
+catalog)
+        languages > /dev/null
+        $AWK -F '\t' -v OFS='\t' '
+                FILENAME == ARGV[1] { added[$0] = 1; next }
+                FILENAME == ARGV[2] { english[$1] = $2; own[$1] = $3; next }
+                FILENAME == ARGV[3] { print "language", $1, english[$1], own[$1], $3; next }
+                { print "translation", $1, $2, $3, (($1 in added) ? 1 : 0) }' \
+                "$tmp/listed" "$here/languages.cache" "$tmp/langs" "$tmp/all"
+        exit 0
+        ;;
+license|check)
+        found=$($AWK -F '\t' -v w="$mode_name" 'tolower($1) == tolower(w) { print $1; exit }' "$tmp/all")
+        if [ -z "$found" ]; then
+                printf '%s: not in the list of translations.\n' "$mode_name" >&2
+                exit 1
+        fi
+        if [ $mode = license ]; then
+                license_of "$found"
+                printf 'Title: %s\n' "$(title_of "$found")"
+                printf 'License: %s\n' "$license_line"
+                printf 'Details: %sModInfo.jsp?modName=%s\n' "$CROSSWIRE" "$found"
+        elif ! is_added "$found"; then
+                echo "not added"
+        else
+                echo "added"
+                version_now=$(version_of "$found")
+                kept=$(kept_version "$found")
+                if [ -n "$version_now" ] && [ "${kept%%	*}" = "$version_now" ]; then
+                        printf 'same version\t%s\n' "${kept#*	}"
+                fi
+        fi
+        exit 0
+        ;;
+esac
 
 if [ $list_only = yes ]; then
         echo "Translations that can be added to EBaC, by language:"
