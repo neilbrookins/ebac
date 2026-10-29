@@ -1186,11 +1186,13 @@ should read, such as the Book of Mormon, aren't in scrollmapper's
 collection but are on Project Gutenberg (gutenberg.org) as plain text,
 in chapter and verse. They are added by hand, one at a time:
 
-  1. The person finds the text on gutenberg.org themselves (its search),
-     opens its "Plain Text UTF-8" file in a browser, and checks it is
-     what they want.
-  2. They copy that page's address and give it to EBaC: P)roject
-     Gutenberg on the main menu, where it is pasted.
+  1. The person finds the text on gutenberg.org themselves (its search)
+     and checks it is what they want.
+  2. They give EBaC its ebook number (the EBook-No. on its page): P)roject
+     Gutenberg on the main menu, where it is typed. (Changed October 29,
+     2026, the user's review: at first the address of its plain text was
+     pasted; now only the number is asked for, and the address is found
+     from it, below.)
   3. EBaC downloads it, splits it into its books, indexes it, makes it
      the first translation of trans (EBaC starts with it), and says so.
 
@@ -1217,13 +1219,21 @@ first:
   17   BOM   The Book of Mormon (format: "Book Chapter N", then "C:V
              text")
 
-Addresses. Any of Gutenberg's addresses of a text's plain text, read for
-its number: https://www.gutenberg.org/cache/epub/17/pg17.txt;
-.../ebooks/17.txt.utf-8; and the files/ tree, where a number's digits
-but its last are folders (#12345: files/1/2/3/4/12345/12345-0.txt).
-Other addresses are refused: P isn't a way to download any file. What is
-downloaded is the address given (a person's single download, as
-Gutenberg allows; nothing is fetched in bulk).
+The address, from the number. The number is looked up first in the
+list built in (a number not there is refused, with no request made).
+Then Gutendex (https://gutendex.com/books/17), a catalogue of Gutenberg's
+ebooks in JSON, is asked for it; its "formats" give the plain text in
+UTF-8 as "text/plain; charset=utf-8" (such as
+https://www.gutenberg.org/ebooks/17.txt.utf-8, a JSON string, perhaps
+with its / written \/). The script reads it with awk (no jq needed), and
+takes it only if it is Gutenberg's own address of that same ebook (any of
+its forms: cache/epub/17/pg17.txt, ebooks/17.txt.utf-8, or the files/
+tree, where a number's digits but its last are folders, as
+files/1/2/3/4/12345/12345-0.txt); anything else is refused. So two
+requests: Gutendex, then the text, a person's single download, as
+Gutenberg allows; nothing is fetched in bulk. Gutendex isn't
+Gutenberg's own: if it has no plain text in UTF-8 for a number, or is
+down, the text isn't added, saying why.
 
 The license. Gutenberg's texts here are public domain in the United
 States; Gutenberg's own license covers its name and the file's header.
@@ -1331,8 +1341,9 @@ The CoCo stays at 700 bytes a verse: it can't take this text (verses
 of up to 740 bytes) anyway.
 
 P)roject Gutenberg on EBaC's main menu (shown where add-gutenberg.sh is,
-as A is): it asks for the address, pasted (on a phone, the keyboard's
-typing mode), or r and a number to remove a text it added; then as A
+as A is): it asks for the ebook number (the letters under the digits on
+a phone's keyboard, qwertyuiop, count as digits, as at EBaC's own
+number prompts), or r and a number to remove a text it added; then as A
 does, back to EBaC with the text added.
 
 Not yet: voice (ebac-admin) for Gutenberg's texts; more texts and
@@ -1481,8 +1492,9 @@ For licenses (design review of October 2026):
 For texts from Project Gutenberg (design review of October 29, 2026):
 
   - Added by hand: the person finds and checks the text on
-    gutenberg.org, and pastes its address into EBaC (P); nothing is
-    listed or searched in EBaC.
+    gutenberg.org, and types its ebook number into EBaC (P); the
+    address of its plain text comes from Gutendex; nothing is listed or
+    searched in EBaC.
   - A script of its own, add-gutenberg.sh, separate from
     add-translation.sh; each adds and removes only its own.
   - One text and one format at a time, from a list built in (ebook

@@ -1,27 +1,30 @@
 #!/bin/sh
-# add-gutenberg.sh -- add a text from Project Gutenberg to EBaC, by the
-#                     address of its plain text (or remove one added so).
+# add-gutenberg.sh -- add a text from Project Gutenberg to EBaC, by its
+#                     ebook number (or remove one added so).
 #
-#   sh add-gutenberg.sh                ask for the address (EBaC's P)
-#   sh add-gutenberg.sh URL            add the text at URL
-#   sh add-gutenberg.sh --agree URL    the same, agreeing to its license (for
+#   sh add-gutenberg.sh                ask for the ebook number (EBaC's P)
+#   sh add-gutenberg.sh 17             add ebook 17
+#   sh add-gutenberg.sh --agree 17     the same, agreeing to its license (for
 #                                      scripts: no one to answer)
 #   sh add-gutenberg.sh --remove BOM   remove one added by this script
 #   sh add-gutenberg.sh --list         list those added by this script
-#   sh add-gutenberg.sh --file PATH URL   read the text from PATH instead of
-#                                      downloading it (for testing)
+#   sh add-gutenberg.sh --file PATH --json PATH 17
+#                                      read the text, and Gutendex's answer,
+#                                      from files instead (for testing)
 #
-# The person adding a text finds it on gutenberg.org themselves, opens its
-# "Plain Text UTF-8" file in a browser, checks it is the one, and gives its
-# address here: https://www.gutenberg.org/cache/epub/17/pg17.txt (or
-# .../ebooks/17.txt.utf-8, or .../files/1/2/3/4/12345/12345-0.txt for a
-# larger number). Nothing is searched or listed here: what is added is
-# their own choice. Then, as add-translation.sh does for scrollmapper's
-# texts, this:
+# The person adding a text finds it on gutenberg.org themselves, checks it
+# is the one, and gives its ebook number here (17, the Book of Mormon: the
+# "EBook-No." on its page, or the number in its address). Nothing is
+# searched or listed here: what is added is their own choice. The address
+# of its plain text isn't typed: it is asked of Gutendex
+# (https://gutendex.com/books/17), a catalogue of Gutenberg's ebooks in
+# JSON, whose "formats" give it as "text/plain; charset=utf-8" (such as
+# https://www.gutenberg.org/ebooks/17.txt.utf-8), and only an address on
+# gutenberg.org is taken from it. So two requests: Gutendex, then the text.
+# Then, as add-translation.sh does for scrollmapper's texts, this:
 #
-#   1. downloads it (the one address given; refused first, by its
-#      fingerprint, if it is the same version as the copy added before:
-#      remove that first);
+#   1. downloads it (refused first, by its fingerprint, if it is the same
+#      version as the copy added before: remove that first);
 #   2. shows its license (Gutenberg's, from the file's header: so it is
 #      downloaded first) and asks whether you agree;
 #   3. splits it into a file per book, in a folder named by its short name
@@ -529,14 +532,54 @@ add() {
         return 0
 }
 
-# add_url URL: from the address to the text added
-add_url() {
-        url=$1
-        number=$(ebook_number "$url")
-        if [ -z "$number" ]; then
-                problem="not an address of a Project Gutenberg plain text (such as https://www.gutenberg.org/cache/epub/17/pg17.txt)"
+# plain_text_url NUMBER: the address of the ebook's plain text (UTF-8),
+# from Gutendex's answer about it ("formats": {"text/plain;
+# charset=utf-8": "https://..."}). Sets url, or problem.
+GUTENDEX=https://gutendex.com/books
+plain_text_url() {
+        if [ -n "$from_json" ]; then
+                cp "$from_json" "$tmp/book.json" || { problem="couldn't read $from_json"; return 1; }
+        else
+                fetch "$GUTENDEX/$1" "$tmp/book.json" || return 1
+        fi
+        # (JSON on one line or several: the value after the key, its \/
+        # unescaped; no jq needed)
+        url=$(tr '\n' ' ' < "$tmp/book.json" | $AWK '{
+                k = index($0, "\"text/plain; charset=utf-8\"")
+                if (!k) exit
+                rest = substr($0, k + 27)
+                if (!match(rest, /^[ \t]*:[ \t]*"[^"]*"/)) exit
+                v = substr(rest, RSTART, RLENGTH)
+                sub(/^[ \t]*:[ \t]*"/, "", v); sub(/"$/, "", v)
+                gsub(/\\\//, "/", v)
+                print v
+        }')
+        if [ -z "$url" ]; then
+                if grep -q '"detail"' "$tmp/book.json" 2> /dev/null; then
+                        problem="Gutendex has no ebook $1"
+                else
+                        problem="Gutendex gives no plain text in UTF-8 for ebook $1"
+                fi
                 return 1
         fi
+        # (only Gutenberg's own address of this very ebook)
+        if [ "$(ebook_number "$url")" != "$1" ]; then
+                problem="Gutendex gave an address that isn't ebook $1's plain text on gutenberg.org: $url"
+                return 1
+        fi
+        return 0
+}
+
+# add_number NUMBER: from the ebook number to the text added
+add_number() {
+        number=$1
+        case $number in
+        "" | *[!0-9]*)
+                problem="not an ebook number (such as 17)"
+                return 1
+                ;;
+        esac
+        number=$(($number + 0))         # (no leading zeros)
         line=$(known "$number")
         if [ -z "$line" ]; then
                 problem="ebook $number isn't one this importer knows yet (each text's layout is added by hand; see readme.architecture)"
@@ -548,6 +591,8 @@ add_url() {
                 problem="a translation named $name is there already, not from Project Gutenberg"
                 return 1
         fi
+        printf '%s: asking Gutendex for ebook %s...\n' "$name" "$number"
+        plain_text_url "$number" || return 1
         version_now=$(version_of "$url")
         kept=$(kept_version "$name")
         if [ -n "$version_now" ] && [ -f "$here/$name/gutenberg" ] &&
@@ -577,14 +622,15 @@ add_url() {
 }
 
 usage() {
-        echo "usage: sh add-gutenberg.sh [--agree] [--file PATH] URL | --remove NAME | --list"
-        echo "Adds a text from Project Gutenberg to EBaC by its plain text's address, or removes one."
+        echo "usage: sh add-gutenberg.sh [--agree] [--file PATH] [--json PATH] NUMBER | --remove NAME | --list"
+        echo "Adds a text from Project Gutenberg to EBaC by its ebook number, or removes one."
 }
 
 # ---- the arguments
 agree_all=no
 from_file=""
-url_arg=""
+from_json=""
+number_arg=""
 remove_name=""
 list_only=no
 while [ $# -gt 0 ]; do
@@ -592,11 +638,12 @@ while [ $# -gt 0 ]; do
         --agree) agree_all=yes ;;
         --list) list_only=yes ;;
         --file) [ $# -ge 2 ] || { usage >&2; exit 2; }; from_file=$2; shift ;;
+        --json) [ $# -ge 2 ] || { usage >&2; exit 2; }; from_json=$2; shift ;;
         --remove) [ $# -ge 2 ] || { usage >&2; exit 2; }; remove_name=$2; shift ;;
         --from-ebac) [ $# -ge 3 ] || { usage >&2; exit 2; }; from_ebac=$2; start_with=$3; shift; shift ;;
         -h|--help) usage; exit 0 ;;
         -*) usage >&2; exit 2 ;;
-        *) url_arg=$1 ;;
+        *) number_arg=$1 ;;
         esac
         shift
 done
@@ -615,15 +662,16 @@ if [ -n "$remove_name" ]; then
         exit 0
 fi
 
-if [ -z "$url_arg" ]; then
-        # Asked for, from EBaC's P: the address, or r and a number to remove
+if [ -z "$number_arg" ]; then
+        # Asked for, from EBaC's P: the ebook number, or r and a number to
+        # remove
         [ -t 1 ] && { clear 2> /dev/null || echo; }
         echo "Add a text from Project Gutenberg"
         echo
         # (lines of 50 columns at most: a phone's screen)
-        echo "Find it on gutenberg.org and open its"
-        echo "\"Plain Text UTF-8\" file. When it is the one,"
-        echo "paste its address here."
+        echo "Find it on gutenberg.org, check it is the one,"
+        echo "and type its ebook number here: the EBook-No."
+        echo "on its page (17 for the Book of Mormon)."
         ours > "$tmp/ours"
         if [ -s "$tmp/ours" ]; then
                 echo
@@ -633,10 +681,17 @@ if [ -z "$url_arg" ]; then
                 echo "To remove one: r and its number (r1)."
         fi
         echo
-        printf 'Address (Enter alone: back): '
+        printf 'Ebook number (Enter alone: back): '
         typing_mode
         read -r answer || answer=""
+        # (the letters under the digits on a phone's keyboard are digits,
+        # as at EBaC's own number prompts: qwertyuiop, 1234567890; but r
+        # and a number removes)
         answer=$(printf '%s\n' "$answer" | $AWK '{ sub(/^[ \t]+/, ""); sub(/[ \t]+$/, ""); print }')
+        case $answer in
+        [rR]*) answer=$(printf '%s\n' "$answer" | $AWK '{ print substr($0, 1, 1) }')$(printf '%s\n' "${answer#?}" | tr 'qwertyuiopQWERTYUIOP' '12345678901234567890') ;;
+        *) answer=$(printf '%s\n' "$answer" | tr 'qwertyuiopQWERTYUIOP' '12345678901234567890') ;;
+        esac
         case $answer in
         "")
                 [ -n "$from_ebac" ] && back_to_ebac
@@ -656,18 +711,18 @@ if [ -z "$url_arg" ]; then
                 fi
                 ;;
         *)
-                url_arg=$answer
+                number_arg=$answer
                 ;;
         esac
 fi
 
-if [ -n "$url_arg" ]; then
-        if add_url "$url_arg"; then
+if [ -n "$number_arg" ]; then
+        if add_number "$number_arg"; then
                 start_with=$name
         else
                 [ -n "$adding" ] && [ -d "$adding" ] && rm -rf "$adding"
                 adding=""
-                printf '%s: not added: %s.\n' "${name:-$url_arg}" "$problem"
+                printf '%s: not added: %s.\n' "${name:-$number_arg}" "$problem"
                 failed=1
         fi
 fi

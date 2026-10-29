@@ -382,13 +382,13 @@ On the **C** screen, a translation's number chooses it for now, and **d** before
 
 Some texts EBaC can read, such as the Book of Mormon, aren't among the translations **A** offers, but are on [Project Gutenberg](https://www.gutenberg.org) as plain text in chapters and verses. To add one:
 
-1. Find it on gutenberg.org with its search, open its **Plain Text UTF-8** file in your browser, and check it is the one you want.
-2. Copy that page's address, such as `https://www.gutenberg.org/cache/epub/17/pg17.txt`.
-3. At EBaC's main menu, press **P**, paste the address and press Enter.
+1. Find it on gutenberg.org with its search, and check it is the one you want.
+2. Note its ebook number: the **EBook-No.** on its page, or the number in its address (`gutenberg.org/ebooks/17` is 17, the Book of Mormon).
+3. At EBaC's main menu, press **P**, type the number and press Enter.
 
-EBaC downloads it, shows its license (Gutenberg's, from the file) and asks whether you agree, then splits it into its books, indexes it, and adds it at the top of `trans`, as **A** does. The same version isn't downloaded twice: remove it first (**P**, then **r** and its number). **P** removes only texts it added; **A** only its own.
+EBaC asks [Gutendex](https://gutendex.com), a catalogue of Gutenberg's ebooks, for the address of that ebook's plain text in UTF-8 (only an address on gutenberg.org is taken), downloads it, shows its license (Gutenberg's, from the file) and asks whether you agree, then splits it into its books, indexes it, and adds it at the top of `trans`, as **A** does. The same version isn't downloaded twice: remove it first (**P**, then **r** and its number). **P** removes only texts it added; **A** only its own.
 
-Gutenberg's texts are laid out in many ways, so EBaC knows each one by its ebook number, and is taught them one at a time; an address of a text it doesn't know yet is refused, saying so. It knows:
+Gutenberg's texts are laid out in many ways, so EBaC knows each one by its ebook number, and is taught them one at a time; a number it doesn't know yet is refused, saying so. It knows:
 
 | Ebook | Short name | Text |
 |---|---|---|
@@ -400,7 +400,7 @@ Nothing the text gives is left out. The front matter before the first book (in t
 
 ```sh
 cd ~/ebac
-sh add-gutenberg.sh https://www.gutenberg.org/cache/epub/17/pg17.txt
+sh add-gutenberg.sh 17
 sh add-gutenberg.sh --remove BOM
 sh add-gutenberg.sh --list
 ```
