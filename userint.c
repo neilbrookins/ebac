@@ -1308,6 +1308,8 @@ printf("  The program:\n");
 printf("    github.com/neilbrookins/ebac\n");
 printf("  The Home Assistant app:\n");
 printf("    github.com/neilbrookins/ebac-ha-app\n");
+printf("  The Home Assistant voice integration:\n");
+printf("    github.com/neilbrookins/ebac-ha-integration\n");
 printf("  The texts to download (A on the main menu):\n");
 printf("    github.com/scrollmapper/bible_databases\n");
 printf("\n");
