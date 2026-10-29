@@ -927,6 +927,21 @@ macOS's awk (the "one true awk" of 2020) can't printf text beyond
 ASCII: it stops with an error. So names and titles are printed with
 print, never printf.
 
+Versions (EBaC 2.4.2, October 2026). Choosing a translation already
+added downloads it again only if the source's text has changed: the same
+version is refused, before the license question, and nothing changes (it
+isn't moved to the top of trans either); to download it again anyway,
+remove it first. The version is the text file's fingerprint: the ETag
+the web server gives it (raw.githubusercontent.com does), which changes
+when, and only when, the content does, asked for with a HEAD request
+(curl -I, or wget --spider), without the text; for a folder as the
+source, its cksum. (Not a date: the files are not released, and the
+dates GitHub's API gives are limited to 60 requests an hour, and change
+with commits that don't change the text.) It is kept in the
+translation's folder, in a file named version ("Version:" and
+"Downloaded:", the date shown when refusing). With none kept (added
+before 2.4.2) or none to be had, it is downloaded, as before.
+
 Licenses (EBaC 2.4.1, October 2026). The translations are
 not all free to copy: of the 140 in the source, 100 are public domain;
 the rest are Creative Commons (some non-commercial, some "no

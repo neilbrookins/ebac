@@ -39,8 +39,14 @@
 # in a script), a translation is added only with --agree, by which whoever
 # runs this agrees to the license of each one named.
 #
-# Choosing a translation already added does the same again: a fresh copy,
-# and at the top of 'trans'. Removing one deletes its folder and its line
+# Choosing a translation already added does the same again, a fresh copy
+# at the top of 'trans', but only if the source's text has changed since:
+# the same version is refused, saying so (remove it first, r and its
+# number, to download it again). Each translation's folder keeps a file,
+# version, with the text's fingerprint when it was downloaded: the ETag
+# the web server gives the file (it changes when, and only when, the text
+# does; asked for alone, without the text), or for a folder as the source,
+# its checksum (cksum). Removing one deletes its folder and its line
 # in 'trans'. In the list, a number adds that translation and r and a
 # number (r6) removes it; several can be given at once ("r10 11 13"), and
 # are done in that order.
@@ -623,6 +629,38 @@ agree() {
         done
 }
 
+# version_of NAME: the fingerprint of the translation's text in the source,
+# without downloading it: the ETag a web server gives it (the last, after
+# any redirects), or a folder's file's checksum. "" if it can't be had.
+version_of() {
+        path="formats/txt/$1.txt"
+        case $source in
+        http://* | https://*)
+                url=${source%/}/$path
+                if command -v curl > /dev/null 2>&1; then
+                        curl -sSIL --max-time 60 "$url" 2> /dev/null
+                elif command -v wget > /dev/null 2>&1; then
+                        wget -q --spider --server-response "$url" 2>&1
+                fi | $AWK 'tolower($1) == "etag:" { v = $2 } END { print v }' |
+                        tr -d '\r'
+                ;;
+        *)
+                [ -f "$source/$path" ] && cksum < "$source/$path" |
+                        $AWK '{ print "cksum " $1 " " $2 }'
+                ;;
+        esac
+}
+
+# kept_version NAME: the fingerprint kept when it was downloaded, and the
+# date, "FINGERPRINT<tab>DATE"; nothing if none was kept (added before
+# EBaC 2.4.2, or by hand)
+kept_version() {
+        [ -f "$here/$1/version" ] || return 0
+        $AWK '$1 == "Version:" { v = $2; for (i = 3; i <= NF; i++) v = v " " $i }
+              $1 == "Downloaded:" { d = $2 }
+              END { if (v != "") print v "\t" d }' "$here/$1/version"
+}
+
 # add NAME TITLE: add one translation; on failure, leave no half-made folder
 # behind (unless it was there, and listed in trans, before). Sets problem.
 add() {
@@ -829,6 +867,16 @@ add_to() {
           printf 'Details: %sModInfo.jsp?modName=%s\n' "$CROSSWIRE" "$name"
           printf 'Agreed: %s (%s)\n' "$(date '+%Y-%m-%d')" "$agreed"
         } > "$folder/license" || { problem="couldn't write $name/license"; return 1; }
+
+        # the text's fingerprint, to tell next time whether it has changed
+        if [ -n "$version_now" ]; then
+                { printf 'Version: %s\n' "$version_now"
+                  printf 'Downloaded: %s\n' "$(date '+%Y-%m-%d')"
+                } > "$folder/version" ||
+                        { problem="couldn't write $name/version"; return 1; }
+        else
+                rm -f "$folder/version"     # (unknown: download next time)
+        fi
 
         # at the top of trans (moved there, if it was listed already), so that
         # EBaC starts with it from now on
@@ -1248,6 +1296,16 @@ for action in $chosen; do
         *)
                 title=$(title_of "$name")
                 screen_size
+                # Added already, and the same version in the source: refused
+                # (nothing changes). A new version, or none kept: as a new one.
+                version_now=$(version_of "$name")
+                kept=$(kept_version "$name")
+                if [ -n "$version_now" ] && is_added "$name" &&
+                   [ "${kept%%	*}" = "$version_now" ]; then
+                        printf '%s: you already have this version (downloaded %s). To download it again, remove it first (r and its number), then add it.\n' \
+                                "$name" "${kept#*	}"
+                        continue
+                fi
                 if ! agree "$name" "$title"; then
                         printf '%s: not added: %s.\n' "$name" "$problem"
                         # (no is an answer, not a failure; no one to answer is)
