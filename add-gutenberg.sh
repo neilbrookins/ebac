@@ -31,17 +31,20 @@
 # One text, and one format, at a time (see "Texts from Project Gutenberg"
 # in readme.architecture). Gutenberg's texts are laid out in many ways, so
 # each is known by its ebook number, from the list below: its short name,
-# its books (their names, and the headings that start them), and how its
-# front matter is divided. A text not in the list is refused. Each new one
+# and its books (their names, and the headings that start them). A text
+# not in the list is refused. Each new one
 # is looked at by hand and added to the list (with what its layout needs).
 #
 # Nothing the text gives is left out: its front matter (title page,
 # testimonies, contents), each book's heading and summary, and its
 # verses. Only Gutenberg's own header and license around the text, and the
 # lines that number the chapters ("Jacob Chapter 1"), are dropped. The
-# text before a book's first chapter is its chapter 0, a verse for each
-# part; a book's heading and summary are verse 0 of its chapter 1 (EBaC
-# shows both as plain text, without the 0s, which aren't in the text).
+# text before a book's chapter 1 (its heading and summary; before the
+# first book, the front matter too) is its chapter 0, a verse for each row
+# as the text lays it out: a title's line, a name, a line of contents, a
+# blank line, or a paragraph (its lines joined where the text wrapped
+# them, to be wrapped again to the screen). EBaC shows chapter 0 as plain
+# text, without the 0s, which aren't in the text. (See put_intro().)
 #
 # This script adds and removes only its own texts (those whose folder has
 # a file named gutenberg); add-translation.sh, scrollmapper's.
@@ -66,9 +69,7 @@ fi
 #
 # A line per text: its ebook number, short name, format; then a line per
 # book: "book", its name (as EBaC shows it), and the start of the heading
-# that begins it in the text; then a line per part of its front matter
-# (its chapter 0): "front", and the start of the line that begins the
-# part.
+# that begins it in the text.
 #
 # Formats:
 #   chapters   books start with their heading (and a summary); a book of
@@ -93,13 +94,6 @@ book	4 Nephi	FOURTH NEPHI
 book	Mormon	THE BOOK OF MORMON
 book	Ether	THE BOOK OF ETHER
 book	Moroni	THE BOOK OF MORONI
-front	THE BOOK OF MORMON
-front	Wherefore, it is an abridgment
-front	An abridgment taken from
-front	TRANSLATED BY
-front	THE TESTIMONY OF THREE WITNESSES
-front	THE TESTIMONY OF EIGHT WITNESSES
-front	Contents
 '
 
 # Typographic punctuation as plain ASCII, and white space as single spaces
@@ -314,15 +308,54 @@ split_chapters() {
         function fail(m) { if (!failed) print "problem " m; failed = 1; exit }
         function starts(line, s) { return substr(line, 1, length(s)) == s }
         function file_of(name,    f) { f = name; gsub(/[^A-Za-z0-9]/, "", f); return f }
-        # a verse (or a part of chapter 0, or a book heading as verse 0),
-        # as a line of its book file
+        # a verse (or a row of chapter 0), as a line of its book file; a
+        # blank row of chapter 0 is a verse with no text
         function put(c, v, text) {
                 text = plain(text)
-                if (text == "") return
-                print "[" c ":" v "] " text > out
+                if (text == "" && c > 0) return
+                if (text == "")
+                        print "[" c ":" v "]" > out
+                else
+                        print "[" c ":" v "] " text > out
                 verses++
                 if (c > 0 && v > 0) { counted[b]++ }
         }
+        # the characters of s (UTF-8: its bytes but continuation bytes)
+        function chars(s,    t) {
+                t = s
+                return length(t) - gsub(/[\200-\277]/, "", t)
+        }
+        function first_word(s) {
+                sub(/^ +/, "", s)
+                sub(/ .*$/, "", s)
+                return s
+        }
+        # Chapter 0: the lines before a book'\''s chapter 1 (intro[1..nintro]),
+        # as rows, each a verse: a line goes on into the next only if it
+        # was wrapped there, the next line'\''s first word not fitting after
+        # it within the text'\''s width (wrap); else it ends its row, as a
+        # title'\''s, a name'\''s or a line of contents does. A blank line is a
+        # blank row (as many as there are); those at the start and end go.
+        function put_intro(    i, row, n, k, first, last) {
+                n = 0
+                for (i = 1; i <= nintro; i++) {
+                        if (intro[i] == "") { rows[++n] = ""; continue }
+                        row = intro[i]
+                        while (i < nintro && intro[i + 1] != "" &&
+                               chars(intro[i]) + 1 + chars(first_word(intro[i + 1])) > wrap) {
+                                i++
+                                row = row " " intro[i]
+                        }
+                        rows[++n] = row
+                }
+                for (first = 1; first <= n && rows[first] == ""; first++) ;
+                for (last = n; last >= first && rows[last] == ""; last--) ;
+                k = 0
+                for (i = first; i <= last; i++)
+                        put(0, ++k, rows[i])
+                nintro = 0
+        }
+        function add_intro(line) { intro[++nintro] = line }
         function flush() {
                 if (have) put(cur_c, cur_v, buf)
                 have = 0; buf = ""
@@ -338,7 +371,7 @@ split_chapters() {
                 out = folder "/" file_of(bookname[b])
                 print file_of(bookname[b]) > (folder "/booklist")
                 print bookname[b] > (folder "/booknames")
-                mode = "heading"; chap = 0; vnum = 0; cur_c = 1; cur_v = 0; have = 1; buf = ""
+                mode = "heading"; chap = 0; vnum = 0; have = 0; buf = ""; nintro = 0
         }
         # the next verse expected ("C:V", the next of the chapter, or the
         # first of the next) in line, at a word: its index, and in
@@ -370,8 +403,13 @@ split_chapters() {
                         if (chap == 0) { nc = 1; nv = 1 }
                         m = find_verse(line, nc, nv)
                         if (m == 0) { add(line); return }
-                        add(substr(line, 1, m - 1))
-                        if (chap == 0) chap = 1
+                        if (chap == 0) {
+                                # verse 1:1: what came before it is chapter 0
+                                if (m > 1) add_intro(substr(line, 1, m - 1))
+                                put_intro()
+                                chap = 1
+                        } else
+                                add(substr(line, 1, m - 1))
                         flush()
                         vnum = nv; cur_c = chap; cur_v = vnum; have = 1
                         line = substr(line, m + mlen)
@@ -381,7 +419,6 @@ split_chapters() {
         }
         FILENAME == ARGV[1] {
                 if ($1 == "book") { nb++; bookname[nb] = $2; heading[nb] = $3 }
-                if ($1 == "front") { nf++; front[nf] = $2 }
                 next
         }
         /^\*\*\* START OF / { body = 1; next }
@@ -391,10 +428,19 @@ split_chapters() {
                 line = $0
                 sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
                 text[++lines] = line
+                if (line != "") lengths[++nlengths] = chars(line)
         }
         END {
                 if (failed) exit
                 if (lines == 0) fail("no text between Gutenberg'\''s START and END lines")
+                # The width the text was wrapped at: as long as all but the
+                # longest 1 in 100 of its lines (so that a line or two
+                # longer, as of a table, doesn'\''t count)
+                for (i = 1; i <= nlengths; i++) count[lengths[i]]++
+                for (wrap = 0; wrap < 1000; wrap++) {
+                        under += count[wrap]
+                        if (under >= nlengths * 0.99) break
+                }
                 # Where book 1 starts: its heading'\''s last line before the
                 # first verse (the Contents list names it too)
                 for (i = 1; i <= lines; i++)
@@ -404,40 +450,33 @@ split_chapters() {
                         if (starts(text[i], heading[1])) { book1 = i; break }
                 if (!book1) fail("no heading \"" heading[1] "\" before its first verse")
 
-                # Chapter 0: the front matter, a verse for each part
-                out = folder "/" file_of(bookname[1])
-                b = 1; part = 0; buf = ""; have = 0
-                for (i = 1; i < book1; i++) {
-                        if (part < nf && starts(text[i], front[part + 1])) {
-                                flush(); part++; cur_c = 0; cur_v = part; have = 1
-                        }
-                        add(text[i])
-                }
-                flush()
-                if (part != nf) fail("its front matter has " part " of the " nf " parts expected")
-                print file_of(bookname[1]) > (folder "/booklist")
-                print bookname[1] > (folder "/booknames")
-                b = 1; mode = "heading"; chap = 0; vnum = 0; cur_c = 1; cur_v = 0; have = 1; buf = ""
+                # Book 1: its chapter 0 starts with the front matter
+                start_book(1)
+                for (i = 1; i < book1; i++)
+                        add_intro(text[i])
 
                 for (i = book1; i <= lines; i++) {
                         line = text[i]
-                        if (line == "") continue
+                        if (line == "") {
+                                if (mode == "heading") add_intro("")    # (a blank row)
+                                continue
+                        }
                         # the next book: its heading, once this one has verses
                         if (b < nb && mode == "verses" && starts(line, heading[b + 1])) {
                                 start_book(b + 1)
-                                add(line)
+                                add_intro(line)
                                 continue
                         }
                         # a line numbering a chapter: "Alma Chapter 5"
                         if (line == bookname[b] " Chapter " (chap + 1) || (chap == 0 && line == bookname[b] " Chapter 1")) {
-                                if (mode == "heading") { flush(); have = 0 }
+                                # (dropped: the chapter number is the verses'\'')
                                 continue
                         }
                         if (line ~ / Chapter [0-9]+$/ && starts(line, bookname[b] " Chapter "))
                                 fail("\"" line "\" out of order (in " bookname[b] " " chap ")")
                         if (mode == "heading") {
                                 # its heading and summary, until verse 1:1
-                                if (find_verse(line, 1, 1) == 0) { add(line); continue }
+                                if (find_verse(line, 1, 1) == 0) { add_intro(line); continue }
                         }
                         # (a new chapter: the verse after it is C:1)
                         if (mode == "verses" && find_verse(line, chap + 1, 1) == 1 &&

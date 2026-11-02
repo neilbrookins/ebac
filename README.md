@@ -394,7 +394,7 @@ Gutenberg's texts are laid out in many ways, so EBaC knows each one by its ebook
 |---|---|---|
 | 17 | `BOM` | The Book of Mormon |
 
-Nothing the text gives is left out. The front matter before the first book (in the Book of Mormon: the title page, the testimonies of the witnesses, the contents) is kept as chapter 0 of the first book, a verse for each part, and each book's heading and summary as verse 0 of its chapter 1. EBaC shows them as plain text, above verse 1, without the 0s, which aren't in the text; searches find them, and comma or the up arrow from 1:1 goes back to them (their references, such as `1 Nephi 0:5`, are shown in a list of search results). A verse taller than the screen, as some of them are on a phone, is shown a screenful at a time.
+Nothing the text gives is left out. What comes before each book's chapter 1 (its heading and summary; before the first book, the front matter too: in the Book of Mormon, the title page, the testimonies of the witnesses with their names, the contents) is kept as that book's chapter 0, row by row as the text lays it out: each title line, name or line of contents its own row, blank lines as blank rows, and each paragraph one row, wrapped to your screen (a line of the text is joined to the next only where the text wrapped it). EBaC shows chapter 0 as plain text above verse 1, without the 0s, which aren't in the text; searches find it, and comma or the up arrow from 1:1 goes back through it (references such as `1 Nephi 0:19` are shown in a list of search results). A verse taller than the screen, as a long paragraph can be on a phone, is shown a screenful at a time.
 
 **P** runs `add-gutenberg.sh`, a shell script beside `add-translation.sh`, which can also be run by itself:
 

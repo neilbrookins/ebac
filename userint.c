@@ -982,8 +982,9 @@ static long int book_start(long int v)
 
 /*
 ** The passage screen. A screen shows whole verses from top, the verse at
-** its top, as many as fit; or, of a verse taller than the screen, one part
-** of it, alone, from line skip of its text. After drawing, next_top and
+** its top, as many as fit, and below them, if the next is taller than the
+** screen, as much of its start as fits; or, of a verse taller than the
+** screen at its top, one part of it, alone, from line skip of its text. After drawing, next_top and
 ** next_skip say what the next screen starts with (n), and last_shown is
 ** the last verse on it (its last part, or not). '.' adds a verse at the
 ** bottom, scrolling the screen (scrolled): the verse at its top is then
@@ -1004,6 +1005,7 @@ static void view_in_context(long int cur_verse)
 {
         long int top, next_top = 0, last_shown = 0, start;
         int skip = 0, next_skip = 0, num_lines, scrolled = FALSE;
+        int n, text_lines, part, head_shown = FALSE;
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;
 
@@ -1016,6 +1018,7 @@ static void view_in_context(long int cur_verse)
                 cls(); /* may update s_lines if the window was resized */
                 scrolled = FALSE;
                 next_skip = 0;
+                head_shown = FALSE;
                 if (skip > 0 || is_tall(top))
                 {
                         /* taller than the screen: a part of it, alone */
@@ -1034,16 +1037,40 @@ static void view_in_context(long int cur_verse)
                             if (!check_limits(cur_verse))
                                 break;          /* the end: no more */
                             bcv_arrays = get_verse(cur_verse);
-                            num_lines -= count_lines(-1, bcv_arrays->book_array,
+                            n = count_lines(-1, bcv_arrays->book_array,
                                bcv_arrays->data_array, 8, top_of_screen);
-                            if (num_lines < 1)
-                                    break;
+                            if (num_lines - n < 1)
+                            {
+                                /* A verse taller than the screen below the
+                                   others: its start, in the room left (at
+                                   least two lines of it), and the rest on
+                                   the next screens, so that a screen isn't
+                                   left near empty before it */
+                                text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE);
+                                part = (num_lines - 1) - (n - text_lines);
+                                if (!top_of_screen && part >= 2 && is_tall(cur_verse))
+                                {
+                                    bcv_arrays = get_verse(cur_verse);
+                                    dv_left = part;
+                                    display_verse(-1, bcv_arrays, 8, FALSE);
+                                    dv_left = -1;
+                                    next_skip = part;
+                                    last_shown = cur_verse;
+                                    next_top = cur_verse;
+                                    head_shown = TRUE;
+                                }
+                                break;
+                            }
+                            num_lines -= n;
                             display_verse(-1, bcv_arrays, 8, top_of_screen);
                             top_of_screen = FALSE;
                             cur_verse++;
                         }
-                        next_top = cur_verse;   /* (the one that didn't fit) */
-                        last_shown = cur_verse - 1;
+                        if (!head_shown)
+                        {
+                            next_top = cur_verse;   /* (the one that didn't fit) */
+                            last_shown = cur_verse - 1;
+                        }
                 }
                 printf(" Press ");
                 rev_printf("?");

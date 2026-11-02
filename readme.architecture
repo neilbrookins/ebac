@@ -1271,50 +1271,70 @@ lines, UTF-8, CRLF line ends):
     a chapter's verse 1 is a book's heading and summary.
   - Curly apostrophes and dashes become plain ASCII, as for A.
 
-Verse 0: the text before a chapter's verse 1. A book's heading and
-summary are kept as verse 0 of its chapter 1 (all under about 1,000
-bytes here), so that they can be read and searched ("Sariah", in 1
-Nephi's summary, is found).
+Chapter 0: the text before a book's chapter 1, row by row (changed
+November 2, 2026, the user's review: at first the front matter was 7
+verses, a part each, and each book's heading and summary its verse 0;
+the rows and blank lines that lay them out were lost). Before each
+book's chapter 1 come its heading and summary; before the first book's,
+the front matter too (the title page, the abridgment, "Translated by
+Joseph Smith, Jun.", the testimonies with the witnesses' names, the
+Contents). All of it is that book's chapter 0, a verse for each row as
+the text lays it out, so that EBaC shows it as the text does:
+
+  - A line ends its row unless the text wrapped it there: a line was
+    wrapped if the next line's first word wouldn't have fitted after it
+    within the text's width (71 characters here: the width of all but
+    the longest 1 in 100 of its lines). So "OLIVER COWDERY" is a row,
+    "DAVID WHITMER" the next (DAVID would have fitted), and a paragraph
+    (whose lines each end where the next word didn't fit, even
+    "...prophecy and of", 54 characters, before "revelation--Written")
+    is one row, wrapped again to the screen as any verse is. (Checked
+    on every line of the Book of Mormon's: the 25 that end short are
+    the titles, names and contents.)
+  - A blank line is a blank row: a verse with no text (as many as the
+    text has between, such as two before "THE TESTIMONY OF EIGHT
+    WITNESSES"); those at the start and end of a chapter 0 go.
+  - The lines numbering chapters ("Jacob Chapter 1") are left out: the
+    chapter's number is the verses'.
+  - A row's leading space (" BY THE HAND OF MORMON") is lost: EBaC shows
+    a verse's words with single spaces.
+
+Each row is found by itself (a search for "Cowdery" lists 1 Nephi
+0:19), and shown as plain text, without numbers in the verse column
+(0:1 and on aren't in the source); a blank row, as a blank line. By
+voice, "Jacob introduction" reads Jacob's chapter 0 (its rows with text;
+blank rows are passed over for speech, as verses with no text are), as
+"Jacob, before chapter 1. THE BOOK OF JACOB. THE BROTHER OF NEPHI. The
+words of..."; "next verse" goes on. 1 Nephi's chapter 0 is 61 rows; the
+largest (1 Nephi's summary, about 1,000 bytes) fits the verse buffer
+(4,000 bytes; 700 on the CoCo), which so stays as it is. Chapter 0 is
+under 1 Nephi for the front matter, though it belongs to the whole
+volume: it is where a reader opens the text, and there is no book of its
+own (the user's choice). Only where there is such text.
+
+Verse 0: the text before a verse 1 other than chapter 1's (none in this
+edition: a headnote between chapters, in a text that has them), kept as
+that chapter's verse 0.
 
   - Shown above verse 1 as plain text, without a "0" in the verse
     column: the 0 isn't in the source, and would puzzle. Reached as any
     verse: comma or up arrow from 1:1 shows it; Enter three times still
-    starts at 1:1; "Jacob 1:0" goes to it.
+    starts at 1:1; "Alma 5:0" goes to it.
   - Only where there is such text: a chapter with nothing before its
     verse 1 has no verse 0, not an empty one.
-  - By voice: "Jacob chapter 1, introduction", and "Jacob 1:0" too;
-    read as "Jacob, introduction."
+  - By voice: "Alma chapter 5, introduction", and "Alma 5:0" too; read
+    as "Alma chapter 5, introduction."
   - What EBaC changes. EBaC numbers verses by place, not by the numbers
     in the text: a chapter starts at the verse numbered :1, and Jacob
     1:5 is the chapter's start plus 4. A verse 0 just before :1 is
     already found that way (the start minus 1), but would otherwise be
-    counted as one more verse of the chapter before: listed as 2 Nephi
-    33:16 among search results, and counted in that chapter's verses.
-    So the index keeps which chapters have a verse 0, and turning a
-    verse's place into its reference, and counting a chapter's verses,
-    use it. The index's format changes; the app indexes added
-    translations again, as for any such change. The two builds, the 67
-    scenarios and make coco stay as they are.
-
-Chapter 0: the front matter. What comes before the first book (about
-4,800 bytes) is chapter 0 of that book, 1 Nephi, a verse for each of
-its parts, in order: the title page; the abridgment's first paragraph;
-its second; "Translated by Joseph Smith, Jun."; the Testimony of Three
-Witnesses with their names; the Testimony of Eight Witnesses with
-theirs; the Contents. Rather than one verse 0 of it all:
-
-  - each part is found by itself: a search for "Cowdery" lists 1 Nephi
-    0:5, the Three Witnesses;
-  - by voice, "next verse" reads the next part, not all of it at once;
-  - the largest part (the Three Witnesses, about 1,540 bytes) fits the
-    verse buffer as it is (4,000 bytes; 700 on the CoCo), which so
-    stays as it is.
-
-Its numbers (0:1 to 0:7) aren't in the source either: shown, as verse 0
-is, as plain text, without numbers in the verse column. It is under 1
-Nephi, though it belongs to the whole volume: it is where a reader opens
-the text, and there is no book of its own (the user's choice). A
-chapter, like verse 0, only where there is such text.
+    counted as one more verse of the chapter before: listed as the
+    chapter before's last verse plus 1 among search results, and
+    counted in its verses. So the index keeps which chapters have a
+    verse 0, and turning a verse's place into its reference, and
+    counting a chapter's verses, use it. The index's format changes;
+    the app indexes added translations again, as for any such change.
+    The two builds, the 67 scenarios and make coco stay as they are.
 
 What EBaC changes for chapter 0: as for verse 0, a chapter starts at
 the verse numbered :1, so 0:1 would be counted as 1 Nephi's chapter 1,
@@ -1325,11 +1345,14 @@ format.
 
 Verses taller than the screen. The passage screen shows whole verses
 only: a verse taller than the screen isn't shown at all, and paging goes
-past it. Never so far (a Bible verse is a few lines), but the Three
-Witnesses are about 30 lines on a phone (52 columns, about 25 rows), and
-later texts' introductions may be longer. So such a verse is shown a
-screenful at a time, paging on through it as through verses; needed
-whichever way the text is stored.
+past it. Never so far (a Bible verse is a few lines), but the
+testimonies' paragraphs are about 30 lines on a phone (52 columns,
+about 25 rows), and later texts' introductions may be longer. So such a
+verse is shown a screenful at a time, paging on through it as through
+verses; at the top of a screen, alone, or, after other verses, its
+start in the room left below them (at least two lines; so that a screen
+isn't left with a blank row alone before it), and its rest on the next
+screens.
 
 The passage screen's keys, with such verses (fixed November 1, 2026:
 the first way of it left some keys stuck or skipping near a tall verse).
@@ -1527,12 +1550,13 @@ For texts from Project Gutenberg (design review of October 29, 2026):
     BOM) first; others when looked at; anything else refused.
   - Short names from the list, not made from the ebook number (PG17
     says nothing to a reader).
-  - The text before a chapter's verse 1 is its verse 0: searched, shown
-    without a "0", read by voice as the introduction.
-  - Front matter before the first book is that book's chapter 0, a verse
-    for each part (testimonies, contents...), not one verse 0 nor a
-    book of its own: found, read and shown part by part, and the verse
-    buffer stays as it is.
+  - The text before a book's chapter 1 (its heading and summary; before
+    the first book, the front matter too) is its chapter 0, a verse for
+    each row as the text lays it out (a title's line, a name, a blank
+    line, a paragraph joined where the text wrapped it), not one verse
+    0 nor a book of its own: shown as the text does, searched, read by
+    voice as the introduction. Before a later chapter's verse 1: its
+    verse 0.
   - Nothing the supplier gives is left out: only Gutenberg's header and
     license, and the repeated chapter lines.
   - A verse taller than the screen is shown a screenful at a time.

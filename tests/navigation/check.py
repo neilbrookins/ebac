@@ -73,7 +73,10 @@ def expect(key, screen):
         if (t, tw) == (0, 1):
             return "beep", None
         if tw > 1:                     # the part before, of a tall verse
-            return lambda r: last(r) == (t, tw - 1), "verse %d up to word %d" % (t, tw - 1)
+            # (from its start, or overlapping a little: its start may have
+            # been shown below other verses, in less room than a part)
+            return (lambda r: top(r)[0] == t and top(r)[1] < tw and last(r)[0] == t
+                    and last(r)[1] >= tw - 1), "verse %d up to word %d" % (t, tw - 1)
         # (back a screen: verse t - 1 shown to its end; the screen may go on
         # past it when a tall verse before stops it going further back)
         return (lambda r: top(r)[0] < t and any(index[x[:3]] == t - 1 and
