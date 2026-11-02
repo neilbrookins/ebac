@@ -96,7 +96,7 @@ static void dis_one_line P((char *strg));
 static void dis_verse P((char *strg, int indent, int firstTime));
 static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
                           int verIndent, int top_of_screen));
-static int show_tall_verse P((struct bcv_array_type *bcv_arrays, int shown));
+static int show_tall_verse P((struct bcv_array_type *bcv_arrays, int shown, int *used));
 static int is_tall P((long int v));
 static int tall_part_before P((long int v, int skip));
 static int lines_from P((long int first, long int last));
@@ -871,11 +871,12 @@ static int check_limits(long int cur_verse)
 
 /*
 ** Purpose: show a part of a verse taller than the screen (as a long
-**          introduction can be), alone on the screen: from line shown of
-**          its text, as much as fits. Returns the lines of its text shown
-**          so far (shown and this part's), or 0 if this was its last part.
+**          introduction can be), at the top of the screen: from line shown
+**          of its text, as much as fits. Returns the lines of its text
+**          shown so far (shown and this part's), or 0 if this was its last
+**          part; and in *used, the lines of the screen this part took.
 */
-static int show_tall_verse(struct bcv_array_type *bcv_arrays, int shown)
+static int show_tall_verse(struct bcv_array_type *bcv_arrays, int shown, int *used)
 {
         int total, text_lines, avail = s_lines - 1, part;
 
@@ -891,6 +892,7 @@ static int show_tall_verse(struct bcv_array_type *bcv_arrays, int shown)
                 part = avail;
         if (shown + part > text_lines)
                 part = text_lines - shown;
+        *used = part + (shown == 0 ? total - text_lines : 0);
         dv_skip = shown;
         dv_left = part;
         dv_body_only = (shown > 0);
@@ -916,9 +918,10 @@ static int is_tall(long int v)
 
 /*
 ** Purpose: the parts of tall verse v: where (lines of its text before it)
-**          the part before the one at line skip starts; with skip -1,
-**          where its last part starts. (The first part is shorter: the
-**          book's heading is above it.)
+**          the part before the one at line skip starts: a screenful
+**          ending just before it; with skip -1, where its last part
+**          starts. (The first part is shorter: the book's heading is above
+**          it.)
 */
 static int tall_part_before(long int v, int skip)
 {
@@ -930,8 +933,18 @@ static int tall_part_before(long int v, int skip)
         part = avail - (total - text_lines);
         if (part < 1)
                 part = 1;
-        if (skip < 0)
-                skip = text_lines;
+        if (skip >= 0)
+        {
+                /* the screenful ending just before line skip (its parts
+                   needn't start where they would from its first part at a
+                   screen's top: its start may have been shown below other
+                   verses); from its start if that is shown with it */
+                if (skip <= part)
+                        return (0);
+                start = skip - avail;
+                return (start < 1 ? 1 : start);
+        }
+        skip = text_lines;
         while (start + part < skip)
         {
                 start += part;
@@ -984,7 +997,9 @@ static long int book_start(long int v)
 ** The passage screen. A screen shows whole verses from top, the verse at
 ** its top, as many as fit, and below them, if the next is taller than the
 ** screen, as much of its start as fits; or, of a verse taller than the
-** screen at its top, one part of it, alone, from line skip of its text. After drawing, next_top and
+** screen at its top, one part of it, from line skip of its text: alone, or,
+** its last part, with the verses after it below it, as many as fit (the
+** same rule: stop only at one that doesn't fit). After drawing, next_top and
 ** next_skip say what the next screen starts with (n), and last_shown is
 ** the last verse on it (its last part, or not). '.' adds a verse at the
 ** bottom, scrolling the screen (scrolled): the verse at its top is then
@@ -1019,19 +1034,31 @@ static void view_in_context(long int cur_verse)
                 scrolled = FALSE;
                 next_skip = 0;
                 head_shown = FALSE;
+                num_lines = s_lines;
+                top_of_screen = TRUE;
+                cur_verse = top;
                 if (skip > 0 || is_tall(top))
                 {
-                        /* taller than the screen: a part of it, alone */
-                        next_skip = show_tall_verse(get_verse(top), skip);
-                        next_top = (next_skip > 0) ? top : top + 1;
+                        /* taller than the screen: a part of it; its last
+                           part, with the verses after it below it */
+                        bcv_arrays = get_verse(top);
+                        next_skip = show_tall_verse(bcv_arrays, skip, &n);
+                        next_top = top;
                         last_shown = top;
                         top_of_screen = FALSE;
+                        if (next_skip > 0)
+                                head_shown = TRUE;      /* (no room: alone) */
+                        else
+                        {
+                                num_lines -= n;
+                                cur_verse = top + 1;
+                                /* (count_lines() compares each verse's book
+                                   with the one before: this one's) */
+                                count_lines(-1, bcv_arrays->book_array, "", 8, FALSE);
+                        }
                 }
-                else
+                if (!head_shown)
                 {
-                        num_lines = s_lines;
-                        top_of_screen = TRUE;
-                        cur_verse = top;
                         for(;;)
                         {
                             if (!check_limits(cur_verse))
@@ -1154,6 +1181,9 @@ get_command:    scr_mode("passage");
                                 skip = 0;
                                 break;
                         }
+                        /* the prompt out first, all of it (the verse's
+                           first line may be shorter: an empty one is) */
+                        printf("                  \b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
                         bcv_arrays = get_verse(++last_shown);
                         display_verse(-1, bcv_arrays, 8, top_of_screen);
                         top_of_screen = FALSE;
@@ -1423,7 +1453,14 @@ static void view_match_list(long int *verse_list)
                      num_lines -= count_lines(tag, bcv_arrays->book_array,
                                bcv_arrays->data_array, MAXINDENT, FALSE);
                      if (num_lines < 1)
+                     {
+                        /* an entry taller than the screen, just before
+                           this screen: a screen of its own (cut to fit,
+                           as n shows it), not none */
+                        if (n == 1)
+                           first_i--;
                         break;
+                     }
                    }
                    i = first_i + 1;
                    break;

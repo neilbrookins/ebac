@@ -1352,7 +1352,12 @@ verse is shown a screenful at a time, paging on through it as through
 verses; at the top of a screen, alone, or, after other verses, its
 start in the room left below them (at least two lines; so that a screen
 isn't left with a blank row alone before it), and its rest on the next
-screens.
+screens. Its last part has the verses after it below it, as many as fit.
+
+The rule for every screen, as it has always been: it stops only at a verse
+that doesn't fit, never with room left for the next (fixed November 2,
+2026: a tall verse's last part was alone, leaving the screen below it
+empty).
 
 The passage screen's keys, with such verses (fixed November 1, 2026:
 the first way of it left some keys stuck or skipping near a tall verse).
@@ -1365,7 +1370,9 @@ at the end says so, as before):
      ending with the verse before (a tall verse before: its last part);
      whole verses back from there, never a tall one with them
   .  the next verse, added at the bottom; a tall verse comes on a screen
-     of its own (it can't scroll in whole); within one, its next part
+     of its own (it can't scroll in whole); within one, its next part.
+     The prompt's line is blanked first, all of it, as the verse's first
+     line may be shorter (an empty row is)
   ,  the verse before, at the top, from its start; within a tall verse,
      its part before
   f  the first verse of the book after the top verse's (at first it was
@@ -1378,12 +1385,18 @@ After '.' has scrolled the screen, its top verse is the first still wholly
 on it, counted in the order the verses are drawn (a book's heading with
 the verse below it).
 
+In a list of search results, an entry taller than the screen is shown
+alone, cut to fit (its label shows all of it); n goes on to the next
+screen, and p from that one comes back to it (fixed November 2, 2026: p
+stopped there without moving, as the entry didn't fit).
+
 make navtest checks all of these, from every screen of a made-up
 translation (tests/navigation: tall verses at a book's start and end, two
 together, in chapter 0 and as a verse 0, and the last of all), at a
 phone's size and at 80 columns: each key from each screen n and p go
-through, and after '.', against what it should do; and n, p and '.' from
-end to end, seeing every word.
+through, and after '.', against what it should do; n, p and '.' from end
+to end, seeing every word; and that no screen n goes through stops with
+room for the next verse.
 
 The CoCo stays at 700 bytes a verse: it can't take this text (verses
 of up to 740 bytes) anyway.

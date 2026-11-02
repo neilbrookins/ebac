@@ -31,25 +31,64 @@ def desc(screen):
 # the screens n goes through, from the first verse to the last
 s, st = start()
 pages = [st]
+texts = [s.text()]
 while True:
     nxt, bel = s.key("n")
     if bel:
         break
     pages.append(nxt)
+    texts.append(s.text())
 s.close()
 print("%dx%d: %d screens forward with n" % (rows, cols, len(pages)))
+
+# A screen stops only at a verse that doesn't fit: on each, the room left
+# above the prompt must be too little for the next verse (its rows as a
+# whole verse is shown on some screen, and 2 more, a blank line and the
+# heading, where its book starts); or, for a tall one, too little for 2
+# lines of its start below the others.
+def rows_of(text):
+    return [WORD.findall(line) for line in text.split("\n")]
+from nav import WORD
+height = {}
+for page, text in zip(pages, texts):
+    lines = rows_of(text)
+    for x in page:
+        if x[3] == 1 and x[4] == verses[index[x[:3]]][3]:
+            key = "a%dc%dv%dn" % x[:3]
+            height[index[x[:3]]] = sum(1 for l in text.split("\n") if key in l)
+fill_failures = 0
+for page, text in zip(pages, texts):
+    rows_text = text.split("\n")
+    prompt = [r for r, l in enumerate(rows_text) if "for menu" in l]
+    if not page or not prompt:
+        continue
+    l = index[page[-1][:3]]
+    if page[-1][4] < verses[l][3] or l + 1 >= len(verses):
+        continue                      # (a tall verse goes on; the end)
+    room = rows - 1 - prompt[-1]
+    head = 2 if verses[l + 1][0] != verses[l][0] else 0
+    nxt = l + 1
+    if nxt in height and height[nxt] < rows - 1:
+        fits = height[nxt] + head <= room
+    else:                             # tall: its start, at least 2 lines
+        fits = room - head >= 2
+    if fits:
+        fill_failures += 1
+        print("FAIL fill: %s leaves %d lines empty; verse %d would fit" % (desc(page), room, nxt))
+print("fill: %d screens, %d stop early" % (len(pages), fill_failures))
 
 def whole(item):
     i = index[item[:3]]
     return item[3] == 1 and item[4] == verses[i][3]
 
-def top(screen):
+def top(screen, scrolled=False):
     """the verse at the top (in order) and its first word shown: after '.'
-    scrolled the screen, the first verse wholly on it"""
+    scrolled the screen, the first verse wholly on it (unscrolled, a screen
+    can start with a tall verse's last part, with verses below it)"""
     if not screen:
         return (-1, -1)
     item = screen[0]
-    if len(screen) > 1 and item[3] > 1:
+    if scrolled and len(screen) > 1 and item[3] > 1:
         item = screen[1]
     return index[item[:3]], item[3]
 
@@ -58,11 +97,10 @@ def last(screen):
         return (-1, -1)
     return index[screen[-1][:3]], screen[-1][4]
 
-def expect(key, screen):
+def expect(key, screen, scrolled=False):
     """what the screen after key should be: a test of it, and words"""
-    t, tw = top(screen)
+    t, tw = top(screen, scrolled)
     l, lw = last(screen)
-    tall_part = len(screen) == 1 and not whole(screen[0])
     if key == "n":
         if l == len(verses) - 1 and lw == verses[l][3]:
             return "beep", None
@@ -115,12 +153,16 @@ for i, page in enumerate(pages):
             s, st = start()
             for _ in range(i):
                 st = s.key("n")[0]
+            scrolled = False
             if before:
                 st, bel = s.key(".")
                 if bel:
                     s.close(); continue
+                # ('.' within a tall verse, or onto one, draws a screen
+                # afresh: scrolled only if it didn't)
+                scrolled = not s.cleared
             here = st
-            test, what = expect(key, here)
+            test, what = expect(key, here, scrolled)
             got, bel = s.key(key)
             s_text = s.text()
             s.close()
@@ -206,4 +248,4 @@ for i, page in enumerate(back):
             print("FAIL from %s (back with p): %r should give %s; gave %s%s" % (
                 desc(here), key, what if not isinstance(test, str) else test, desc(got), " BEEP" if bel else ""))
 print("in all, %d of %d cases right" % (cases - failures, cases))
-sys.exit(1 if failures else 0)
+sys.exit(1 if failures or fill_failures else 0)

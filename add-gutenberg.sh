@@ -583,13 +583,18 @@ add_number() {
         else
                 fetch "$url" "$tmp/text" || return 1
         fi
-        title=$(tr -d '\r' < "$tmp/text" | $AWK "$PLAIN"'/^Title: / { print plain(substr($0, 8)); exit }')
+        # (carriage returns out once, here: awk stops reading at what it
+        # wants, and tr writing into it would then complain of a broken
+        # pipe)
+        tr -d '\r' < "$tmp/text" > "$tmp/text.lf" && mv "$tmp/text.lf" "$tmp/text" ||
+                { problem="couldn't read the download"; return 1; }
+        title=$($AWK "$PLAIN"'/^Title: / { print plain(substr($0, 8)); exit }' "$tmp/text")
         [ -n "$title" ] || title="Project Gutenberg ebook $number"
-        license_text=$(tr -d '\r' < "$tmp/text" | $AWK "$PLAIN"'
+        license_text=$($AWK "$PLAIN"'
                 /^This (e|E)(b|B)ook is for the use of anyone/ { on = 1 }
                 on && /^[ \t]*$/ { exit }
                 on { t = t " " $0 }
-                END { print plain(t) }')
+                END { print plain(t) }' "$tmp/text")
         [ -n "$license_text" ] || license_text="Project Gutenberg License (https://www.gutenberg.org/policy/license.html)"
         agree "$number" || return 1
         add "$number" "$url"

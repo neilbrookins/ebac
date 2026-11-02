@@ -67,8 +67,10 @@ class Screen:
         if f == "H":
             s.r = (a[0] - 1 if a and a[0] else 0); s.c = (a[1] - 1 if len(a) > 1 and a[1] else 0)
         elif f == "J":
-            if (a[0] if a else 0) == 2: s.g = [[" "] * s.cols for _ in range(s.rows)]
+            if (a[0] if a else 0) == 2:
+                s.g = [[" "] * s.cols for _ in range(s.rows)]; s.log.append("CLEAR")
             elif (a[0] if a else 0) == 0:
+                if s.r == 0 and s.c == 0: s.log.append("CLEAR")
                 s.g[s.r][s.c:] = [" "] * (s.cols - s.c)
                 for r in range(s.r + 1, s.rows): s.g[r] = [" "] * s.cols
         elif f == "K": s.g[s.r][s.c:] = [" "] * (s.cols - s.c)

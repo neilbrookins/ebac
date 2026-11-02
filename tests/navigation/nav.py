@@ -56,6 +56,7 @@ class Session:
                 out[-1] = (b, c, v, out[-1][3], n)
             else:
                 out.append((b, c, v, n, n))
+        self.cleared = "CLEAR" in self.scr.log    # (drawn afresh, not scrolled)
         return out, "BEL" in self.scr.log
     def close(self):
         try:
