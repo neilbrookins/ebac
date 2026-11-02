@@ -368,7 +368,7 @@ sh add-translation.sh --agree BSB  # from a script: agree to its license
 
 Run from a script, with no one to answer the license question, a translation is added only with `--agree`, by which you agree to the license of each one named; the licenses are shown either way.
 
-Adding needs at least 1 GB of free disk space where EBaC keeps its translations: with less, it says "not enough disk space" and adds nothing (removing still works). This keeps a script, or anyone speaking to a voice assistant, from filling the disk by adding one translation after another. Adding from Project Gutenberg checks the same.
+Adding needs at least 1 GB of free disk space where EBaC keeps its translations, and where it downloads them first (the temporary folder, `/tmp` unless `TMPDIR` says otherwise): with less on either, it says "not enough disk space" and adds nothing (removing still works). This keeps a script, or anyone speaking to a voice assistant, from filling the disk by adding one translation after another. Adding from Project Gutenberg checks the same.
 
 Behind the scenes, EBaC hands over to this script (EBaC is replaced by it, so its memory is freed meanwhile), and when it is done, it starts a new EBaC, which reads `trans` again and so offers the new translation. EBaC can be started with any translation in `trans` the same way: `~/ebac/bible BSB`.
 

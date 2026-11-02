@@ -1655,8 +1655,12 @@ so neither can:
   - Adding a text (add-translation.sh, add-gutenberg.sh; so the A and P
     menus and adding by voice, which runs them) stops while less than
     1 GB (MIN_FREE_MB, 1024) is free on the disk the translations are
-    kept on, checked (df -Pk) before each download: "not enough disk
-    space: N MB free, and adding needs at least 1024 MB free". A fixed
+    kept on, or on the one the text is first downloaded to (the
+    temporary folder, TMPDIR or /tmp; in the Home Assistant app that is
+    the container's own /tmp, the translations being in /data, a
+    different mount, so both are checked), with df -Pk before each
+    download: "not enough disk space: N MB free on WHICH, and adding
+    needs at least 1024 MB free". A fixed
     amount, not a percentage: a percentage stops a large disk too soon
     (5% of 2 TB is 100 GB) and a small one too late. If the free space
     can't be found, adding stops too.
