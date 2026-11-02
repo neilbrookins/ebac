@@ -1253,6 +1253,29 @@ States; Gutenberg's own license covers its name and the file's header.
 As for A: shown, agreed to (y), and kept in the folder's license file,
 with the text's page, https://www.gutenberg.org/ebooks/17, as Details.
 
+Its page before its text (November 2, 2026; the designer's request). The
+license was read from the text's header, so the whole text was
+downloaded before the question, and wasted if it was refused. Now, in
+order, nothing downloaded until it is wanted:
+
+  1. the ebook number: digits only, and one KNOWN;
+  2. the same version: its fingerprint (ETag), asked for without the
+     file, against the copy added (this decides: it changes whenever
+     the file does);
+  3. its page (PAGE, a few kilobytes): from its table of facts, its
+     title (the part before a subtitle), "Last Update" (or "Most
+     Recently Updated") and "Copyright Status", shown, and the license
+     agreed to: the status and Gutenberg's license page;
+  4. room on the disk (1 GB free);
+  5. the text, downloaded, and added.
+
+The license file keeps License: (what was agreed to; what the voice
+"license" question reads), Terms: (the paragraph the text's header
+gives), Updated: (the page's date), Details: and Agreed:. If the page
+can't be read, or hasn't the copyright status (Gutenberg changed its
+layout, say), it is as before: the text is downloaded first and its
+license read from it. --page PATH reads a saved page instead, for tests.
+
 The same version: refused, as for A, by the file's fingerprint (its
 ETag), kept in the folder's version file; removing it first (in P, as
 r) lets it be downloaded again.

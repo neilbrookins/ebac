@@ -10,6 +10,8 @@
 #   sh add-gutenberg.sh --list         list those added by this script
 #   sh add-gutenberg.sh --file PATH 17 read the text from PATH instead of
 #                                      downloading it (for testing)
+#   sh add-gutenberg.sh --page PATH 17 read its page from PATH instead of
+#                                      gutenberg.org (for testing)
 #
 # The person adding a text finds it on gutenberg.org themselves, checks it
 # is the one, and gives its ebook number here (17, the Book of Mormon: the
@@ -19,14 +21,20 @@
 # gives it, https://www.gutenberg.org/ebooks/17.txt.utf-8 (see PLAIN_TEXT).
 # Then, as add-translation.sh does for scrollmapper's texts, this:
 #
-#   1. downloads it (refused first, by its fingerprint, if it is the same
-#      version as the copy added before: remove that first);
-#   2. shows its license (Gutenberg's, from the file's header: so it is
-#      downloaded first) and asks whether you agree;
-#   3. splits it into a file per book, in a folder named by its short name
-#      (BOM), with booklist, booknames, license and version files;
-#   4. builds its concordance index, and checks it has every verse;
-#   5. adds it to the top of 'trans', so that EBaC starts with it.
+#   1. refuses it, by its fingerprint (asked for without downloading it),
+#      if it is the same version as the copy added before (remove that
+#      first);
+#   2. reads its page on gutenberg.org (https://www.gutenberg.org/ebooks/17,
+#      small: see PAGE), for its title, its last update and its copyright
+#      status, shows them and asks whether you agree to its license; so
+#      nothing is downloaded that isn't wanted (if its page can't be read,
+#      the text is downloaded first, and its license read from it);
+#   3. checks there is room on the disk, and downloads it;
+#   4. splits it into a file per book, in a folder named by its short name
+#      (BOM), with booklist, booknames, license and version files (license:
+#      what was agreed to, and the terms the text itself gives);
+#   5. builds its concordance index, and checks it has every verse;
+#   6. adds it to the top of 'trans', so that EBaC starts with it.
 #
 # One text, and one format, at a time (see "Texts from Project Gutenberg"
 # in readme.architecture). Gutenberg's texts are laid out in many ways, so
@@ -276,6 +284,7 @@ remove() {
 # agree NUMBER: show Gutenberg's license, from the file's header, and ask
 agree() {
         printf '\n%s: %s\n' "$name" "$title"
+        [ -n "$updated" ] && printf 'Last updated: %s\n' "$updated"
         printf 'License: %s\n' "$license_text"
         printf 'Details: https://www.gutenberg.org/ebooks/%s\n' "$1"
         if [ "$agree_all" = yes ]; then
@@ -520,6 +529,8 @@ add() {
                 return 1
         fi
         { printf 'License: %s\n' "$license_text"
+          [ -n "$terms" ] && printf 'Terms: %s\n' "$terms"
+          [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
           printf 'Details: https://www.gutenberg.org/ebooks/%s\n' "$number"
           printf 'Agreed: %s (%s)\n' "$(date '+%Y-%m-%d')" "$agreed"
         } > "$folder/license" || { problem="couldn't write $name/license"; return 1; }
@@ -544,6 +555,58 @@ add() {
 # (which leads on to the file). Made here, not looked up (Gutendex, a
 # catalogue that gives it, refused the app's requests: HTTP 403).
 PLAIN_TEXT=https://www.gutenberg.org/ebooks/%s.txt.utf-8
+# and its page, which gives its title, its last update and its copyright
+# status (a few kilobytes: read before the text is downloaded)
+PAGE=https://www.gutenberg.org/ebooks/%s
+GUTENBERG_LICENSE=https://www.gutenberg.org/policy/license.html
+
+# page_facts FILE: from an ebook's page, the rows of its table of facts
+# ("Title", "Last Update" or "Most Recently Updated", "Copyright Status"),
+# as "title", "updated" and "rights", a tab, and the value as plain text
+# (its tags out, &amp; and the like read, spaces run together). Of the
+# title, only the main title (Gutenberg puts the subtitle after a colon).
+page_facts() {
+        $AWK "$PLAIN"'
+        function text(h) {
+                gsub(/<[Bb][Rr][^>]*>/, " : ", h)
+                gsub(/<[^>]*>/, " ", h)
+                gsub(/&amp;/, "\\&", h); gsub(/&quot;/, "\"", h)
+                gsub(/&#39;|&#x27;|&apos;/, "\047", h)
+                gsub(/&lt;/, "<", h); gsub(/&gt;/, ">", h); gsub(/&nbsp;/, " ", h)
+                gsub(/[ \t]+/, " ", h)
+                sub(/^ /, "", h); sub(/ $/, "", h)
+                return h
+        }
+        { page = page " " $0 }
+        END {
+                n = split(page, rows, /<[Tt][Rr][ >]/)
+                for (i = 2; i <= n; i++) {
+                        row = rows[i]
+                        if (!match(row, /<[Tt][Hh][^>]*>/)) continue
+                        rest = substr(row, RSTART + RLENGTH)
+                        if (!match(rest, /<\/[Tt][Hh]>/)) continue
+                        label = text(substr(rest, 1, RSTART - 1))
+                        rest = substr(rest, RSTART + RLENGTH)
+                        if (!match(rest, /<[Tt][Dd][^>]*>/)) continue
+                        rest = substr(rest, RSTART + RLENGTH)
+                        if (match(rest, /<\/[Tt][Dd]>/))
+                                rest = substr(rest, 1, RSTART - 1)
+                        value = plain(text(rest))
+                        if (value == "") continue
+                        if (label == "Title" && !got["title"]) {
+                                sub(/ ?:.*/, "", value)
+                                key = "title"
+                        } else if (label == "Last Update" || label == "Most Recently Updated")
+                                key = "updated"
+                        else if (label == "Copyright Status")
+                                key = "rights"
+                        else
+                                continue
+                        if (got[key]++) continue
+                        print key "\t" value
+                }
+        }' "$1"
+}
 
 # Room on the disk. Adding stops while less than MIN_FREE_MB megabytes are
 # free on the disk the translations are kept on, so that adding one after
@@ -565,6 +628,30 @@ enough_room() {
                 problem="not enough disk space: $(($free_kb / 1024)) MB free, and adding needs at least $MIN_FREE_MB MB free"
                 return 1
         fi
+        return 0
+}
+
+# download_text: the text, into $tmp/text (or from --file), without
+# carriage returns; and in terms, the license its header gives ("This
+# eBook is for the use of anyone anywhere..."). Sets problem on failure.
+download_text() {
+        printf '%s: downloading...\n' "$name"
+        if [ -n "$from_file" ]; then
+                cp "$from_file" "$tmp/text" || { problem="couldn't read $from_file"; return 1; }
+        else
+                fetch "$url" "$tmp/text" || return 1
+        fi
+        # (carriage returns out once, here: awk stops reading at what it
+        # wants, and tr writing into it would then complain of a broken
+        # pipe)
+        tr -d '\r' < "$tmp/text" > "$tmp/text.lf" && mv "$tmp/text.lf" "$tmp/text" ||
+                { problem="couldn't read the download"; return 1; }
+        terms=$($AWK "$PLAIN"'
+                /^This (e|E)(b|B)ook is for the use of anyone/ { on = 1 }
+                on && /^[ \t]*$/ { exit }
+                on { t = t " " $0 }
+                END { print plain(t) }' "$tmp/text")
+        terms=${terms# }
         return 0
 }
 
@@ -597,41 +684,59 @@ add_number() {
                 problem="you already have this version (downloaded ${kept#*	}). To download it again, remove it first (r and its number), then add it"
                 return 1
         fi
-        # The text, then its title and license, from its header (Gutenberg
-        # gives the license in the file itself, so it is downloaded first;
-        # nothing is added unless it is agreed to)
-        enough_room || return 1
-        printf '%s: downloading...\n' "$name"
-        if [ -n "$from_file" ]; then
-                cp "$from_file" "$tmp/text" || { problem="couldn't read $from_file"; return 1; }
-        else
-                fetch "$url" "$tmp/text" || return 1
+        # Its page first: its title, last update and copyright status,
+        # agreed to before the text is downloaded. (Without its page, the
+        # text is downloaded first, and its license read from it.)
+        title=""; updated=""; license_text=""; terms=""
+        page_read=no
+        if [ -n "$from_page" ]; then
+                cp "$from_page" "$tmp/page" 2> /dev/null && page_read=yes
+        elif [ -z "$from_file" ]; then
+                fetch "$(printf "$PAGE" "$number")" "$tmp/page" 2> /dev/null && page_read=yes
         fi
-        # (carriage returns out once, here: awk stops reading at what it
-        # wants, and tr writing into it would then complain of a broken
-        # pipe)
-        tr -d '\r' < "$tmp/text" > "$tmp/text.lf" && mv "$tmp/text.lf" "$tmp/text" ||
-                { problem="couldn't read the download"; return 1; }
+        if [ $page_read = yes ]; then
+                page_facts "$tmp/page" > "$tmp/facts"
+                title=$($AWK -F '\t' '$1 == "title" { print $2 }' "$tmp/facts")
+                updated=$($AWK -F '\t' '$1 == "updated" { print $2 }' "$tmp/facts")
+                rights=$($AWK -F '\t' '$1 == "rights" { print $2 }' "$tmp/facts")
+                if [ -n "$rights" ]; then
+                        license_text="$rights Project Gutenberg License ($GUTENBERG_LICENSE)"
+                else
+                        page_read=no    # (not as expected: as without it)
+                fi
+        fi
+        if [ $page_read = yes ]; then
+                [ -n "$title" ] || title="Project Gutenberg ebook $number"
+                agree "$number" || return 1
+                enough_room || return 1
+                download_text || return 1
+        else
+                [ -z "$from_file" ] && [ -z "$from_page" ] &&
+                        printf "%s: couldn't read its page on gutenberg.org; its license is read from the text\n" "$name"
+                enough_room || return 1
+                download_text || return 1
+                license_text=$terms
+                [ -n "$license_text" ] || license_text="Project Gutenberg License ($GUTENBERG_LICENSE)"
+                terms=""
+                title=$($AWK "$PLAIN"'/^Title: / { print plain(substr($0, 8)); exit }' "$tmp/text")
+                [ -n "$title" ] || title="Project Gutenberg ebook $number"
+                agree "$number" || return 1
+        fi
+        # (the text's own title, as before, for trans)
         title=$($AWK "$PLAIN"'/^Title: / { print plain(substr($0, 8)); exit }' "$tmp/text")
         [ -n "$title" ] || title="Project Gutenberg ebook $number"
-        license_text=$($AWK "$PLAIN"'
-                /^This (e|E)(b|B)ook is for the use of anyone/ { on = 1 }
-                on && /^[ \t]*$/ { exit }
-                on { t = t " " $0 }
-                END { print plain(t) }' "$tmp/text")
-        [ -n "$license_text" ] || license_text="Project Gutenberg License (https://www.gutenberg.org/policy/license.html)"
-        agree "$number" || return 1
         add "$number" "$url"
 }
 
 usage() {
-        echo "usage: sh add-gutenberg.sh [--agree] [--file PATH] NUMBER | --remove NAME | --list"
+        echo "usage: sh add-gutenberg.sh [--agree] [--file PATH] [--page PATH] NUMBER | --remove NAME | --list"
         echo "Adds a text from Project Gutenberg to EBaC by its ebook number, or removes one."
 }
 
 # ---- the arguments
 agree_all=no
 from_file=""
+from_page=""
 number_arg=""
 remove_name=""
 list_only=no
@@ -640,6 +745,7 @@ while [ $# -gt 0 ]; do
         --agree) agree_all=yes ;;
         --list) list_only=yes ;;
         --file) [ $# -ge 2 ] || { usage >&2; exit 2; }; from_file=$2; shift ;;
+        --page) [ $# -ge 2 ] || { usage >&2; exit 2; }; from_page=$2; shift ;;
         --remove) [ $# -ge 2 ] || { usage >&2; exit 2; }; remove_name=$2; shift ;;
         --from-ebac) [ $# -ge 3 ] || { usage >&2; exit 2; }; from_ebac=$2; start_with=$3; shift; shift ;;
         -h|--help) usage; exit 0 ;;
