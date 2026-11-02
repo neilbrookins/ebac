@@ -93,6 +93,7 @@ static struct bcv_type *bcv_menu P((void));
 static int count_lines P((int tag, char *bookname, char *strg, int indent,
                        int top_of_screen));
 static void dis_one_line P((char *strg));
+static int mostly_rtl P((char *s));
 static void dis_verse P((char *strg, int indent, int firstTime));
 static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
                           int verIndent, int top_of_screen));
@@ -657,7 +658,52 @@ static void verse_line(char *strg, int indent, int firstTime)
                 dv_left--;
         if (firstTime == FALSE || dv_body_only)
                 printf("%s", spaces + MAXINDENT - indent);
+        if (mostly_rtl(strg))
+        {
+                /* Hebrew: its start at the screen's last column, and the
+                   spaces before it, on the left, where its end is.
+                   (Terminals are assumed to take a full line without
+                   wrapping, as modern ones do. Spaces after its text, as
+                   a verse's last line can have, are left out.) */
+                int n = (int) strlen(strg), pad;
+                char kept;
+
+                while (n > 0 && strg[n - 1] == ' ')
+                        n--;
+                pad = s_cols - indent - u8_cols(strg, n);
+                while (pad-- > 0)
+                        putchar(' ');
+                kept = strg[n];
+                strg[n] = '\0';
+                dis_one_line(strg);
+                strg[n] = kept;
+                return;
+        }
         dis_one_line(strg);
+}
+
+/*
+** Purpose: whether a line of a verse is mostly right to left (Hebrew),
+**          so is aligned on the right: more of its letters are right to
+**          left than left to right. (Digits, which Hebrew text has among
+**          its letters, spaces and punctuation don't count either way; a
+**          line half and half stays on the left.)
+*/
+static int mostly_rtl(char *s)
+{
+        int i = 0, rtl = 0, ltr = 0;
+
+        while (s[i] != '\0')
+        {
+                if (u8_width(&s[i]) == 0)
+                        ;       /* (a mark, as a vowel point: not a letter) */
+                else if (u8_is_rtl(&s[i]))
+                        rtl++;
+                else if (u8_is_letter(&s[i]) && !isdigit(UCHAR(s[i])))
+                        ltr++;
+                i += u8_len(&s[i]);
+        }
+        return (rtl > ltr);
 }
 
 /* Purpose: performs word wrapping by inserting a '\0' at appropriate location

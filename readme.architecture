@@ -581,6 +581,21 @@ Lines are wrapped first, so each line of the screen is turned about on
 its own. The search line, while it is typed, shows Hebrew in the order
 typed (the line editor puts each character on the screen as it comes).
 
+Aligned on the right (November 2, 2026; the designer's request). A line
+of a verse that is mostly Hebrew is aligned on the right, as Hebrew is
+written: spaces are printed first, then the line as above, so that its
+first character (its rightmost) is in the screen's last column and the
+room left over is on the left, where the line ends. Mostly: more of its
+letters are right to left than left to right; digits (Hebrew text has
+1-9 and 0 among its letters), spaces, punctuation and vowel points don't
+count either way, so a line half and half stays on the left, and English
+with a Hebrew word in it stays on the left. Each line of the screen is
+judged on its own (verse_line(), with mostly_rtl()); spaces after a
+line's text (a verse's last line can have them) are left out, so its
+text, not a space, reaches the last column. This assumes the terminal
+takes a character in its last column without wrapping to the next line,
+as modern terminals do. Book headings are not moved.
+
 
 Voice: ebac-api and the Assist integration
 ------------------------------------------
