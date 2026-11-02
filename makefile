@@ -143,6 +143,17 @@ test: $(TESTSRC) bible.h both.h screen.h utf8.h tests/sidebyside.py indexes
 	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DRAMDISK -o tests/build/ramdisk/bible $(TESTSRC) $(LIBS)
 	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/ramdisk/bible
 
+# The passage screen's keys (n p . , f b) from every screen of a made-up
+# translation with verses taller than the screen, at a phone's size and at
+# 80 columns: each must move, as it should, but at the first or last verse
+# (tests/navigation/check.py). Slow: about ten minutes.
+navtest: bible index tests/navigation/gen.py tests/navigation/nav.py tests/navigation/check.py tests/navigation/screen.py
+	rm -rf tests/build/nav
+	mkdir -p tests/build/nav
+	cd tests/build/nav && python3 ../../navigation/gen.py . && (cd TT && ../../../../index -y > /dev/null)
+	cd tests/build/nav && python3 ../../navigation/check.py 25 52 ../../../bible
+	cd tests/build/nav && python3 ../../navigation/check.py 24 80 ../../../bible
+
 # The Tandy CoCo 3 (OS-9 6809): the source converted to K&R C, with the
 # text and the concordance index (which the CoCo can't build itself), in
 # coco/build/ebac-coco.tar, and coco/build/ebac-coco.dsk, an OS-9 disk
@@ -166,7 +177,7 @@ version.stamp: FORCE
 	else mv version.stamp.new version.stamp; fi
 FORCE:
 
-.PHONY: all indexes test clean coco FORCE
+.PHONY: all indexes test navtest clean coco FORCE
 
 file.o: bible.h screen.h both.h utf8.h
 userint.o: userint.c bible.h screen.h both.h version.stamp utf8.h

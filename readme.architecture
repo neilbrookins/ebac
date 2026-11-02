@@ -1331,6 +1331,37 @@ later texts' introductions may be longer. So such a verse is shown a
 screenful at a time, paging on through it as through verses; needed
 whichever way the text is stored.
 
+The passage screen's keys, with such verses (fixed November 1, 2026:
+the first way of it left some keys stuck or skipping near a tall verse).
+Each key works from the verse at the top of the screen, and always
+moves, but at the first or last verse of the translation (it beeps; '.'
+at the end says so, as before):
+
+  n  the next screen: a tall verse's next part, or the verse after
+  p  the screen before: a tall verse's part before; else the screen
+     ending with the verse before (a tall verse before: its last part);
+     whole verses back from there, never a tall one with them
+  .  the next verse, added at the bottom; a tall verse comes on a screen
+     of its own (it can't scroll in whole); within one, its next part
+  ,  the verse before, at the top, from its start; within a tall verse,
+     its part before
+  f  the first verse of the book after the top verse's (at first it was
+     after the verse below the screen: so a screen showing a book's start
+     below its top skipped that book)
+  b  the first verse of the top verse's book; from there (its first part,
+     if tall), the book before's
+
+After '.' has scrolled the screen, its top verse is the first still wholly
+on it, counted in the order the verses are drawn (a book's heading with
+the verse below it).
+
+make navtest checks all of these, from every screen of a made-up
+translation (tests/navigation: tall verses at a book's start and end, two
+together, in chapter 0 and as a verse 0, and the last of all), at a
+phone's size and at 80 columns: each key from each screen n and p go
+through, and after '.', against what it should do; and n, p and '.' from
+end to end, seeing every word.
+
 The CoCo stays at 700 bytes a verse: it can't take this text (verses
 of up to 740 bytes) anyway.
 

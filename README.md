@@ -480,6 +480,8 @@ make test
 
 This builds both versions and runs them side by side through a set of scripted sessions: viewing, every kind of search, paging, and invalid input. It checks that the screens they produce are byte-for-byte identical. Every change to the code should keep this test passing, so the two versions never drift apart. To add memory-error checking as well, run `make test TESTSAN="-fsanitize=address,undefined"`. The test needs Python 3; to add a scenario, add a line to `SCENARIOS` in [`tests/sidebyside.py`](tests/sidebyside.py).
 
+`make navtest` checks the passage screen's keys (**n p . , f b**) from every screen of a made-up translation with verses taller than the screen, at a phone's size and at 80 columns: each must move as it should, except at the first or last verse. It takes about ten minutes.
+
 [↑ Contents](#contents)
 
 ## License

@@ -96,7 +96,13 @@ static void dis_one_line P((char *strg));
 static void dis_verse P((char *strg, int indent, int firstTime));
 static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
                           int verIndent, int top_of_screen));
-static long int calculate_fv P((long int last_verse));
+static int show_tall_verse P((struct bcv_array_type *bcv_arrays, int shown));
+static int is_tall P((long int v));
+static int tall_part_before P((long int v, int skip));
+static int lines_from P((long int first, long int last));
+static long int fill_back P((long int last));
+static long int book_start P((long int v));
+static int lines_below P((long int first, long int last));
 static long int scrolled_top P((long int last_shown));
 static void rev_printf P((char *string));
 static void print_visual P((char *s, char *hi));
@@ -805,27 +811,6 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
         strcpy(previous_book, bcv_arrays->book_array);
 }
 
-static long int calculate_fv(long int last_verse)
-{
-        int num_lines = s_lines;
-        char top_of_screen = TRUE; /* I don't think this is right */
-        struct bcv_array_type *bcv_arrays;
-        for(;;)
-        {
-            if ((last_verse - 1) < 1)
-                return (1);
-            while (!check_limits(last_verse - 1))
-                last_verse--;
-            bcv_arrays = get_verse(--last_verse);
-            num_lines -= count_lines(-1, bcv_arrays->book_array,
-               bcv_arrays->data_array, 8, top_of_screen);
-            top_of_screen = FALSE;
-            if (num_lines < 1)
-                break;
-        }
-        return (last_verse + 1);
-}
-
 /*
 ** Purpose: after stepping forward with '.', the passage screen has scrolled
 **          and no longer starts with a heading. Find the first verse still
@@ -835,27 +820,36 @@ static long int calculate_fv(long int last_verse)
 */
 static long int scrolled_top(long int last_shown)
 {
-        int num_lines = s_lines - 1;  /* the bottom line holds the cursor */
         long int verse = last_shown;
+
+        while (verse > 1 && lines_below(verse - 1, last_shown) <= s_lines - 1)
+                verse--;
+        return verse;
+}
+
+/*
+** Purpose: the lines verses first to last take below others, as '.' adds
+**          them to a screen: a book's heading (and the blank line before
+**          it) only where the book changes, from the verse before first.
+**          (Counted from first on, in order, as they are drawn: so that a
+**          heading is counted with the verse it is above.)
+*/
+static int lines_below(long int first, long int last)
+{
+        int lines = 0;
+        long int v;
         struct bcv_array_type *bcv_arrays;
 
-        /* count_lines() compares each verse's book with the previous one
-        ** it was given; start it on this verse's book */
-        bcv_arrays = get_verse(last_shown);
-        count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array, 8, FALSE);
-        for(;;)
+        /* count_lines() compares each verse's book with the one before */
+        bcv_arrays = get_verse(first > 1 ? first - 1 : first);
+        count_lines(-1, bcv_arrays->book_array, "", 8, FALSE);
+        for (v = first; v <= last; v++)
         {
-            if (!check_limits(verse))
-                return verse + 1;
-            bcv_arrays = get_verse(verse);
-            num_lines -= count_lines(-1, bcv_arrays->book_array,
-               bcv_arrays->data_array, 8, FALSE);
-            if (num_lines < 0)          /* this verse is partly off the top */
-                return verse + 1;
-            if (verse == 1)
-                return 1;
-            verse--;
+                bcv_arrays = get_verse(v);
+                lines += count_lines(-1, bcv_arrays->book_array,
+                                     bcv_arrays->data_array, 8, FALSE);
         }
+        return (lines);
 }
 
 /* maybe this should be in a macro for speed? */
@@ -876,19 +870,10 @@ static int check_limits(long int cur_verse)
 }
 
 /*
-** cur_verse is the verse at the top of the screen to draw. After drawing,
-** it is one past the next verse to show (the one that didn't fit), which
-** the keys below rely on; at the end of the Bible, that next verse is one
-** past Revelation's last, numverses + 1. A key with nowhere to go (back a
-** book or a verse from Genesis 1:1, on a book or a screen from the end)
-** beeps and leaves the screen as it is.
-*/
-/*
-** Purpose: show the first verse of a screen when it is taller than the
-**          screen (as a long introduction can be): the part of it from
-**          line shown of its text, as much as fits. Returns the lines of
-**          its text shown so far (shown and this part's), or 0 if this was
-**          its last part.
+** Purpose: show a part of a verse taller than the screen (as a long
+**          introduction can be), alone on the screen: from line shown of
+**          its text, as much as fits. Returns the lines of its text shown
+**          so far (shown and this part's), or 0 if this was its last part.
 */
 static int show_tall_verse(struct bcv_array_type *bcv_arrays, int shown)
 {
@@ -917,63 +902,148 @@ static int show_tall_verse(struct bcv_array_type *bcv_arrays, int shown)
         return (shown >= text_lines ? 0 : shown);
 }
 
+/* Purpose: whether verse v is taller than the screen, alone at its top */
+static int is_tall(long int v)
+{
+        struct bcv_array_type *bcv_arrays;
+
+        if (!check_limits(v))
+                return (FALSE);
+        bcv_arrays = get_verse(v);
+        return (count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array,
+                            8, TRUE) > s_lines - 1);
+}
+
+/*
+** Purpose: the parts of tall verse v: where (lines of its text before it)
+**          the part before the one at line skip starts; with skip -1,
+**          where its last part starts. (The first part is shorter: the
+**          book's heading is above it.)
+*/
+static int tall_part_before(long int v, int skip)
+{
+        struct bcv_array_type *bcv_arrays = get_verse(v);
+        int total, text_lines, avail = s_lines - 1, start = 0, part;
+
+        total = count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array, 8, TRUE);
+        text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE);
+        part = avail - (total - text_lines);
+        if (part < 1)
+                part = 1;
+        if (skip < 0)
+                skip = text_lines;
+        while (start + part < skip)
+        {
+                start += part;
+                part = avail;
+        }
+        return (start);
+}
+
+/* Purpose: the lines verses first to last take, drawn from the top of a
+   screen (as view_in_context() draws them) */
+static int lines_from(long int first, long int last)
+{
+        int lines = 0;
+        long int v;
+        struct bcv_array_type *bcv_arrays;
+
+        for (v = first; v <= last; v++)
+        {
+                bcv_arrays = get_verse(v);
+                lines += count_lines(-1, bcv_arrays->book_array,
+                                     bcv_arrays->data_array, 8, v == first);
+        }
+        return (lines);
+}
+
+/*
+** Purpose: the first verse of a screen of whole verses ending with verse
+**          last (for p): as many before it as fit, but not a verse taller
+**          than the screen, which is shown alone.
+*/
+static long int fill_back(long int last)
+{
+        long int first = last;
+
+        while (first > 1 && !is_tall(first - 1) &&
+               lines_from(first - 1, last) <= s_lines - 1)
+                first--;
+        return (first);
+}
+
+/* Purpose: the first verse of the book verse v is in */
+static long int book_start(long int v)
+{
+        while (v > 1 && verse_to_book(v - 1) == verse_to_book(v))
+                v--;
+        return (v);
+}
+
+/*
+** The passage screen. A screen shows whole verses from top, the verse at
+** its top, as many as fit; or, of a verse taller than the screen, one part
+** of it, alone, from line skip of its text. After drawing, next_top and
+** next_skip say what the next screen starts with (n), and last_shown is
+** the last verse on it (its last part, or not). '.' adds a verse at the
+** bottom, scrolling the screen (scrolled): the verse at its top is then
+** the first still wholly on it.
+**
+** The keys, each from the verse at the top (the only exception: at the
+** first or last verse of the translation, there is nowhere to go, and it
+** beeps):
+**   n, p       the next screen, the previous (a tall verse: its next part,
+**              or its part before)
+**   . ,        the next verse, at the bottom (a tall verse: on a screen of
+**              its own; within one, its next part); the previous verse, at
+**              the top (within a tall verse, its part before)
+**   f, b       the first verse of the next book; of this book, or, from its
+**              first, of the book before
+*/
 static void view_in_context(long int cur_verse)
 {
-        long int first_verse, start;
-        int num_lines;
+        long int top, next_top = 0, last_shown = 0, start;
+        int skip = 0, next_skip = 0, num_lines, scrolled = FALSE;
         char exit_now = FALSE, top_of_screen;
         struct bcv_array_type *bcv_arrays;
-        /* a verse taller than the screen, shown a part at a time: which
-           verse, the lines of it shown before this screen, after it (0 when
-           its last part is showing), and whether n goes on in it */
-        long int tall_verse = 0;
-        int tall_shown = 0, tall_next = 0, tall_continue = FALSE;
 
-        if (cur_verse < 1)
-                cur_verse = 1;
-        if (cur_verse > numverses)
-                cur_verse = numverses;
+        top = cur_verse;
+        if (top < 1)
+                top = 1;
+        if (top > numverses)
+                top = numverses;
         do{
                 cls(); /* may update s_lines if the window was resized */
-                num_lines = s_lines;
-                first_verse = cur_verse; /* a legal value */
-                top_of_screen = TRUE;
-                tall_shown = (tall_continue && cur_verse == tall_verse) ? tall_next : 0;
-                tall_continue = FALSE;
-                tall_next = 0;
-                if (check_limits(cur_verse))
+                scrolled = FALSE;
+                next_skip = 0;
+                if (skip > 0 || is_tall(top))
                 {
-                    bcv_arrays = get_verse(cur_verse);
-                    if (tall_shown > 0 ||
-                        count_lines(-1, bcv_arrays->book_array,
-                                    bcv_arrays->data_array, 8, TRUE) > s_lines - 1)
-                    {
                         /* taller than the screen: a part of it, alone */
-                        tall_verse = cur_verse;
-                        tall_next = show_tall_verse(bcv_arrays, tall_shown);
-                        /* (one past the next to show: itself, or the next) */
-                        cur_verse += (tall_next > 0) ? 1 : 2;
+                        next_skip = show_tall_verse(get_verse(top), skip);
+                        next_top = (next_skip > 0) ? top : top + 1;
+                        last_shown = top;
                         top_of_screen = FALSE;
-                        num_lines = 0;
-                    }
                 }
-                for(;num_lines > 0;)
+                else
                 {
-                    if (!check_limits(cur_verse))
-                    {
-                        cur_verse++;    /* the end of the Bible: no more */
-                        break;
-                    }
-                    bcv_arrays = get_verse(cur_verse++);
-                    num_lines -= count_lines(-1, bcv_arrays->book_array,
-                       bcv_arrays->data_array, 8, top_of_screen);
-                    if (num_lines < 1)
-                            break;
-/*
-**    printf("%d-", cur_verse - 1);
-*/
-                    display_verse(-1, bcv_arrays, 8, top_of_screen);
-                    top_of_screen = FALSE;
+                        num_lines = s_lines;
+                        top_of_screen = TRUE;
+                        cur_verse = top;
+                        for(;;)
+                        {
+                            if (!check_limits(cur_verse))
+                                break;          /* the end: no more */
+                            bcv_arrays = get_verse(cur_verse);
+                            num_lines -= count_lines(-1, bcv_arrays->book_array,
+                               bcv_arrays->data_array, 8, top_of_screen);
+                            if (num_lines < 1)
+                                    break;
+                            display_verse(-1, bcv_arrays, 8, top_of_screen);
+                            top_of_screen = FALSE;
+                            cur_verse++;
+                        }
+                        next_top = cur_verse;   /* (the one that didn't fit) */
+                        last_shown = cur_verse - 1;
                 }
                 printf(" Press ");
                 rev_printf("?");
@@ -987,92 +1057,125 @@ get_command:    scr_mode("passage");
                 switch (tolower(screen_key()))
                 {
                 case 'f':  /* the first verse of the next book */
-                        start = cur_verse - 1;
+                        if (scrolled)
+                                top = scrolled_top(last_shown), skip = 0;
+                        start = top;
                         while (start <= numverses &&
-                               verse_to_book(start - 1) == verse_to_book(start))
+                               verse_to_book(start) == verse_to_book(top))
                                 start++;
-                        if (start > numverses)  /* in Revelation */
+                        if (start > numverses)  /* in the last book */
                         {
                                 putchar('\7');     /* beep */
                                 fflush(stdout);
                                 goto get_command;
                         }
-                        cur_verse = start;
+                        top = start;
+                        skip = 0;
                         break;
                 case 'b':  /* the first verse of this book, or, from there,
                               of the book before */
-                        if (first_verse == -1)
-                                first_verse = calculate_fv(cur_verse);
-                        start = first_verse - 1;
-                        if (start < 1)          /* at Genesis 1:1 */
+                        if (scrolled)
+                                top = scrolled_top(last_shown), skip = 0;
+                        start = book_start(top);
+                        if (start == top && skip == 0)
                         {
-                                putchar('\7');     /* beep */
-                                fflush(stdout);
-                                goto get_command;
+                                if (top <= 1)   /* at the first verse */
+                                {
+                                        putchar('\7');     /* beep */
+                                        fflush(stdout);
+                                        goto get_command;
+                                }
+                                start = book_start(top - 1);
                         }
-                        while (start > 1 &&
-                               verse_to_book(start - 1) == verse_to_book(start))
-                                start--;
-                        cur_verse = start;
+                        top = start;
+                        skip = 0;
                         break;
                 case 'n':
                 case ' ':
                 case 0x16: /* Page Down on MM/1 */
-                        if (cur_verse - 1 > numverses)  /* the end is showing */
+                        if (next_top > numverses)  /* the end is showing */
                         {
                                 putchar('\7');     /* beep */
                                 fflush(stdout);
                                 goto get_command;
                         }
-/*
-** This verse didn't fit on the current screen; so it becomes the first
-** verse on the next screen (or, of a tall verse, its next part)
-*/
-                        tall_continue = (tall_next > 0);
-                        cur_verse--;
+                        top = next_top;
+                        skip = next_skip;
                         break;
                 case '.':
                 case '>':
                 case 0xe: /* Down Arrow on MM/1 */
-                        if (tall_next > 0)      /* (within a tall verse: on in it) */
+                        if (next_skip > 0)      /* (within a tall verse: on in it) */
                         {
-                                tall_continue = TRUE;
-                                cur_verse--;
+                                top = next_top;
+                                skip = next_skip;
                                 break;
                         }
-                        if (check_limits(cur_verse - 1))
-                        {
-                                bcv_arrays = get_verse(cur_verse++ - 1);
-                                display_verse(-1, bcv_arrays, 8, top_of_screen);
-                                first_verse = -1; /* an illegal value */
-                        }
-                        else
+                        if (!check_limits(last_shown + 1))
                         {
                                 printf("Error!  Can't advance one verse.");
                                 printf(" You are at the END.\n");
 #                               ifdef VMS
                                         putchar('\r');
 #                               endif
+                                goto get_command;
                         }
+                        if (is_tall(last_shown + 1))
+                        {
+                                /* (too tall to scroll in: a screen of its own) */
+                                top = last_shown + 1;
+                                skip = 0;
+                                break;
+                        }
+                        bcv_arrays = get_verse(++last_shown);
+                        display_verse(-1, bcv_arrays, 8, top_of_screen);
+                        top_of_screen = FALSE;
+                        next_top = last_shown + 1;
+                        next_skip = 0;
+                        scrolled = TRUE;
                         goto get_command;
                 case 'p':
                 case 0x1a: /* Page Up on MM/1 */
-                        if (first_verse == -1)
-                                first_verse = calculate_fv(cur_verse);
-                        cur_verse = calculate_fv(first_verse);
-                        break;
-                case ',':
-                case '<':
-                case 0x10: /* Up Arrow on MM/1 */
-                        if (first_verse == -1)
-                                first_verse = calculate_fv(cur_verse - 1);
-                        if (first_verse <= 1)   /* at Genesis 1:1 */
+                        if (scrolled)
+                                top = scrolled_top(last_shown), skip = 0;
+                        if (skip > 0)   /* (within a tall verse: its part before) */
+                        {
+                                skip = tall_part_before(top, skip);
+                                break;
+                        }
+                        if (top <= 1)   /* at the first verse */
                         {
                                 putchar('\7');     /* beep */
                                 fflush(stdout);
                                 goto get_command;
                         }
-                        cur_verse = first_verse - 1;
+                        if (is_tall(top - 1))
+                        {
+                                top--;
+                                skip = tall_part_before(top, -1);  /* its last part */
+                                break;
+                        }
+                        top = fill_back(top - 1);
+                        skip = 0;
+                        break;
+                case ',':
+                case '<':
+                case 0x10: /* Up Arrow on MM/1 */
+                        if (scrolled)
+                                top = scrolled_top(last_shown), skip = 0;
+                        if (skip > 0)   /* (within a tall verse: its part before) */
+                        {
+                                skip = tall_part_before(top, skip);
+                                break;
+                        }
+                        if (top <= 1)   /* at the first verse */
+                        {
+                                putchar('\7');     /* beep */
+                                fflush(stdout);
+                                goto get_command;
+                        }
+                        top--;
+                        skip = 0;
                         break;
                 case 'x':
                 case 0x1b: /* ESC */
@@ -1080,22 +1183,15 @@ get_command:    scr_mode("passage");
                         break;
                 case KEY_REDRAW: /* CTRL-L, or the window was resized */
 /*
-** Draw this screen again from the same first verse, for the window's new
-** size. After stepping with '.' the screen has scrolled, so find the first
-** verse still wholly on it from the last verse shown, using the size the
-** screen was drawn for: the new size is only picked up by the cls() that
-** redraws it. (cur_verse is then two past the last verse shown: drawing the
-** page stopped one past the verse that didn't fit, and '.' showed that one.)
+** Draw this screen again from the same verse at the top, for the window's
+** new size. After stepping with '.' the screen has scrolled: the verse at
+** its top is the first still wholly on it, found with the size the screen
+** was drawn for (the new size is only picked up by the cls() that redraws
+** it). A tall verse's part starts again from its first.
 */
-                        if (first_verse == -1)
-                                first_verse = scrolled_top(cur_verse - 2);
-                        cur_verse = first_verse;
-                        if (tall_verse == first_verse)
-                        {
-                                /* (a tall verse: the same part again) */
-                                tall_next = tall_shown;
-                                tall_continue = (tall_shown > 0);
-                        }
+                        if (scrolled)
+                                top = scrolled_top(last_shown);
+                        skip = 0;
                         break;
                 default:
                         cls();
@@ -1124,9 +1220,8 @@ get_command:    scr_mode("passage");
                         printf("              exit to Main Menu\n");
 			printf("\n(Press any Key) ");
 			fflush(stdout);
-                        if (first_verse == -1)
-                                first_verse = calculate_fv(cur_verse - 1);
-                        cur_verse = first_verse;
+                        if (scrolled)
+                                top = scrolled_top(last_shown), skip = 0;
 			scr_mode("anykey");
 			ugetchar();
                 }
