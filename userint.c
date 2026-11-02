@@ -660,7 +660,7 @@ static void verse_line(char *strg, int indent, int firstTime)
                 printf("%s", spaces + MAXINDENT - indent);
         if (mostly_rtl(strg))
         {
-                /* Hebrew: its start at the screen's last column, and the
+                /* right to left: its start at the screen's last column, and the
                    spaces before it, on the left, where its end is.
                    (Terminals are assumed to take a full line without
                    wrapping, as modern ones do. Spaces after its text, as
@@ -683,9 +683,10 @@ static void verse_line(char *strg, int indent, int firstTime)
 }
 
 /*
-** Purpose: whether a line of a verse is mostly right to left (Hebrew),
-**          so is aligned on the right: more of its letters are right to
-**          left than left to right. (Digits, which Hebrew text has among
+** Purpose: whether a line of a verse is mostly right to left (Hebrew,
+**          Arabic, any script u8_is_rtl() says is written right to left,
+**          the same test that turns it about), so is aligned on the right:
+**          more of its letters are right to left than left to right. (Digits, which Hebrew text has among
 **          its letters, spaces and punctuation don't count either way; a
 **          line half and half stays on the left.)
 */
