@@ -1260,8 +1260,8 @@ order, nothing downloaded until it is wanted:
 
   1. the ebook number: digits only, and one KNOWN;
   2. the same version: its fingerprint (ETag), asked for without the
-     file, against the copy added (this decides: it changes whenever
-     the file does);
+     file, against the copy added (and its size and date; see "The same
+     version" below);
   3. its page (PAGE, a few kilobytes): from its table of facts, its
      title (the part before a subtitle), "Last Update" (or "Most
      Recently Updated") and "Copyright Status", shown, and the license
@@ -1276,9 +1276,23 @@ can't be read, or hasn't the copyright status (Gutenberg changed its
 layout, say), it is as before: the text is downloaded first and its
 license read from it. --page PATH reads a saved page instead, for tests.
 
-The same version: refused, as for A, by the file's fingerprint (its
-ETag), kept in the folder's version file; removing it first (in P, as
-r) lets it be downloaded again.
+The same version: refused, kept in the folder's version file; removing
+it first (in P, as r) lets it be downloaded again. (Fixed November 2,
+2026: on the app, the fingerprint alone let the same version be added
+twice; Gutenberg's server either gave none, so none was kept, or a
+different one each time.) Now it is the same version if any of these
+says so, in this order, the first three before anything is downloaded:
+
+  1. the fingerprint (ETag; Version: in the version file);
+  2. the file's size and Last-Modified date, both (Size:, Modified:);
+  3. the date its page says it was last updated (Updated:);
+  4. after downloading, the text's checksum (Checksum:, by cksum),
+     which catches whatever the others miss: nothing is added.
+
+Its page is read by the words in its labels (copyright, update, title),
+with carriage returns and non-breaking spaces taken out, not by the
+exact label: a page that hasn't the copyright status says so ("its page
+has no copyright status") before falling back to the text's license.
 
 The Book of Mormon's file (pg17.txt, checked October 29, 2026; 31,572
 lines, UTF-8, CRLF line ends):

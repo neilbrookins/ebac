@@ -215,24 +215,47 @@ fetch() {
         return 0
 }
 
-# version_of URL: the file's fingerprint (its ETag), without downloading it
+# version_of URL: what the server says of the file, asked for without
+# downloading it, as "ETAG<tab>SIZE<tab>MODIFIED" (its fingerprint, its
+# length and its Last-Modified date; of the last answer, after any
+# redirect; any may be empty). With --file, its checksum as the ETag.
 version_of() {
         if [ -n "$from_file" ]; then
-                cksum < "$from_file" | $AWK '{ print "cksum " $1 " " $2 }'
+                cksum < "$from_file" | $AWK '{ print "cksum " $1 " " $2 "\t\t" }'
                 return
         fi
         if command -v curl > /dev/null 2>&1; then
                 curl -sSIL --max-time 60 "$1" 2> /dev/null
         elif command -v wget > /dev/null 2>&1; then
-                wget -q --spider --server-response "$1" 2>&1
-        fi | $AWK 'tolower($1) == "etag:" { v = $2 } END { print v }' | tr -d '\r'
+                wget --spider --server-response "$1" 2>&1
+        fi | tr -d '\r' | $AWK '
+                { sub(/^[ \t]+/, "") }
+                /^HTTP\// { e = ""; n = ""; m = "" }
+                tolower($1) == "etag:" { e = $2 }
+                tolower($1) == "content-length:" { n = $2 }
+                tolower($1) == "last-modified:" { m = $0; sub(/^[^:]*:[ \t]*/, "", m) }
+                END { print e "\t" n "\t" m }'
 }
 
-kept_version() {
+# kept_field NAME FIELD: a line of the version file of the copy kept
+kept_field() {
         [ -f "$here/$1/version" ] || return 0
-        $AWK '$1 == "Version:" { v = $2; for (i = 3; i <= NF; i++) v = v " " $i }
-              $1 == "Downloaded:" { d = $2 }
-              END { if (v != "") print v "\t" d }' "$here/$1/version"
+        $AWK -v f="$2:" '$1 == f { v = $0; sub(/^[^:]*:[ \t]*/, "", v) } END { print v }' "$here/$1/version"
+}
+
+# same_version NAME: whether the copy of NAME kept is the version offered
+# now (etag, size, modified and updated set): by its fingerprint; or by
+# its size and date both; or by the date its page says it was updated.
+# (The fingerprint can differ from one of Gutenberg's servers to another;
+# and after downloading, its checksum is compared too: see add_number.)
+same_version() {
+        [ -f "$here/$1/gutenberg" ] || return 1
+        [ -n "$etag" ] && [ "$etag" = "$(kept_field "$1" Version)" ] && return 0
+        [ -n "$size" ] && [ -n "$modified" ] &&
+                [ "$size" = "$(kept_field "$1" Size)" ] &&
+                [ "$modified" = "$(kept_field "$1" Modified)" ] && return 0
+        [ -n "$updated" ] && [ "$updated" = "$(kept_field "$1" Updated)" ] && return 0
+        return 1
 }
 
 # The texts this script added: a folder with a file named gutenberg
@@ -534,11 +557,13 @@ add() {
           printf 'Details: https://www.gutenberg.org/ebooks/%s\n' "$number"
           printf 'Agreed: %s (%s)\n' "$(date '+%Y-%m-%d')" "$agreed"
         } > "$folder/license" || { problem="couldn't write $name/license"; return 1; }
-        if [ -n "$version_now" ]; then
-                { printf 'Version: %s\n' "$version_now"
-                  printf 'Downloaded: %s\n' "$(date '+%Y-%m-%d')"
-                } > "$folder/version"
-        fi
+        { [ -n "$etag" ] && printf 'Version: %s\n' "$etag"
+          [ -n "$size" ] && printf 'Size: %s\n' "$size"
+          [ -n "$modified" ] && printf 'Modified: %s\n' "$modified"
+          [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
+          printf 'Checksum: %s\n' "$checksum"
+          printf 'Downloaded: %s\n' "$(date '+%Y-%m-%d')"
+        } > "$folder/version"
         { printf 'Ebook: %s\n' "$number"
           printf 'Address: %s\n' "$url"
         } > "$folder/gutenberg" || { problem="couldn't write $name/gutenberg"; return 1; }
@@ -561,13 +586,16 @@ PAGE=https://www.gutenberg.org/ebooks/%s
 GUTENBERG_LICENSE=https://www.gutenberg.org/policy/license.html
 
 # page_facts FILE: from an ebook's page, the rows of its table of facts
-# ("Title", "Last Update" or "Most Recently Updated", "Copyright Status"),
+# ("Title", "Last Update" or "Most Recently Updated", "Copyright Status",
+# found by the words in them, whatever else is there),
 # as "title", "updated" and "rights", a tab, and the value as plain text
 # (its tags out, &amp; and the like read, spaces run together). Of the
 # title, only the main title (Gutenberg puts the subtitle after a colon).
 page_facts() {
         $AWK "$PLAIN"'
         function text(h) {
+                gsub(/\r/, " ", h)
+                gsub("\302\240", " ", h)      # (a non-breaking space)
                 gsub(/<[Bb][Rr][^>]*>/, " : ", h)
                 gsub(/<[^>]*>/, " ", h)
                 gsub(/&amp;/, "\\&", h); gsub(/&quot;/, "\"", h)
@@ -585,7 +613,8 @@ page_facts() {
                         if (!match(row, /<[Tt][Hh][^>]*>/)) continue
                         rest = substr(row, RSTART + RLENGTH)
                         if (!match(rest, /<\/[Tt][Hh]>/)) continue
-                        label = text(substr(rest, 1, RSTART - 1))
+                        label = tolower(text(substr(rest, 1, RSTART - 1)))
+                        gsub(/[^a-z ]/, "", label)
                         rest = substr(rest, RSTART + RLENGTH)
                         if (!match(rest, /<[Tt][Dd][^>]*>/)) continue
                         rest = substr(rest, RSTART + RLENGTH)
@@ -593,12 +622,15 @@ page_facts() {
                                 rest = substr(rest, 1, RSTART - 1)
                         value = plain(text(rest))
                         if (value == "") continue
-                        if (label == "Title" && !got["title"]) {
+                        # (by the words in the label, not all of it:
+                        # "Copyright Status", "Last Update", "Most
+                        # Recently Updated", "Title")
+                        if (label ~ /^ *title *$/) {
                                 sub(/ ?:.*/, "", value)
                                 key = "title"
-                        } else if (label == "Last Update" || label == "Most Recently Updated")
+                        } else if (label ~ /updated?/ && label !~ /release/)
                                 key = "updated"
-                        else if (label == "Copyright Status")
+                        else if (label ~ /copyright/)
                                 key = "rights"
                         else
                                 continue
@@ -661,7 +693,19 @@ download_text() {
                 on { t = t " " $0 }
                 END { print plain(t) }' "$tmp/text")
         terms=${terms# }
+        # (the same text as the copy kept, though nothing said so before:
+        # not added again)
+        checksum=$(cksum < "$tmp/text" | $AWK '{ print $1 " " $2 }')
+        if [ -f "$here/$name/gutenberg" ] && [ "$checksum" = "$(kept_field "$name" Checksum)" ]; then
+                already_have
+                return 1
+        fi
         return 0
+}
+
+# already_have: the problem when the version offered is the one kept
+already_have() {
+        problem="you already have this version (downloaded $(kept_field "$name" Downloaded)). To download it again, remove it first (r and its number), then add it"
 }
 
 # add_number NUMBER: from the ebook number to the text added
@@ -687,17 +731,17 @@ add_number() {
         fi
         url=$(printf "$PLAIN_TEXT" "$number")
         version_now=$(version_of "$url")
-        kept=$(kept_version "$name")
-        if [ -n "$version_now" ] && [ -f "$here/$name/gutenberg" ] &&
-           [ "${kept%%	*}" = "$version_now" ]; then
-                problem="you already have this version (downloaded ${kept#*	}). To download it again, remove it first (r and its number), then add it"
-                return 1
-        fi
+        etag=$(printf '%s\n' "$version_now" | cut -f1)
+        size=$(printf '%s\n' "$version_now" | cut -f2)
+        modified=$(printf '%s\n' "$version_now" | cut -f3)
+        updated=""
+        same_version "$name" && { already_have; return 1; }
         # Its page first: its title, last update and copyright status,
         # agreed to before the text is downloaded. (Without its page, the
         # text is downloaded first, and its license read from it.)
-        title=""; updated=""; license_text=""; terms=""
+        title=""; license_text=""; terms=""
         page_read=no
+        page_why="couldn't download its page"
         if [ -n "$from_page" ]; then
                 cp "$from_page" "$tmp/page" 2> /dev/null && page_read=yes
         elif [ -z "$from_file" ]; then
@@ -712,7 +756,9 @@ add_number() {
                         license_text="$rights Project Gutenberg License ($GUTENBERG_LICENSE)"
                 else
                         page_read=no    # (not as expected: as without it)
+                        page_why="its page has no copyright status"
                 fi
+                same_version "$name" && { already_have; return 1; }
         fi
         if [ $page_read = yes ]; then
                 [ -n "$title" ] || title="Project Gutenberg ebook $number"
@@ -721,7 +767,7 @@ add_number() {
                 download_text || return 1
         else
                 [ -z "$from_file" ] && [ -z "$from_page" ] &&
-                        printf "%s: couldn't read its page on gutenberg.org; its license is read from the text\n" "$name"
+                        printf "%s: couldn't read its page on gutenberg.org (%s); its license is read from the text\n" "$name" "$page_why"
                 enough_room || return 1
                 download_text || return 1
                 license_text=$terms
