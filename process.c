@@ -29,6 +29,7 @@ char count_word[MAXCOUNTWORD] = "";
 #endif
 
 /* functions used only in this file */
+static void trim_log P((void));
 static char *fgets_cr P((char *s, int n, FILE *iop));
 static int compare P((long int first, long int second, int prox));
 static void not_oper P((void));
@@ -60,6 +61,52 @@ static void shift_match P((long int *x, long int *y, long int shift));
 #endif
 
 char LOGFILE[256];
+
+/*
+** The search history may not grow without end (a script searching again
+** and again, say, could fill the disk): past LOG_MOST bytes, only the
+** newest LOG_KEEP bytes of it are kept, from the start of an entry (each
+** ends with a carriage return), and the older ones are dropped. Small
+** machines keep less, as they have less memory and disk.
+*/
+#if defined(COCO) || defined(OSK) || defined(MSDOS)
+#       define LOG_MOST 8192L
+#       define LOG_KEEP 4096L
+#else
+#       define LOG_MOST 65536L
+#       define LOG_KEEP 32768L
+#endif
+
+static void trim_log(void)
+{
+        FILE *fp;
+        long size;
+        int c, n = 0;
+        char *kept;
+
+        if ((fp = fopen(LOGFILE, READMODE)) == NULL)
+                return;
+        fseek(fp, 0L, 2);
+        size = ftell(fp);
+        if (size <= LOG_MOST || (kept = (char *) malloc((unsigned) LOG_KEEP)) == NULL)
+        {
+                fclose(fp);
+                return;
+        }
+        fseek(fp, size - LOG_KEEP, 0);
+        while ((c = fgetc(fp)) != EOF && c != '\r')
+                ;               /* (to the start of the next entry) */
+        while (n < LOG_KEEP && (c = fgetc(fp)) != EOF)
+                kept[n++] = (char) c;
+        fclose(fp);
+        if ((fp = fopen(LOGFILE, WRITEMODE)) != NULL)
+        {
+                fwrite(kept, 1, (unsigned) n, fp);
+                fclose(fp);
+        }
+        free(kept);
+}
+
 void initlogname(void)
 {
 #ifdef OSK
@@ -457,6 +504,7 @@ char *get_line(int mode)
                         exit_program(1);
                 }
                 mfclose(fp, LOGFILE);
+                trim_log();
         }
 
         /* Make line lowercase to match index data which is lowercase */

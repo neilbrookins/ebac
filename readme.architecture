@@ -1624,3 +1624,26 @@ For more of EBaC by voice (design review of October 29, 2026):
   - Chapters and books by voice, a few verses at a time, never stopping
     at a book's end. Spoken search operators and groups: later.
   - With it, a question: which translation is in use.
+
+Guarding the disk (November 2, 2026; the designer's request). A script
+or a voice assistant used with ill intent could fill the disk two ways,
+so neither can:
+
+  - Adding a text (add-translation.sh, add-gutenberg.sh; so the A and P
+    menus and adding by voice, which runs them) stops while less than
+    1 GB (MIN_FREE_MB, 1024) is free on the disk the translations are
+    kept on, checked (df -Pk) before each download: "not enough disk
+    space: N MB free, and adding needs at least 1024 MB free". A fixed
+    amount, not a percentage: a percentage stops a large disk too soon
+    (5% of 2 TB is 100 GB) and a small one too late. If the free space
+    can't be found, adding stops too.
+  - The search history (~/.ebac_log; every line typed at a text prompt
+    is kept, for Up and CTRL-G) is trimmed after each search once it
+    passes 64 KB (about 3,000 searches): the newest 32 KB are kept,
+    from the start of an entry, and the older dropped (trim_log() in
+    process.c). The CoCo, OS-9 and MS-DOS builds, with less memory and
+    disk, trim at 8 KB to 4 KB. Searching never fails for it.
+  - The P menu's ebook number is digits only (the letters under the
+    digits on a phone's keyboard first become digits), and only a
+    number the importer knows (KNOWN) builds a web address at all;
+    removing is r and digits only.

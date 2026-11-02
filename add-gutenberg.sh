@@ -545,6 +545,29 @@ add() {
 # catalogue that gives it, refused the app's requests: HTTP 403).
 PLAIN_TEXT=https://www.gutenberg.org/ebooks/%s.txt.utf-8
 
+# Room on the disk. Adding stops while less than MIN_FREE_MB megabytes are
+# free on the disk the translations are kept on, so that adding one after
+# another (by a script, or by voice, say) can't fill it: a fixed amount,
+# not a share of the disk, which would stop a large disk too soon and a
+# small one too late. If the free space can't be found, adding stops too.
+MIN_FREE_MB=1024
+
+# enough_room: whether there is room to add a text. Sets problem if not.
+enough_room() {
+        free_kb=$(df -Pk "$here" 2> /dev/null | $AWK 'NR == 2 { print $4 }')
+        case $free_kb in
+        "" | *[!0-9]*)
+                problem="couldn't find how much disk space is free, so nothing is added"
+                return 1
+                ;;
+        esac
+        if $AWK -v f="$free_kb" -v m="$MIN_FREE_MB" 'BEGIN { exit !(f < m * 1024) }'; then
+                problem="not enough disk space: $(($free_kb / 1024)) MB free, and adding needs at least $MIN_FREE_MB MB free"
+                return 1
+        fi
+        return 0
+}
+
 # add_number NUMBER: from the ebook number to the text added
 add_number() {
         number=$1
@@ -577,6 +600,7 @@ add_number() {
         # The text, then its title and license, from its header (Gutenberg
         # gives the license in the file itself, so it is downloaded first;
         # nothing is added unless it is agreed to)
+        enough_room || return 1
         printf '%s: downloading...\n' "$name"
         if [ -n "$from_file" ]; then
                 cp "$from_file" "$tmp/text" || { problem="couldn't read $from_file"; return 1; }
@@ -673,6 +697,10 @@ if [ -z "$number_arg" ]; then
         "")
                 [ -n "$from_ebac" ] && back_to_ebac
                 exit 0
+                ;;
+        [rR]*[!0-9]* | [rR])
+                printf '%s: r and a number from the list, only (r1).\n' "$answer"
+                failed=1
                 ;;
         [rR][0-9]*)
                 k=${answer#?}
