@@ -1051,6 +1051,11 @@ choose_language() {
                 per_page=$((rows - 6))
                 [ $per_page -ge 3 ] || per_page=3
                 pages=$(( (count + per_page - 1) / per_page ))
+                # (on a page boundary for this size, which changes with the
+                # window, as when a phone's keyboard comes and goes: the page
+                # holding the entry that was at the top)
+                [ $first -ge 0 ] || first=0
+                first=$(( first / per_page * per_page ))
                 [ $first -le $(( (pages - 1) * per_page )) ] || first=$(( (pages - 1) * per_page ))
                 if [ -n "$from_ebac" ]; then back="back to EBaC"; else back="stop"; fi
                 clear_screen
@@ -1098,7 +1103,7 @@ choose_language() {
                 case $(printf '%s\n' "$1" | tr 'A-Z' 'a-z') in
                 ""|x|q) lang=""; return 0 ;;
                 n) [ $((first + per_page)) -lt $count ] && first=$((first + per_page)); continue ;;
-                p) [ $first -gt 0 ] && first=$((first - per_page)); continue ;;
+                p) first=$((first - per_page)); [ $first -ge 0 ] || first=0; continue ;;
                 esac
                 case $1 in
                 *[!0-9]*) ;;
@@ -1135,6 +1140,11 @@ choose() {
                 per_page=$((rows - 6 - lang_nospace))
                 [ $per_page -ge 3 ] || per_page=3
                 pages=$(( (count + per_page - 1) / per_page ))
+                # (on a page boundary for this size, which changes with the
+                # window, as when a phone's keyboard comes and goes: the page
+                # holding the entry that was at the top)
+                [ $first -ge 0 ] || first=0
+                first=$(( first / per_page * per_page ))
                 [ $first -le $(( (pages - 1) * per_page )) ] || first=$(( (pages - 1) * per_page ))
                 back="languages"
                 clear_screen
@@ -1196,7 +1206,8 @@ choose() {
                                 if [ "$1" = n ] || [ "$1" = N ]; then
                                         [ $((first + per_page)) -lt $count ] && first=$((first + per_page))
                                 else
-                                        [ $first -gt 0 ] && first=$((first - per_page))
+                                        first=$((first - per_page))
+                                        [ $first -ge 0 ] || first=0
                                 fi
                                 continue
                         fi
