@@ -581,6 +581,38 @@ Lines are wrapped first, so each line of the screen is turned about on
 its own. The search line, while it is typed, shows Hebrew in the order
 typed (the line editor puts each character on the screen as it comes).
 
+Typing, pasting and copying right to left (November 4, 2026; the
+designer's request). Three parts:
+
+  - The search line, with a right-to-left translation in use (more of
+    the letters of its first 20 verses right to left than not:
+    rtl_translation() in process.c), is laid out right to left: from the
+    screen's right edge, growing to the left as it is typed or pasted.
+    The line is kept, edited and searched in reading order, as before;
+    after each key the whole row is drawn again (rtl_key(), rtl_show()).
+    In an RTL line, runs of left-to-right letters and digits read left
+    to right; a space between two of them is in the run ("in the"), and
+    so is a mark just before one ("@gen", "=nt", "+1"); the rest takes
+    the line's side. The cursor is where the next letter goes: left of
+    a right-to-left one before it. Backspace erases the one before it
+    (on its right); Delete the one after (on its left); Left and Right
+    move the cursor as they point, to the nearest place on the screen;
+    Home the start (right), End the end (left); Up and Down the history,
+    shown the same way. The line holds what fits on the row (a beep past
+    it). The book, chapter and verse prompts, and the search line of a
+    left-to-right translation, are as before.
+  - Copying (the Home Assistant app's page, gestures.js): EBaC shows
+    right-to-left text turned about, so a selection copied as shown had
+    its letters backwards. A selection with right-to-left text in it is
+    put on the clipboard in reading order, by the same rule as
+    u8_display_order() (it undoes itself), the alignment's spaces taken
+    off and its rows joined by a space (a phrase pastes as one line).
+    Text copied from elsewhere is in reading order already.
+  - Punctuation at the ends of a search word is taken off (trim_terms()):
+    a word copied with the sof pasuq after it, or "earth." in English,
+    is looked up without it. Operators, @books and =groups are left as
+    they are, and so is punctuation within a word.
+
 Aligned on the right (November 2, 2026; the designer's request). A line
 of a verse that is mostly right to left (Hebrew, Arabic, Syriac or any
 other right-to-left script) is aligned on the right, as such text is

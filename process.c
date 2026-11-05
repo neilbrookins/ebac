@@ -30,6 +30,13 @@ char count_word[MAXCOUNTWORD] = "";
 
 /* functions used only in this file */
 static void trim_log P((void));
+static int rtl_translation P((void));
+static int rtl_layout P((char *line, int n));
+static int rtl_cursor P((char *line, int k));
+static int rtl_cluster P((int place));
+static void rtl_show P((char *line, int place));
+static int rtl_step P((char *line, int place, int dir));
+static int rtl_key P((int c, char *line, int *place));
 static char *fgets_cr P((char *s, int n, FILE *iop));
 static int compare P((long int first, long int second, int prox));
 static void not_oper P((void));
@@ -45,6 +52,7 @@ static int del_rev P((void));
 static void store_books P((char *set));
 static int group_set P((char *spec, char *set, int report));
 static int is_operator P((char *arg));
+static void trim_terms P((char *line));
 static int valid_search P((char *line));
 static char *next_term P((char **pos));
 #ifdef RAMDISK
@@ -240,6 +248,340 @@ static void remove_bytes(char *line, int from, int to)
         }while(line[from++] != '\0');
 }
 
+/*
+** A search line right to left (November 2026; the designer's request). With
+** a translation written right to left (Hebrew, Arabic, ...), the search
+** line is laid out as such text is: from the right edge of the screen,
+** growing to the left as it is typed or pasted. The line is kept, edited
+** and searched in the order it is read, as before; only how it is shown
+** differs: after each key, the whole row is drawn again (rtl_show()).
+** Words of a left-to-right script, numbers, and the search's own marks on
+** them (@gen, =nt, +1) keep reading left to right within it. The book,
+** chapter and verse prompts, and the search line of any other
+** translation, are left to right as before.
+*/
+#define RTL_R 0         /* right to left, or a space or mark taking its side */
+#define RTL_L 1         /* left to right: a letter of another script, a digit */
+#define RTL_N 2         /* neither, until settled */
+
+static int rtl_n;                       /* clusters on the line */
+static int rtl_start[MAXSEARCHLEN];     /* each one's first byte */
+static int rtl_len[MAXSEARCHLEN];       /* its bytes (a letter and its marks) */
+static int rtl_col[MAXSEARCHLEN];       /* its column on the screen */
+static int rtl_class[MAXSEARCHLEN];     /* RTL_R or RTL_L */
+static int rtl_order[MAXSEARCHLEN];     /* the clusters, from the left */
+
+/* Purpose: whether the translation in use is written right to left: more
+            of the letters of its first verses are right to left than not */
+static int rtl_translation(void)
+{
+        long int v;
+        int i, rtl = 0, ltr = 0;
+        char *s;
+
+        for (v = 1; v <= numverses && v <= 20; v++)
+        {
+                s = get_verse(v)->data_array;
+                for (i = 0; s[i] != '\0'; i += u8_len(&s[i]))
+                {
+                        if (u8_width(&s[i]) == 0)
+                                continue;
+                        if (u8_is_rtl(&s[i]))
+                                rtl++;
+                        else if (u8_is_letter(&s[i]) && !isdigit(UCHAR(s[i])))
+                                ltr++;
+                }
+        }
+        return (rtl > ltr);
+}
+
+/*
+** Purpose: lay out line (its first n bytes) right to left: rtl_n clusters
+**          (a character and its marks), each with its class and its column,
+**          the last of them, in reading order, nearest the left. Returns
+**          the columns it takes. A run of left-to-right ones (a word of
+**          another script, a number) reads left to right; a space between
+**          two of them belongs to the run ("in the"), and a mark just
+**          before one ("@gen", "+1").
+*/
+static int rtl_layout(char *line, int n)
+{
+        int i, j, k, a, b, t, col, total = 0;
+        int *order = rtl_order;
+
+        rtl_n = 0;
+        for (i = 0; i < n && line[i] != '\0' && line[i] != '\r'; i = j)
+        {
+                j = i + u8_len(&line[i]);
+                while (j < n && line[j] != '\0' && u8_width(&line[j]) == 0)
+                        j += u8_len(&line[j]);
+                rtl_start[rtl_n] = i;
+                rtl_len[rtl_n] = j - i;
+                if (u8_is_rtl(&line[i]))
+                        rtl_class[rtl_n] = RTL_R;
+                else if (isdigit(UCHAR(line[i])) || u8_is_letter(&line[i]))
+                        rtl_class[rtl_n] = RTL_L;
+                else
+                        rtl_class[rtl_n] = RTL_N;
+                rtl_n++;
+        }
+        /* settle the neither ones */
+        for (i = 0; i < rtl_n; i++)
+        {
+                if (rtl_class[i] != RTL_N)
+                        continue;
+                for (a = i - 1; a >= 0 && rtl_class[a] == RTL_N; a--)
+                        ;
+                for (b = i + 1; b < rtl_n && rtl_class[b] == RTL_N; b++)
+                        ;
+                if (b < rtl_n && rtl_class[b] == RTL_L &&
+                    ((a >= 0 && rtl_class[a] == RTL_L) ||
+                     (b == i + 1 && line[rtl_start[i]] != ' ')))
+                        rtl_class[i] = RTL_L;
+                else
+                        rtl_class[i] = -1;      /* (R, once all are settled) */
+        }
+        for (i = 0; i < rtl_n; i++)
+                if (rtl_class[i] == -1)
+                        rtl_class[i] = RTL_R;
+        /* the order on the screen, from the left: all of them turned about,
+           then each left-to-right run turned back */
+        for (i = 0; i < rtl_n; i++)
+                order[i] = rtl_n - 1 - i;
+        for (i = 0; i < rtl_n; i = j)
+        {
+                j = i + 1;
+                if (rtl_class[order[i]] != RTL_L)
+                        continue;
+                while (j < rtl_n && rtl_class[order[j]] == RTL_L)
+                        j++;
+                for (a = i, b = j - 1; a < b; a++, b--)
+                {
+                        t = order[a]; order[a] = order[b]; order[b] = t;
+                }
+        }
+        for (i = 0; i < rtl_n; i++)
+                total += u8_cols(&line[rtl_start[i]], rtl_len[i]);
+        col = s_cols - total;
+        if (col < 0)
+                col = 0;
+        for (k = 0; k < rtl_n; k++)
+        {
+                i = order[k];
+                rtl_col[i] = col;
+                col += u8_cols(&line[rtl_start[i]], rtl_len[i]);
+        }
+        return (total);
+}
+
+/* Purpose: the column of the cursor between cluster k - 1 and cluster k (in
+            reading order), after rtl_layout(): where a letter typed there
+            goes (to the left of the one before it, if that is right to
+            left) */
+static int rtl_cursor(char *line, int k)
+{
+        int col, p;
+
+        if (rtl_n == 0)
+                col = s_cols - 1;
+        else if (k > 0)
+        {
+                p = k - 1;
+                if (rtl_class[p] == RTL_L)
+                        col = rtl_col[p] + u8_cols(&line[rtl_start[p]], rtl_len[p]);
+                else
+                        col = rtl_col[p] - 1;
+        }
+        else if (rtl_class[0] == RTL_L)
+                col = rtl_col[0];
+        else
+                col = rtl_col[0] + u8_cols(&line[rtl_start[0]], rtl_len[0]);
+        if (col > s_cols - 1)
+                col = s_cols - 1;
+        if (col < 0)
+                col = 0;
+        return (col);
+}
+
+/* Purpose: the cluster the byte place of line is at, after rtl_layout() */
+static int rtl_cluster(int place)
+{
+        int k = 0;
+
+        while (k < rtl_n && rtl_start[k] < place)
+                k++;
+        return (k);
+}
+
+/* Purpose: draw the search line right to left, the whole row, and put the
+            cursor at byte place */
+static void rtl_show(char *line, int place)
+{
+        int i, j, k, w, col = 0;
+
+        rtl_layout(line, (int) strlen(line));
+        putchar('\r');
+        /* spaces up to the text, then the text, then spaces to the edge
+           (what doesn't fit, as a history line typed left to right may not,
+           is left off) */
+        for (k = 0; k < rtl_n; k++)
+        {
+                i = rtl_order[k];
+                w = u8_cols(&line[rtl_start[i]], rtl_len[i]);
+                if (rtl_col[i] < col || rtl_col[i] + w > s_cols)
+                        continue;
+                while (col < rtl_col[i])
+                {
+                        putchar(' ');
+                        col++;
+                }
+                for (j = 0; j < rtl_len[i]; j++)
+                        putchar(line[rtl_start[i] + j]);
+                col += w;
+        }
+        while (col < s_cols)
+        {
+                putchar(' ');
+                col++;
+        }
+        putchar('\r');
+        for (col = rtl_cursor(line, rtl_cluster(place)); col > 0; col--)
+                nd_space();
+        fflush(stdout);
+}
+
+/* Purpose: the byte place the cursor goes to, one step to the left (dir -1)
+            or the right (+1) on the screen from place; -1 if none */
+static int rtl_step(char *line, int place, int dir)
+{
+        int k, best = -1, best_col = 0, now, col;
+
+        rtl_layout(line, (int) strlen(line));
+        now = rtl_cursor(line, rtl_cluster(place));
+        for (k = 0; k <= rtl_n; k++)
+        {
+                col = rtl_cursor(line, k);
+                if ((dir < 0 && col < now && (best < 0 || col > best_col)) ||
+                    (dir > 0 && col > now && (best < 0 || col < best_col)))
+                {
+                        best = k;
+                        best_col = col;
+                }
+        }
+        if (best < 0)
+                return (-1);
+        return (best < rtl_n ? rtl_start[best] : (int) strlen(line));
+}
+
+/*
+** Purpose: a key on the right-to-left search line: the line edited in
+**          reading order, and drawn again. Returns TRUE if it was taken
+**          here (all but the history keys, which get_line() reads, and
+**          then shows with rtl_show()). Enter adds '\r' and moves to the
+**          start of the row, as on the left-to-right line.
+*/
+static int rtl_key(int c, char *line, int *place)
+{
+        int i, n, c2, k;
+        char typed[8];
+
+        switch (c)
+        {
+        case '\r':
+                *place = (int) strlen(line);
+                line[*place] = '\r';
+                line[*place + 1] = '\0';
+                (*place)++;
+                putchar('\r');
+                fflush(stdout);
+                return (TRUE);
+        case 0x15:      /* Ctrl-U: the whole line */
+                line[0] = '\0';
+                *place = 0;
+                break;
+        case '\b':
+        case '\177':    /* the character before the cursor (on its right) */
+                if (*place == 0)
+                {
+                        putchar('\7');
+                        fflush(stdout);
+                        return (TRUE);
+                }
+                i = char_start(line, *place);
+                remove_bytes(line, i, *place);
+                *place = i;
+                break;
+        case 0x4:       /* Ctrl-D, Delete: the character after it (on its left) */
+                if (line[*place] == '\0')
+                {
+                        putchar('\7');
+                        fflush(stdout);
+                        return (TRUE);
+                }
+                remove_bytes(line, *place, char_end(line, *place));
+                break;
+        case 0x2:       /* Left and Right: as they point, on the screen */
+        case 0x6:
+                k = rtl_step(line, *place, c == 0x2 ? -1 : 1);
+                if (k < 0)
+                {
+                        putchar('\7');
+                        fflush(stdout);
+                        return (TRUE);
+                }
+                *place = k;
+                break;
+        case 0x18:      /* Home: the start of the line (on the right) */
+        case 0x1:
+                *place = 0;
+                break;
+        case 0x12:      /* End: its end (on the left) */
+        case 0x5:
+                *place = (int) strlen(line);
+                break;
+        case 0x10:      /* the history: get_line()'s */
+        case 0x7:
+        case 0xe:
+        case 0x16:
+                return (FALSE);
+        default:
+                if (c < 32 || c == 127 || c > 0xF4)
+                        return (TRUE);  /* (other control keys: nothing) */
+                typed[0] = (char) c;
+                n = 1;
+                if (c >= 0xC2)
+                {
+                        i = (c >= 0xF0) ? 4 : (c >= 0xE0) ? 3 : 2;
+                        while (n < i)
+                        {
+                                c2 = ugetchar();
+                                if ((c2 & 0xC0) != 0x80)
+                                        break;  /* (cut short) */
+                                typed[n++] = (char) c2;
+                        }
+                }
+                i = (int) strlen(line);
+                /* only what fits on the row: it is one line of the screen */
+                if (i + n > MAXSEARCHLEN - 2 ||
+                    u8_cols(line, i) + u8_cols(typed, n) > s_cols - 1)
+                {
+                        putchar('\7');
+                        fflush(stdout);
+                        return (TRUE);
+                }
+                while (i >= *place)
+                {
+                        line[i + n] = line[i];
+                        --i;
+                }
+                for (i = 0; i < n; i++)
+                        line[(*place)++] = typed[i];
+                break;
+        }
+        rtl_show(line, *place);
+        return (TRUE);
+}
+
 /* Purpose: read a line from the keyboard. The input is terminated by <enter>.
             The backspace or delete keys can be used to correct errors.
    Bugs: Some braindead terminals don't move the cursor left upon receipt
@@ -261,12 +603,19 @@ char *get_line(int mode)
         char typed[8];  /* a character typed: in UTF-8, up to 4 bytes */
         int n;
         long int position; /* value returned by ftell() */
+        int rtl;        /* the line right to left (see rtl_key()) */
 
         line[0] = '\0';
         /* "search": its history can be stepped through (Up and Down) */
         scr_mode(mode == DIGITS_MODE ? "input" : "search");
+        rtl = (mode == NORMAL_MODE && rtl_translation());
+        if (rtl)
+                rtl_show(line, place);  /* (the cursor at the right edge) */
         do{
-                switch (c = ugetchar())     /* get a single char from user */
+                c = ugetchar();         /* get a single char from user */
+                if (rtl && rtl_key(c, line, &place))
+                        continue;
+                switch (c)
                 {
                 case 0x15:  /* Ctrl-U Kill line */
                         if (line[0] == '\0')
@@ -375,7 +724,8 @@ char *get_line(int mode)
                                          /* position to end of file */
                                 fseek(fp, 0L, 2);
                         }
-                        back_cols(u8_cols(line, place));
+                        if (!rtl)
+                                back_cols(u8_cols(line, place));
                         place = 0;
                         do{
                                 if ((fseek(fp, -2L, 1) != 0) || (ftell(fp) < 0))
@@ -393,8 +743,13 @@ char *get_line(int mode)
 
                         if ((i = strlen(line)) > 0)
                                 line[i - 1] = '\0';
-                        fputs(line, stdout);
                         place = strlen(line);
+                        if (rtl)
+                        {
+                                rtl_show(line, place);
+                                break;
+                        }
+                        fputs(line, stdout);
                         for(i = u8_cols(line, place); i < old_length; i++)
                                 putchar(' ');
                         for(i = u8_cols(line, place); i < old_length; i++)
@@ -405,7 +760,8 @@ char *get_line(int mode)
                 case 0x16:  /* ctrl-v */
                         if ((mode == DIGITS_MODE) || file_is_closed)
                                 break;
-                        back_cols(u8_cols(line, place));
+                        if (!rtl)
+                                back_cols(u8_cols(line, place));
                         place = 0;
                         old_length = u8_cols(line, strlen(line));
 
@@ -416,8 +772,13 @@ char *get_line(int mode)
 
                         if ((i = strlen(line)) > 0)
                                 line[i - 1] = '\0';
-                        fputs(line, stdout);
                         place = strlen(line);
+                        if (rtl)
+                        {
+                                rtl_show(line, place);
+                                break;
+                        }
+                        fputs(line, stdout);
                         for(i = u8_cols(line, place); i < old_length; i++)
                                 putchar(' ');
                         for(i = u8_cols(line, place); i < old_length; i++)
@@ -2010,6 +2371,53 @@ static int valid_search(char *line)
         return FALSE;
 }
 
+/*
+** Purpose: take the punctuation off the ends of each word of a search line
+**          (in place): "earth." or a Hebrew word with its sof pasuq ("..."
+**          at the end of a verse), as copied from the screen and pasted,
+**          are looked up as earth, and as the word. Operators, @books and
+**          =groups are left as they are, and so is punctuation within a
+**          word (father-in-law, day's, a maqaf); a word that was only
+**          punctuation is left out. (November 2026.)
+*/
+static void trim_terms(char *line)
+{
+        static char copy[MAXSEARCHLEN];
+        char *pos, *arg;
+        int a, b, k, e, o = 0;
+
+        strncpy(copy, line, MAXSEARCHLEN - 1);
+        copy[MAXSEARCHLEN - 1] = '\0';
+        pos = copy;
+        for (arg = next_term(&pos); arg != NULL; arg = next_term(&pos))
+        {
+                a = 0;
+                b = (int) strlen(arg);
+                if (!is_operator(arg) && *arg != '@' && *arg != '=')
+                {
+                        while (a < b && !u8_is_letter(&arg[a]))
+                                a += u8_len(&arg[a]);
+                        e = a;  /* the end of its last letter, and its marks */
+                        for (k = a; k < b; k += u8_len(&arg[k]))
+                                if (u8_is_letter(&arg[k]) && u8_width(&arg[k]) > 0)
+                                {
+                                        e = k + u8_len(&arg[k]);
+                                        while (e < b && u8_width(&arg[e]) == 0)
+                                                e += u8_len(&arg[e]);
+                                }
+                        b = e;
+                }
+                if (b <= a)
+                        continue;       /* (only punctuation: left out) */
+                if (o > 0)
+                        line[o++] = ' ';
+                memcpy(&line[o], &arg[a], (size_t) (b - a));
+                o += b - a;
+        }
+        line[o++] = '\r';
+        line[o] = '\0';
+}
+
 /* Purpose: finds the next word, book or operator of a search line, from
             *pos on. They are separated by spaces, or the line's carriage
             return. Ends it with a '\0' and moves *pos past it. (Like
@@ -2075,6 +2483,7 @@ long int *process_line(char *line)
         count_word[0] = '\0';
         while (del_rev()) /* Remove all words from list which had been */
                 ;         /* displayed in reverse video. */
+        trim_terms(line);
         arg = line;
         if (!valid_search(arg))
                 return (NULL);
