@@ -570,13 +570,36 @@ static int line_fit(char *strg, int width)
 ** verse, on a line of its own (see split_paragraphs() in add-gutenberg.sh).
 ** So a verse is shown, and counted, a part at a time, each part after a tab
 ** starting a line (an empty part, a blank line), each wrapped as before.
+**
+** A part that is a note on the verse (commentary, not the verse's text)
+** starts with a "-" alone after its tab (November 5, 2026): its first line
+** has "---" in the margin, where a verse's number goes, in place of the
+** "-", so that someone reading aloud sees where the verse ends (see
+** "Notes" in readme.architecture). The index skips the "-" as it does the
+** tab (a word without letters), and ebac-api leaves notes out of what it
+** speaks (plain_text() in api.c).
 */
+
+/* Purpose: the start of the part after a tab: past the spaces around it,
+            and past the "-" of a note, if it is one (*note TRUE) */
+static char *next_part(char *tab, int *note)
+{
+        char *p;
+
+        for (p = tab + 1; *p == ' '; p++)
+                ;
+        *note = (p[0] == '-' && (p[1] == ' ' || p[1] == '\t' || p[1] == '\0'));
+        if (*note)
+                for (p++; *p == ' '; p++)
+                        ;
+        return (p);
+}
 
 /* figure out how many lines on the screen it will take to print this verse */
 static int count_lines(int tag, char *bookname, char *strg, int indent, int top_of_screen)
 {
         char *tab, *end, kept;
-        int n;
+        int n, note;
 
         if ((tab = strchr(strg, '\t')) == NULL)
                 return (count_part(tag, bookname, strg, indent, top_of_screen));
@@ -586,8 +609,7 @@ static int count_lines(int tag, char *bookname, char *strg, int indent, int top_
         *end = '\0';
         n = count_part(tag, bookname, strg, indent, top_of_screen);
         *end = kept;
-        for (strg = tab + 1; *strg == ' '; strg++)
-                ;
+        strg = next_part(tab, &note);
         return (n + count_lines(tag, bookname, strg, indent, FALSE));
 }
 
@@ -724,13 +746,17 @@ static void print_visual(char *s, char *hi)
 ** a time: dis_verse() leaves out its first dv_skip lines and then shows at
 ** most dv_left (-1: all of it). With dv_body_only, display_verse() shows
 ** neither the book's heading nor the verse's number (a later part).
+** dv_note: the next line is a note's first, with "---" in its margin.
 */
-static int dv_skip = 0, dv_left = -1, dv_body_only = FALSE;
+static int dv_skip = 0, dv_left = -1, dv_body_only = FALSE, dv_note = FALSE;
 
 /* Purpose: one line of a verse, as dis_verse() wraps it: indented, but for
    the first, which follows the verse's number; or left out (see above) */
 static void verse_line(char *strg, int indent, int firstTime)
 {
+        int note = dv_note;
+
+        dv_note = FALSE;        /* (only a note's first line) */
         if (dv_skip > 0)
         {
                 dv_skip--;
@@ -740,7 +766,12 @@ static void verse_line(char *strg, int indent, int firstTime)
                 return;
         if (dv_left > 0)
                 dv_left--;
-        if (firstTime == FALSE || dv_body_only)
+        if ((firstTime == FALSE || dv_body_only) && note && indent >= 8)
+                /* (under the verse's number, which is 8 columns before its
+                   text: at the left of a passage, after the book's name in
+                   a list of search results) */
+                printf("%s---     ", spaces + MAXINDENT - (indent - 8));
+        else if (firstTime == FALSE || dv_body_only)
                 printf("%s", spaces + MAXINDENT - indent);
         if (mostly_rtl(strg))
         {
@@ -814,8 +845,7 @@ static void dis_verse(char *strg, int indent, int firstTime)
                 if (tab == NULL)
                         return;
                 *end = kept;
-                for (strg = tab + 1; *strg == ' '; strg++)
-                        ;
+                strg = next_part(tab, &dv_note);
                 firstTime = FALSE;
         }
 }

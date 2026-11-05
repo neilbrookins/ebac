@@ -338,12 +338,19 @@ kept_field() {
 # and after downloading, its checksum is compared too: see add_number.)
 same_version() {
         [ -f "$here/$1/gutenberg" ] || return 1
+        same_layout "$1" || return 1
         [ -n "$etag" ] && [ "$etag" = "$(kept_field "$1" Version)" ] && return 0
         [ -n "$size" ] && [ -n "$modified" ] &&
                 [ "$size" = "$(kept_field "$1" Size)" ] &&
                 [ "$modified" = "$(kept_field "$1" Modified)" ] && return 0
         [ -n "$updated" ] && [ "$updated" = "$(kept_field "$1" Updated)" ] && return 0
         return 1
+}
+
+# same_layout NAME: whether the copy of NAME kept was written in this
+# script's layout (LAYOUT): if not, it is added again, to be shown as now
+same_layout() {
+        [ "$(kept_field "$1" Layout)" = "$LAYOUT" ]
 }
 
 # The texts this script added: a folder with a file named gutenberg
@@ -651,7 +658,9 @@ split_chapters() {
 #     numbered on from it; the same number again is more of that verse,
 #     on a line of its own (so the numbers after it stay as printed);
 #   - a paragraph after a verse is a note on it, kept in the verse on a
-#     line of its own (EBaC shows a tab in a verse as a new line); one in
+#     line of its own (EBaC shows a tab in a verse as a new line), marked
+#     as a note by a "-" alone after the tab (shown as "---" in the
+#     margin, and not spoken by voice); one in
 #     capitals (ALEPH.) is a heading of the next verse, on a line before
 #     it, or of the next chapter or book if one comes first;
 #   - a "text" book (an appendix) is rows only, as chapter 0.
@@ -773,7 +782,10 @@ split_paragraphs() {
                 t = plain(p)
                 if (vnum == 0) { pre = part(pre, t); return 0 }
                 if (heading_like(t) || pend != "") { pend = part(pend, t); notes++; return 0 }
-                vb = part(vb, t); notes++
+                # (a note: "-" first, alone, so it is shown with "---"
+                # in the margin and not spoken; see "Notes" in
+                # readme.architecture)
+                vb = part(vb, "- " t); notes++
                 return 0
         }
         FILENAME == ARGV[1] {
@@ -886,6 +898,7 @@ add() {
           [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
           printf 'Checksum: %s\n' "$checksum"
           printf 'Downloaded: %s\n' "$(date '+%Y-%m-%d')"
+          printf 'Layout: %s\n' "$LAYOUT"
         } > "$folder/version"
         { printf 'Ebook: %s\n' "$number"
           printf 'Address: %s\n' "$url"
@@ -971,6 +984,11 @@ page_facts() {
 # of the disk, which would stop a large disk too soon and a small one too
 # late. If the free space can't be found, adding stops too.
 MIN_FREE_MB=1024
+# The layout of the books this script writes from a text: raised when it
+# changes, so that a text added before is added again, though Gutenberg's
+# is the same version (kept as "Layout:" in its version file; none: 1).
+#   2: November 5, 2026: notes marked with a "-" (see split_paragraphs())
+LAYOUT=2
 
 # enough_room: whether there is room to add a text, on both disks. Sets
 # problem if not.
@@ -1019,7 +1037,8 @@ download_text() {
         # (the same text as the copy kept, though nothing said so before:
         # not added again)
         checksum=$(cksum < "$tmp/text" | $AWK '{ print $1 " " $2 }')
-        if [ -f "$here/$name/gutenberg" ] && [ "$checksum" = "$(kept_field "$name" Checksum)" ]; then
+        if [ -f "$here/$name/gutenberg" ] && [ "$checksum" = "$(kept_field "$name" Checksum)" ] &&
+           same_layout "$name"; then
                 already_have
                 return 1
         fi

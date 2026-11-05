@@ -341,14 +341,29 @@ static char *full_name(int b, char *name)
         return (name);
 }
 
-/* Purpose: a verse's text, without the [ ] and { } marks, for speech */
+/* Purpose: a verse's text, without the [ ] and { } marks, for speech; and
+            without its notes (a part after a tab that starts with a "-"
+            alone: commentary, not the verse; see "Notes" in
+            readme.architecture) */
 static void plain_text(char *from, char *to, int size)
 {
         int n = 0;
+        char *p;
 
         for (; *from != '\0' && n < size - 1; from++)
                 if (*from == '\t')     /* (a new line in the text: a space) */
+                {
+                        for (p = from + 1; *p == ' '; p++)
+                                ;
+                        if (p[0] == '-' && (p[1] == ' ' || p[1] == '\t' || p[1] == '\0'))
+                        {
+                                /* a note: left out, to the next part */
+                                while (p[1] != '\0' && p[1] != '\t')
+                                        p++;
+                                from = p;
+                        }
                         to[n++] = ' ';
+                }
                 else if (*from != '[' && *from != ']' && *from != '{' && *from != '}')
                         to[n++] = *from;
         to[n] = '\0';

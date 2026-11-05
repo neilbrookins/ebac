@@ -1296,6 +1296,7 @@ the Book of Mormon with these:
     EBaC shows each part after a tab on a new line (dis_verse() and
     count_lines() in userint.c, which agree, a part at a time), and the
     index skips it, as punctuation; ebac-api speaks it as a space.
+  - Notes are marked as notes (November 5, 2026): see "Notes" below.
   - A chapter's summary, and its psalm title, are its verse 0.
   - Numbering: a verse numbered lower than the one before (Psalm 9's
     second half, "9a", and Psalm 113's, which 1581 numbers from 1
@@ -1310,6 +1311,35 @@ the Book of Mormon with these:
     Preface 1582, Hard Words 1582. A whole chapter of 3 Esdras is one
     paragraph, so one row, up to 14,000 bytes: LONGESTVERSE is 16,000
     (it was 4,000; the CoCo keeps 700, and adds no texts).
+
+Notes (November 5, 2026; the designer's decision). Someone reading a
+passage aloud to an audience, told to stop at a verse, could read on
+into the note under it, and see that it is a note (its "...." after the
+words it explains) only once already saying it. So a note's first line
+has "---" in the margin, where a verse's number goes: the verse ends
+there. Its other lines have a blank margin, as a verse's do. The
+verse's number isn't changed: a note is part of its verse, as before.
+
+  - Stored: a note is a part of the verse (after a tab) that starts with
+    a "-" alone: "... good and evil. <tab> - The tree of life.... So
+    called ...". The "-", a word without letters, is skipped by the
+    index as the tab is, and isn't shown: dis_verse() shows "---" in
+    the margin in its place, and count_lines() skips it too, so the two
+    still agree. A part without the "-" (a heading, or Proverbs 12:12's
+    second half, which is scripture) has a blank margin, as before.
+  - Any translation can mark its notes so; split_paragraphs() in
+    add-gutenberg.sh does, for the Douay-Rheims (1,793 notes). A note
+    is a paragraph of the source: two glosses in one paragraph ("The
+    tree of life.... The tree of knowledge...." under Genesis 2:9) are
+    one note, as printed.
+  - Voice: ebac-api's "spoken" leaves notes out (plain_text() in
+    api.c), so Assist reads only the verse; "text" is the verse as
+    stored. A search that matched a word of a note still finds that
+    verse, but the word isn't read.
+  - add-gutenberg.sh writes "Layout: 2" in a text's version file; a
+    text whose layout is older (none: 1) is added again over the old
+    copy, though Gutenberg's version is the same, so a Douay-Rheims
+    added before has its notes marked by A, P, 1581.
 
 Checked: every word of the text between Gutenberg's START and END lines
 is in the books, but the chapter-heading lines and verse numbers, whose
