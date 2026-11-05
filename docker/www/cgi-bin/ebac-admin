@@ -1,0 +1,23 @@
+#!/bin/sh
+# ebac-admin, run by httpd for each request (beside ebac-api: see
+# ebac-start, or the Home Assistant app's ebac-api service): adds and
+# removes translations for the EBaC integration's voice commands, in
+# /data/ebac, only as allowed (both off unless allowed):
+#   - in the Home Assistant app, by its options (allow_add, allow_remove,
+#     in /data/options.json);
+#   - in the standalone image, by EBAC_ALLOW_ADD and EBAC_ALLOW_REMOVE
+#     ("yes"), as ebac-start passes them on (/run/ebac/allow).
+# Anything that can reach the port can ask, so these are the lock, not the
+# integration.
+BIBLEROOT=/data/ebac
+export BIBLEROOT
+EBAC_ALLOW_ADD=no
+EBAC_ALLOW_REMOVE=no
+if [ -f /run/ebac/allow ]; then
+    . /run/ebac/allow
+elif [ -f /data/options.json ]; then
+    [ "$(jq -r '.allow_add // false' /data/options.json 2> /dev/null)" = true ] && EBAC_ALLOW_ADD=yes
+    [ "$(jq -r '.allow_remove // false' /data/options.json 2> /dev/null)" = true ] && EBAC_ALLOW_REMOVE=yes
+fi
+export EBAC_ALLOW_ADD EBAC_ALLOW_REMOVE
+exec sh /usr/share/ebac/ebac-admin

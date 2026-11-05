@@ -1,0 +1,28 @@
+# EBaC in Docker, without Home Assistant: see docker/README.md.
+#
+#   docker compose up -d
+#
+# then open http://THIS-COMPUTER:7681 in a browser (on a phone too).
+services:
+  ebac:
+    image: ghcr.io/neilbrookins/ebac:latest
+    # To build it from GitHub's source instead of downloading it (a few
+    # minutes; nothing else changes), use these lines in place of "image":
+    # build:
+    #   context: https://github.com/neilbrookins/ebac.git#main
+    #   dockerfile: docker/Dockerfile
+    #   args:
+    #     BUILDKIT_CONTEXT_KEEP_GIT_DIR: "1"
+    container_name: ebac
+    restart: unless-stopped
+    ports:
+      - "7681:7681"     # EBaC's web page
+      # - "8080:8080"   # ebac-api, for the EBaC voice integration
+    volumes:
+      - ebac-data:/data # added translations, each user's search history
+    # A login for the page (recommended, if others can reach it):
+    # environment:
+    #   EBAC_USER: ebac
+    #   EBAC_PASSWORD: choose-one
+volumes:
+  ebac-data:

@@ -1,0 +1,34 @@
+#!/bin/sh
+# ==============================================================================
+# Start the web terminal (ttyd) with EBaC in it: the same page, with touch
+# gestures, in each of EBaC's containers (the Home Assistant app and the
+# standalone image).
+#
+#   ebac-web PORT [MORE TTYD OPTIONS...]
+#
+# Each visit to the page starts a fresh copy of EBaC (ebac-session). When
+# the user exits EBaC, ttyd greys the screen and offers "Press Enter to
+# Reconnect". EBAC_DEBUG=true shows the troubleshooting box (what the page
+# sees of the focus and the window's size: see gestures.js). The options
+# that differ between the containers (who the user is, a login) are the
+# caller's, after PORT.
+# ==============================================================================
+port=${1:?usage: ebac-web PORT [ttyd options]}
+shift
+
+# The page: ttyd's own, with touch gestures added (see make-index.sh), or
+# with the troubleshooting box on, a copy that says so.
+page=/usr/share/ebac/index.html
+if [ "${EBAC_DEBUG:-}" = true ]; then
+    sed 's|<head>|<head><script>window.EBAC_DEBUG=true</script>|' "$page" > /tmp/index.html
+    page=/tmp/index.html
+fi
+
+# theme: white on black, for the most contrast (ttyd's own is light grey on
+# dark grey, which makes Hebrew's small vowel points hard to see); bold
+# text white too, not a brighter grey.
+exec ttyd --writable --port "$port" --client-option titleFixed=EBaC \
+    --client-option 'theme={"foreground":"#ffffff","background":"#000000","cursor":"#ffffff","cursorAccent":"#000000","selectionBackground":"#5a5a5a","white":"#ffffff","brightWhite":"#ffffff"}' \
+    --index "$page" \
+    "$@" \
+    /usr/bin/ebac-session

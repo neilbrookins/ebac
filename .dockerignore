@@ -1,0 +1,21 @@
+# What the standalone image's build (docker/Dockerfile) leaves out of the
+# repository: what "make" makes (the build makes its own), as .gitignore.
+# (.git is kept: with BUILDKIT_CONTEXT_KEEP_GIT_DIR=1, the build reads the
+# commit from it, for EBaC's Information screen.)
+**/*.o
+bible
+index
+ebac-api
+split
+splitmsdos
+splitmm1
+lab
+llength
+verses
+tests/build
+coco/build
+**/*.dat
+version.stamp
+version.stamp.new
+**/__pycache__
+languages.cache

@@ -1,0 +1,66 @@
+#!/bin/sh
+# ==============================================================================
+# The standalone image's start (docker/Dockerfile): EBaC without Home
+# Assistant. See docker/README.md.
+#
+#   (no command)   EBaC in a web page, on port 7681, with touch gestures;
+#                  and ebac-api (EBaC's answers in JSON, as the EBaC
+#                  integration for Home Assistant uses them) on port 8080
+#   terminal       EBaC in this terminal (docker run -it ...), no web page
+#   anything else  run as a command, in EBaC's setting (BIBLEROOT set)
+#
+# Settings (environment variables), all optional:
+#   EBAC_PASSWORD     ask for a login on the web page: user EBAC_USER
+#                     (default "ebac") and this password. Without it, anyone
+#                     who can reach port 7681 can use EBaC.
+#   EBAC_USER         the user's name: whose search history it is
+#   EBAC_AUTH_HEADER  behind a reverse proxy that logs users in: the header
+#                     naming the user (such as Remote-User), so each has
+#                     their own search history
+#   EBAC_ALLOW_ADD, EBAC_ALLOW_REMOVE   "yes": ebac-api's ebac-admin may add
+#                     (and remove) translations, for voice. Off by default.
+#   EBAC_DEBUG        "true": the page's troubleshooting box
+#
+# Everything EBaC keeps (added translations, each user's search history) is
+# in /data: make it a volume, so it outlives the container.
+# ==============================================================================
+set -e
+mkdir -p /data/users
+/usr/bin/ebac-setup
+export BIBLEROOT=/data/ebac
+
+case "${1:-}" in
+"")
+    ;;
+terminal)
+    exec /usr/bin/ebac-session terminal
+    ;;
+*)
+    exec "$@"
+    ;;
+esac
+
+# ebac-api, for anything that asks on port 8080 (the EBaC integration, in a
+# Home Assistant without apps); ebac-admin only as allowed.
+mkdir -p /run/ebac
+yes_no() { [ "$1" = yes ] && echo yes || echo no; }
+{ echo "EBAC_ALLOW_ADD=$(yes_no "${EBAC_ALLOW_ADD:-}")"
+  echo "EBAC_ALLOW_REMOVE=$(yes_no "${EBAC_ALLOW_REMOVE:-}")"
+} > /run/ebac/allow
+httpd -f -p 8080 -h /usr/share/ebac-www &
+
+# Who the user is: a login, a reverse proxy's header, or no one in
+# particular (one search history for all).
+set --
+if [ -n "${EBAC_PASSWORD:-}" ]; then
+    EBAC_USER=${EBAC_USER:-ebac}
+    export EBAC_USER
+    set -- --credential "$EBAC_USER:$EBAC_PASSWORD"
+    echo "EBaC: on port 7681, with a login (user $EBAC_USER)"
+elif [ -n "${EBAC_AUTH_HEADER:-}" ]; then
+    set -- --auth-header "$EBAC_AUTH_HEADER"
+    echo "EBaC: on port 7681, users named by the header $EBAC_AUTH_HEADER"
+else
+    echo "EBaC: on port 7681, with no login (set EBAC_PASSWORD for one)"
+fi
+exec /usr/bin/ebac-web 7681 "$@"

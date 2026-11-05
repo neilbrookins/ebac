@@ -1,25 +1,37 @@
 # EBaC — Electronic Bible and Concordance
 
-> [!NOTE]
-> **Do you use Home Assistant?** Then install **[the EBaC app for Home Assistant](https://github.com/neilbrookins/ebac-ha-app)** instead of this. It's the easier way: there's nothing to type or build, it updates itself, and besides the keyboard it works by tapping, swiping and clicking, on a phone, a tablet or a computer's web browser. (Home Assistant is a free smart-home system, often run on a small computer such as a Raspberry Pi and used through a web browser or its phone app.) If typing commands and building a program sounds unfamiliar, and you have Home Assistant or would like to, that version is the one for you.
->
-> **This page is EBaC to install on a computer yourself.** You download it and build it with a few typed commands, and it runs in a terminal window, used with the keyboard. Pick your computer to go straight to its instructions:
->
-> | Your computer | Instructions |
-> |---|---|
-> | Linux, including a Raspberry Pi or a Chromebook | [Installing on Linux](#installing-on-linux) |
-> | Windows 10 or 11 | [Installing on Windows](#installing-on-windows) |
-> | An older Windows PC, with Cygwin | [Installing on Windows with Cygwin](#installing-on-windows-with-cygwin) |
-> | Apple Mac | [Installing on macOS](#installing-on-macos) |
-> | Solaris 11 | [Installing on Solaris 11](#installing-on-solaris-11) |
-> | FreeBSD, OpenBSD or NetBSD | [Installing on FreeBSD, OpenBSD or NetBSD](#installing-on-freebsd-openbsd-or-netbsd) |
-> | MM/1 (OS-9 68000) | [MM/1](#mm1-os-9-68000) |
-> | VAX/VMS | [VAX/VMS](#vaxvms) |
-> | Tandy Color Computer 3 (OS-9 6809) | [Version 2 on the Tandy CoCo 3](#version-2-on-the-tandy-coco-3-untested) |
-> | AT&T 3B1; SunOS 4 and Solaris 2; DEC Ultrix and OSF/1; HP-UX | [AT&T 3B1, Sun, DEC and HP UNIX](#att-3b1-sun-dec-and-hp-unix) |
-> | MS-DOS | [MS-DOS](#ms-dos) |
-
 Written by Neil G. Brookins.
+
+## Which way to install
+
+EBaC comes four ways. They're the same program, made from the same source, so each gets every improvement at the same time; they differ only in how you install and use it. Pick the first that fits:
+
+| | Way | Best for | You get | You need |
+|---|---|---|---|---|
+| 1 | **[The Home Assistant app](#installing-in-home-assistant)** | Anyone with Home Assistant | EBaC in Home Assistant's sidebar, on a phone, tablet or computer: tapping, swiping and clicking as well as the keyboard. Updates itself. Voice ("Genesis 1:1") with the EBaC integration. Each Home Assistant user has their own search history. | Home Assistant (with apps: Home Assistant OS) |
+| 2 | **[Docker, in a web page](#installing-with-docker)** | Anyone without Home Assistant | The same web page as the app, with tapping, swiping and clicking, opened in any browser, on a phone too. One command to install; one to update. | A computer that runs Docker (Linux, a Raspberry Pi, a NAS, Windows or a Mac with Docker Desktop) |
+| 3 | **[Docker, in a terminal](#ebac-in-a-terminal-with-docker)** | Keyboard-only use, on a computer with Docker | EBaC in your terminal window, with no web page: keys only, no tapping or clicking. | Docker |
+| 4 | **[Built from source](#installing-on-linux)** | Computers without Docker, and vintage ones | EBaC in a terminal window, built with a few typed commands: keys only. Runs on almost anything, down to an MS-DOS PC. | A C compiler, `make` and ncurses (the steps say how to get them) |
+
+Ways 1 and 2 are the friendliest: the web page turns taps and swipes into EBaC's keys (tap a choice, swipe to page, tap a verse to open it). Ways 3 and 4 are the program alone, by keyboard.
+
+For way 4, pick your computer:
+
+| Your computer | Instructions |
+|---|---|
+| Linux, including a Raspberry Pi or a Chromebook | [Installing on Linux](#installing-on-linux) |
+| Windows 10 or 11 | [Installing on Windows](#installing-on-windows) |
+| An older Windows PC, with Cygwin | [Installing on Windows with Cygwin](#installing-on-windows-with-cygwin) |
+| Apple Mac | [Installing on macOS](#installing-on-macos) |
+| Solaris 11 | [Installing on Solaris 11](#installing-on-solaris-11) |
+| FreeBSD, OpenBSD or NetBSD | [Installing on FreeBSD, OpenBSD or NetBSD](#installing-on-freebsd-openbsd-or-netbsd) |
+| MM/1 (OS-9 68000) | [MM/1](#mm1-os-9-68000) |
+| VAX/VMS | [VAX/VMS](#vaxvms) |
+| Tandy Color Computer 3 (OS-9 6809) | [Version 2 on the Tandy CoCo 3](#version-2-on-the-tandy-coco-3-untested) |
+| AT&T 3B1; SunOS 4 and Solaris 2; DEC Ultrix and OSF/1; HP-UX | [AT&T 3B1, Sun, DEC and HP UNIX](#att-3b1-sun-dec-and-hp-unix) |
+| MS-DOS | [MS-DOS](#ms-dos) |
+
+## What EBaC is
 
 EBaC is a fast, text-mode Bible reader and concordance. It has two main jobs:
 
@@ -30,8 +42,12 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 
 ## Contents
 
+- [Which way to install](#which-way-to-install)
+- [What EBaC is](#what-ebac-is)
 - [Installing](#installing)
   - [Installing in Home Assistant](#installing-in-home-assistant)
+  - [Installing with Docker](#installing-with-docker)
+    - [EBaC in a terminal with Docker](#ebac-in-a-terminal-with-docker)
   - [Installing on Linux](#installing-on-linux)
     - [First-time install (do this only once)](#first-time-install-do-this-only-once)
     - [Running EBaC](#running-ebac)
@@ -69,6 +85,54 @@ EBaC needs nothing particular to one system: only a C compiler, `make`, the ncur
 ### Installing in Home Assistant
 
 The steps, with a button that adds EBaC to your Home Assistant in one click, are with the app: **[Installing the EBaC app](https://github.com/neilbrookins/ebac-ha-app#installing)**. Nothing needs to be typed or built.
+
+**Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
+
+### Installing with Docker
+
+EBaC in a web page, with tapping, swiping and clicking, without Home Assistant: the same page the Home Assistant app has. It needs a computer that runs [Docker](https://docs.docker.com/get-started/get-docker/), such as Linux, a Raspberry Pi (64-bit), a NAS, or Windows or a Mac with Docker Desktop. The image is ready-made for PCs (amd64) and ARM computers (arm64), and Docker picks the right one.
+
+**Start it** (one command, typed in a terminal):
+
+```sh
+docker run -d --name ebac --restart unless-stopped -p 7681:7681 -v ebac-data:/data ghcr.io/neilbrookins/ebac
+```
+
+Then open **http://localhost:7681** in a web browser on the same computer, or **http://*the computer's address*:7681** from a phone or another computer on your network. The volume `ebac-data` keeps the translations you add and each user's search history, so they outlast updates.
+
+**A login.** Without one, anyone who can reach port 7681 can use EBaC. To ask for a user name and password, add `-e EBAC_USER=yourname -e EBAC_PASSWORD=yourpassword` before the image's name. Behind a reverse proxy that logs users in itself (such as Authelia), add `-e EBAC_AUTH_HEADER=Remote-User` (the header that names the user) instead, so each person has their own search history. Don't put EBaC on the internet without one or the other.
+
+**Update it** to the newest version (your translations and history are kept, in the volume):
+
+```sh
+docker pull ghcr.io/neilbrookins/ebac
+docker rm -f ebac
+docker run -d --name ebac --restart unless-stopped -p 7681:7681 -v ebac-data:/data ghcr.io/neilbrookins/ebac
+```
+
+**With Docker Compose** instead: [docker/docker-compose.yml](docker/docker-compose.yml) is ready to copy. `docker compose up -d` starts it; `docker compose pull && docker compose up -d` updates it.
+
+**Building it yourself** instead of downloading it ready-made (it takes a few minutes, a little longer on a Raspberry Pi, and gives the same thing):
+
+```sh
+docker build -f docker/Dockerfile -t ebac https://github.com/neilbrookins/ebac.git#main
+```
+
+then use `ebac` in place of `ghcr.io/neilbrookins/ebac` in the commands above. (The Compose file has the lines for this too.)
+
+**Voice, with Home Assistant but without apps** (Home Assistant Container or Core): the [EBaC integration](https://github.com/neilbrookins/ebac-ha-integration) can use this container too. Add `-p 8080:8080` to the `docker run` command, and give the integration the address `http://the computer's address:8080/cgi-bin/ebac`. To let voice add and remove translations, add `-e EBAC_ALLOW_ADD=yes` (and `-e EBAC_ALLOW_REMOVE=yes`); both are off unless you do.
+
+**If something goes wrong:** `docker logs ebac` shows what EBaC said as it started. `-e EBAC_DEBUG=true` adds the troubleshooting box to the page (what it sees of the screen's size and the keyboard), for reporting a problem with tapping or the keyboard.
+
+#### EBaC in a terminal with Docker
+
+The same image runs EBaC in your terminal window, with no web page: keys only, no tapping or clicking (for those, use the web page above). Nothing to build:
+
+```sh
+docker run -it --rm -v ebac-data:/data ghcr.io/neilbrookins/ebac terminal
+```
+
+It uses the same volume as the web page, so translations added in one are there in the other. `-e EBAC_USER=yourname` keeps your search history apart from others'.
 
 **Installed? Skip the other computers and go on to [Searching](#searching).** · [↑ Contents](#contents)
 

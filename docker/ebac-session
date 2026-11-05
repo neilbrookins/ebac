@@ -1,0 +1,33 @@
+#!/bin/sh
+# ==============================================================================
+# Start EBaC for one session, with that user's own search history. Shared
+# by EBaC's containers: the Home Assistant app and the standalone image (see
+# docker/README.md).
+#
+#   ebac-session            in the web page (ttyd starts it for each visit)
+#   ebac-session terminal   in a plain terminal (docker run -it ... terminal)
+#
+# Who the user is: TTYD_USER, which ttyd sets from a header naming the
+# logged-in user (--auth-header: Home Assistant's ingress sends
+# X-Remote-User-Name; a reverse proxy in front of the standalone image may
+# send its own), or else EBAC_USER (the standalone image's one login).
+# Each user gets a folder of their own, /data/users/NAME, used as EBaC's
+# home folder, so EBaC keeps that user's history in
+# /data/users/NAME/.ebac_log, just as it uses ~/.ebac_log on Linux.
+# ==============================================================================
+
+# Keep only characters that are safe in a folder name.
+user=$(printf '%s' "${TTYD_USER:-${EBAC_USER:-}}" | tr -c 'A-Za-z0-9._-' '_')
+case "$user" in
+    ""|.|..) user=unknown ;;
+esac
+
+export HOME="/data/users/$user"
+mkdir -p "$HOME"
+cd "$HOME" || exit 1
+
+# In the web page: have EBaC tell the page which screen is showing, so its
+# touch gestures know which key to send (see gestures.js). (Not in a plain
+# terminal, which would show what it sends.)
+[ "${1:-}" = terminal ] || export EBAC_GESTURES=1
+exec /usr/share/ebac/bible

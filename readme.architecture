@@ -1322,6 +1322,31 @@ the Book of Mormon with these:
     paragraph, so one row, up to 14,000 bytes: LONGESTVERSE is 16,000
     (it was 4,000; the CoCo keeps 700, and adds no texts).
 
+EBaC's containers (November 5, 2026; the designer's decisions). EBaC
+comes four ways, which are to stay in step, so that each improvement
+reaches all of them, with nothing kept twice: the Home Assistant app;
+a standalone Docker image, for those without Home Assistant, with the
+same web page (ttyd and its touch gestures); the same image in a plain
+terminal (keys only); and the program built from source. Everything the
+two containers share is in docker/ here (see docker/README.md): the
+page and its gestures, ttyd's start, each user's session, EBaC's folder
+in /data, ebac-api's scripts. The app (neilbrookins/ebac-ha-app) no
+longer keeps copies: its build takes them from EBaC's source, at the
+commit it pins, with the program.
+  - The standalone image is prebuilt, ghcr.io/neilbrookins/ebac, for
+    amd64 and arm64, by a workflow at each change to main (tested
+    first: the page, ebac-api, the commit). Plain Docker users expect
+    one "docker run"; building it themselves (from GitHub's source, a
+    Dockerfile in docker/) is documented too. The app goes on building
+    on each Home Assistant, as before.
+  - Without Home Assistant's login, the page is open to anyone who can
+    reach it: EBAC_PASSWORD gives it a login (ttyd's), and
+    EBAC_AUTH_HEADER takes the user's name from a reverse proxy, as the
+    app takes it from Home Assistant's; each user's history as before.
+  - ebac-api is on port 8080 there too, for the EBaC integration in a
+    Home Assistant without apps (Container, Core); ebac-admin only as
+    EBAC_ALLOW_ADD and EBAC_ALLOW_REMOVE allow.
+
 Names as heard (November 5, 2026; the designer's decision). Speech
 recognition writes a name it hears as it guesses it: "Qur'an" said
 aloud comes back "Quran", "Koran" or "Coran". The other forms are data,
