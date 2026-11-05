@@ -341,17 +341,36 @@ static char *full_name(int b, char *name)
         return (name);
 }
 
-/* Purpose: a verse's text, without the [ ] and { } marks, for speech; and
-            without its notes (a part after a tab that starts with a "-"
-            alone: commentary, not the verse; see "Notes" in
-            readme.architecture) */
+/* Purpose: a verse's text, without the [ ] marks, for speech; and
+            without its notes, which aren't the verse's text (see "Notes"
+            in readme.architecture): a part after a tab that starts with
+            a "-" alone, and anything in { } (a note in the verse, as
+            the World English Bible has them; a "{" without its "}" is
+            only left out itself) */
 static void plain_text(char *from, char *to, int size)
 {
-        int n = 0;
+        int n = 0, depth;
         char *p;
 
         for (; *from != '\0' && n < size - 1; from++)
-                if (*from == '\t')     /* (a new line in the text: a space) */
+                if (*from == '{')
+                {
+                        for (depth = 0, p = from; *p != '\0'; p++)
+                                if (*p == '{')
+                                        depth++;
+                                else if (*p == '}' && --depth == 0)
+                                        break;
+                        if (*p == '}')
+                        {
+                                from = p;       /* (to its "}": left out) */
+                                /* (the space before it, or after it, but
+                                   not both: "God{note} created" and
+                                   "God {note} created" are "God created") */
+                                if (n > 0 && to[n - 1] == ' ' && from[1] == ' ')
+                                        n--;
+                        }
+                }
+                else if (*from == '\t')     /* (a new line in the text: a space) */
                 {
                         for (p = from + 1; *p == ' '; p++)
                                 ;
@@ -364,7 +383,7 @@ static void plain_text(char *from, char *to, int size)
                         }
                         to[n++] = ' ';
                 }
-                else if (*from != '[' && *from != ']' && *from != '{' && *from != '}')
+                else if (*from != '[' && *from != ']' && *from != '}')
                         to[n++] = *from;
         to[n] = '\0';
         while (n > 0 && isspace(UCHAR(to[n - 1])))

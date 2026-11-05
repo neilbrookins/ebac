@@ -1339,7 +1339,11 @@ verse's number isn't changed: a note is part of its verse, as before.
     starting a gloss) may not fit another's.
   - Voice: ebac-api's "spoken" leaves notes out (plain_text() in
     api.c), so Assist reads only the verse; "text" is the verse as
-    stored. A search that matched a word of a note still finds that
+    stored. Notes in {braces} within a verse (as the World English
+    Bible has them, EBaC's convention for notes since 2.1) are left out
+    too (November 5, 2026; the designer's decision: only the actual
+    text is read, whenever it can be told apart). On the screen they
+    stay as printed, in their braces. A search that matched a word of a note still finds that
     verse, but the word isn't read.
   - add-gutenberg.sh writes "Layout: 2" in a text's version file; a
     text whose layout is older (none: 1) is added again over the old
