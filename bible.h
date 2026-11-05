@@ -35,11 +35,13 @@ extern long int numchapters;
 
 /* A guess at the length of the longest verse in bytes plus a little
 ** more just in case we guessed wrong. (Longer verses are cut short.
-** Translations from other sources have verses of over 2000.) */
+** Translations from other sources have verses of over 2000; a text from
+** Project Gutenberg can keep a whole chapter, printed as one paragraph,
+** as one row: 3 Esdras in the Douay-Rheims's appendices, 14,000.) */
 #ifdef COCO
 #	define LONGESTVERSE 700
 #else
-#	define LONGESTVERSE 4000
+#	define LONGESTVERSE 16000
 #endif
 
 /*

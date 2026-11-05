@@ -98,6 +98,9 @@ static int count_lines P((int tag, char *bookname, char *strg, int indent,
 static void dis_one_line P((char *strg));
 static int mostly_rtl P((char *s));
 static void dis_verse P((char *strg, int indent, int firstTime));
+static void dis_part P((char *strg, int indent, int firstTime));
+static int count_part P((int tag, char *bookname, char *strg, int indent,
+                        int top_of_screen));
 static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
                           int verIndent, int top_of_screen));
 static int show_tall_verse P((struct bcv_array_type *bcv_arrays, int shown, int *used));
@@ -561,8 +564,36 @@ static int line_fit(char *strg, int width)
         return (fit);
 }
 
+/*
+** A tab in a verse's text starts a new line (November 2026): a text from
+** Project Gutenberg keeps a note on a verse, or a heading before it, in the
+** verse, on a line of its own (see split_paragraphs() in add-gutenberg.sh).
+** So a verse is shown, and counted, a part at a time, each part after a tab
+** starting a line (an empty part, a blank line), each wrapped as before.
+*/
+
 /* figure out how many lines on the screen it will take to print this verse */
 static int count_lines(int tag, char *bookname, char *strg, int indent, int top_of_screen)
+{
+        char *tab, *end, kept;
+        int n;
+
+        if ((tab = strchr(strg, '\t')) == NULL)
+                return (count_part(tag, bookname, strg, indent, top_of_screen));
+        for (end = tab; end > strg && end[-1] == ' '; end--)
+                ;       /* (the spaces around a tab aren't shown) */
+        kept = *end;
+        *end = '\0';
+        n = count_part(tag, bookname, strg, indent, top_of_screen);
+        *end = kept;
+        for (strg = tab + 1; *strg == ' '; strg++)
+                ;
+        return (n + count_lines(tag, bookname, strg, indent, FALSE));
+}
+
+/* the lines one part of a verse takes (its book's heading too, if it is
+   shown before it) */
+static int count_part(int tag, char *bookname, char *strg, int indent, int top_of_screen)
 {
         static char previous_book[MAXBOOKNAME] = { '\0' };
         int a_lines = 0, i, fit, indentWidth = WIDTH - indent;
@@ -583,9 +614,9 @@ static int count_lines(int tag, char *bookname, char *strg, int indent, int top_
                 return(1 + a_lines);
  for (i = fit; i > 0; i--)
   if (strg[i] == ' ')
-   return(count_lines(tag, bookname, &strg[i + 1],  /* recursive! */
+   return(count_part(tag, bookname, &strg[i + 1],  /* recursive! */
                       indent, FALSE) + 1 + a_lines);
- return(count_lines(tag, bookname, &strg[fit], /* here too! */
+ return(count_part(tag, bookname, &strg[fit], /* here too! */
                     indent, FALSE) + 1 + a_lines);
 }
 
@@ -760,12 +791,41 @@ static int mostly_rtl(char *s)
         return (rtl > ltr);
 }
 
+/* Purpose: show a verse's text, a part at a time: each part after a tab on
+            a line of its own (an empty one, a blank line; see count_lines()) */
+static void dis_verse(char *strg, int indent, int firstTime)
+{
+        char *tab, *end, kept = '\0';
+
+        for (;;)
+        {
+                end = NULL;
+                if ((tab = strchr(strg, '\t')) != NULL)
+                {
+                        for (end = tab; end > strg && end[-1] == ' '; end--)
+                                ;       /* (the spaces around it aren't shown) */
+                        kept = *end;
+                        *end = '\0';
+                }
+                if (strg[0] == '\0' && !firstTime)
+                        verse_line(strg, indent, FALSE);        /* (blank) */
+                else
+                        dis_part(strg, indent, firstTime);
+                if (tab == NULL)
+                        return;
+                *end = kept;
+                for (strg = tab + 1; *strg == ' '; strg++)
+                        ;
+                firstTime = FALSE;
+        }
+}
+
 /* Purpose: performs word wrapping by inserting a '\0' at appropriate location
             and calls dis_one_line to print one line of the verse, up to the
             '\0'. Then it recursively calls itself to handle the remainder
             of the verse.
 */
-static void dis_verse(char *strg, int indent, int firstTime)
+static void dis_part(char *strg, int indent, int firstTime)
 {
         int i, fit, indentWidth = WIDTH - indent;
         char *outstr;
@@ -785,7 +845,7 @@ static void dis_verse(char *strg, int indent, int firstTime)
                         strg[i] = '\0';
                         verse_line(strg, indent, firstTime);
                         strg[i] = ' ';
-                        dis_verse(&strg[i + 1], indent, FALSE);
+                        dis_part(&strg[i + 1], indent, FALSE);
                         return;
                 }
         }
@@ -801,7 +861,7 @@ static void dis_verse(char *strg, int indent, int firstTime)
         outstr[i] = '\0';
         verse_line(outstr, indent, firstTime);
         free(outstr);
-        dis_verse(&strg[i], indent, FALSE);
+        dis_part(&strg[i], indent, FALSE);
         return;
 }
 

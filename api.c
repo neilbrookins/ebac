@@ -347,7 +347,9 @@ static void plain_text(char *from, char *to, int size)
         int n = 0;
 
         for (; *from != '\0' && n < size - 1; from++)
-                if (*from != '[' && *from != ']' && *from != '{' && *from != '}')
+                if (*from == '\t')     /* (a new line in the text: a space) */
+                        to[n++] = ' ';
+                else if (*from != '[' && *from != ']' && *from != '{' && *from != '}')
                         to[n++] = *from;
         to[n] = '\0';
         while (n > 0 && isspace(UCHAR(to[n - 1])))

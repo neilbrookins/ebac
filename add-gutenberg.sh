@@ -85,7 +85,95 @@ fi
 #              verses are "C:V text", wrapped, a blank line between them,
 #              and may start in the middle of a line, with the book's name
 #              before them or not ("...them. 2:13 Neither", "4 Nephi 1:1").
+#   paragraphs books start with their heading (and an introduction); a
+#              chapter starts with "Genesis Chapter 1" (its summary after
+#              it); a verse is a paragraph, "1:1. In the beginning...",
+#              and the paragraphs between verses are notes on the verse
+#              before them, or headings (in capitals) of the verse after
+#              them. A "text" line is a book without chapters or verses
+#              (an appendix): its rows only. (See split_paragraphs().)
 KNOWN='
+1581	DRC-PG	paragraphs
+book	Genesis	THE BOOK OF GENESIS
+book	Exodus	THE BOOK OF EXODUS
+book	Leviticus	THE BOOK OF LEVITICUS
+book	Numbers	THE BOOK OF NUMBERS
+book	Deuteronomy	THE BOOK OF DEUTERONOMY
+book	Josue	THE BOOK OF JOSUE
+book	Judges	THE BOOK OF JUDGES
+book	Ruth	THE BOOK OF RUTH
+book	1 Kings	THE FIRST BOOK OF SAMUEL, OTHERWISE CALLED THE FIRST BOOK OF KINGS
+book	2 Kings	THE SECOND BOOK OF SAMUEL, OTHERWISE CALLED THE SECOND BOOK OF KINGS
+book	3 Kings	THE THIRD BOOK OF KINGS
+book	4 Kings	THE FOURTH BOOK OF KINGS
+book	1 Paralipomenon	THE FIRST BOOK OF PARALIPOMENON
+book	2 Paralipomenon	THE SECOND BOOK OF PARALIPOMENON
+book	1 Esdras	THE FIRST BOOK OF ESDRAS
+book	2 Esdras	THE BOOK OF NEHEMIAS, WHICH IS CALLED THE SECOND OF ESDRAS
+book	Tobias	THE BOOK OF TOBIAS
+book	Judith	THE BOOK OF JUDITH
+book	Esther	THE BOOK OF ESTHER
+book	Job	THE BOOK OF JOB
+book	Psalms	THE BOOK OF PSALMS
+book	Proverbs	THE BOOK OF PROVERBS
+book	Ecclesiastes	ECCLESIASTES
+book	Canticle of Canticles	SOLOMON’S CANTICLE OF CANTICLES
+book	Wisdom	THE BOOK OF WISDOM
+book	Ecclesiasticus	ECCLESIASTICUS
+book	Isaias	THE PROPHECY OF ISAIAS
+book	Jeremias	THE PROPHECY OF JEREMIAS
+book	Lamentations	THE LAMENTATIONS OF JEREMIAS
+book	Baruch	THE PROPHECY OF BARUCH
+book	Ezechiel	THE PROPHECY OF EZECHIEL
+book	Daniel	THE PROPHECY OF DANIEL
+book	Osee	THE PROPHECY OF OSEE
+book	Joel	THE PROPHECY OF JOEL
+book	Amos	THE PROPHECY OF AMOS
+book	Abdias	THE PROPHECY OF ABDIAS
+book	Jonas	THE PROPHECY OF JONAS
+book	Micheas	THE PROPHECY OF MICHEAS
+book	Nahum	THE PROPHECY OF NAHUM
+book	Habacuc	THE PROPHECY OF HABACUC
+book	Sophonias	THE PROPHECY OF SOPHONIAS
+book	Aggeus	THE PROPHECY OF AGGEUS
+book	Zacharias	THE PROPHECY OF ZACHARIAS
+book	Malachias	THE PROPHECY OF MALACHIAS
+book	1 Machabees	THE FIRST BOOK OF MACHABEES
+book	2 Machabees	THE SECOND BOOK OF MACHABEES
+book	Matthew	THE HOLY GOSPEL OF JESUS CHRIST ACCORDING TO SAINT MATTHEW
+book	Mark	THE HOLY GOSPEL OF JESUS CHRIST ACCORDING TO ST. MARK
+book	Luke	THE HOLY GOSPEL OF JESUS CHRIST ACCORDING TO ST. LUKE
+book	John	THE HOLY GOSPEL OF JESUS CHRIST ACCORDING TO ST. JOHN
+book	Acts	THE ACTS OF THE APOSTLES
+book	Romans	THE EPISTLE OF ST. PAUL THE APOSTLE TO THE ROMANS
+book	1 Corinthians	THE FIRST EPISTLE OF ST. PAUL TO THE CORINTHIANS
+book	2 Corinthians	THE SECOND EPISTLE OF ST. PAUL TO THE CORINTHIANS
+book	Galatians	THE EPISTLE OF ST. PAUL TO THE GALATIANS
+book	Ephesians	THE EPISTLE OF ST. PAUL TO THE EPHESIANS
+book	Philippians	THE EPISTLE OF ST. PAUL TO THE PHILIPPIANS
+book	Colossians	THE EPISTLE OF ST. PAUL TO THE COLOSSIANS
+book	1 Thessalonians	THE FIRST EPISTLE OF ST. PAUL TO THE THESSALONIANS
+book	2 Thessalonians	THE SECOND EPISTLE OF ST. PAUL TO THE THESSALONIANS
+book	1 Timothy	THE FIRST EPISTLE OF ST. PAUL TO TIMOTHY
+book	2 Timothy	THE SECOND EPISTLE OF ST. PAUL TO TIMOTHY
+book	Titus	THE EPISTLE OF ST. PAUL TO TITUS
+book	Philemon	THE EPISTLE OF ST. PAUL TO PHILEMON
+book	Hebrews	THE EPISTLE OF ST. PAUL TO THE HEBREWS
+book	James	THE CATHOLIC EPISTLE OF ST. JAMES THE APOSTLE
+book	1 Peter	THE FIRST EPISTLE OF ST. PETER THE APOSTLE
+book	2 Peter	THE SECOND EPISTLE OF ST. PETER THE APOSTLE
+book	1 John	THE FIRST EPISTLE OF ST. JOHN THE APOSTLE
+book	2 John	THE SECOND EPISTLE OF ST. JOHN THE APOSTLE
+book	3 John	THE THIRD EPISTLE OF ST. JOHN THE APOSTLE
+book	Jude	THE CATHOLIC EPISTLE OF ST. JUDE
+book	Apocalypse	THE APOCALYPSE OF ST. JOHN THE APOSTLE
+text	Prayer of Manasses	APPENDICES
+text	3 Esdras	THE THIRD BOOKE OF ESDRAS.
+text	4 Esdras	THE FOVRTH BOOKE OF ESDRAS.
+text	Abdias 1610	BOOKS FOR COMPARISON
+text	Jude 1582	THE CATHOLIKE EPISTLE OF IVDE THE APOSTLE.
+text	Preface 1582	THE PREFACE TO THE READER
+text	Hard Words 1582	HARD VVORDES EXPLICATED
 17	BOM-PG	chapters
 book	1 Nephi	THE FIRST BOOK OF NEPHI
 book	2 Nephi	THE SECOND BOOK OF NEPHI
@@ -189,7 +277,7 @@ known() {
 known_detail() {
         printf '%s\n' "$KNOWN" | $AWK -F '\t' -v n="$1" '
                 $1 ~ /^[0-9]+$/ { this = ($1 == n); next }
-                this && ($1 == "book" || $1 == "front") { print }'
+                this && ($1 == "book" || $1 == "text" || $1 == "front") { print }'
 }
 
 # fetch URL FILE (sets problem on failure)
@@ -549,6 +637,216 @@ split_chapters() {
         }' "$tmp/detail" -
 }
 
+# split_paragraphs FILE NUMBER FOLDER: the "paragraphs" format (see KNOWN),
+# into FOLDER's book files, booklist and booknames. Prints "ok BOOKS
+# VERSES" or "problem MESSAGE". Nothing in the text is left out:
+#   - a book's heading and introduction (before book 1, the front matter
+#     too) are its chapter 0, row by row, as in split_chapters();
+#   - a chapter's heading line ("Genesis Chapter 1") starts it (dropped:
+#     the chapter number is the verses'); its summary, and anything else
+#     before its verse 1 (a psalm's title), are its verse 0;
+#   - a verse is a paragraph "C:V. text" (or "C:V: text", "C:V text",
+#     "C:V.text"; "9a:1" is chapter 9 going on): a number lower than the
+#     verse before (the second half of a psalm numbered from 1 again) is
+#     numbered on from it; the same number again is more of that verse,
+#     on a line of its own (so the numbers after it stay as printed);
+#   - a paragraph after a verse is a note on it, kept in the verse on a
+#     line of its own (EBaC shows a tab in a verse as a new line); one in
+#     capitals (ALEPH.) is a heading of the next verse, on a line before
+#     it, or of the next chapter or book if one comes first;
+#   - a "text" book (an appendix) is rows only, as chapter 0.
+split_paragraphs() {
+        known_detail "$2" > "$tmp/detail"
+        tr -d '\r' < "$1" | $AWK -F '\t' -v folder="$3" "$PLAIN"'
+        function fail(m) { if (!failed) print "problem " m; failed = 1; exit }
+        function starts(line, s) { return substr(line, 1, length(s)) == s }
+        function file_of(name,    f) { f = name; gsub(/[^A-Za-z0-9]/, "", f); return f }
+        function chars(s,    t) { t = s; return length(t) - gsub(/[\200-\277]/, "", t) }
+        function first_word(s) { sub(/^ +/, "", s); sub(/ .*$/, "", s); return s }
+        # a verse, or a row of chapter 0, as a line of its book file (its
+        # parts already plain, joined by tabs)
+        function put(c, v, text) {
+                if (text == "" && c > 0) return
+                print "[" c ":" v "]" (text == "" ? "" : " " text) > out
+                verses++
+                if (c > 0 && v > 0) counted[b]++
+        }
+        # (a tab on its own between spaces: EBaC and its index read words
+        # between spaces, so a word is never joined to the tab)
+        function part(s, p) { return (s == "") ? p : s " \t " p }
+        function put_intro(    i, row, n, k, first, last) {
+                n = 0
+                for (i = 1; i <= nintro; i++) {
+                        if (intro[i] == "") { rows[++n] = ""; continue }
+                        row = intro[i]
+                        while (i < nintro && intro[i + 1] != "" &&
+                               chars(intro[i]) + 1 + chars(first_word(intro[i + 1])) > wrap) {
+                                i++
+                                row = row " " intro[i]
+                        }
+                        rows[++n] = row
+                }
+                for (first = 1; first <= n && rows[first] == ""; first++) ;
+                for (last = n; last >= first && rows[last] == ""; last--) ;
+                k = 0
+                for (i = first; i <= last; i++)
+                        put(0, ++k, plain(rows[i]))
+                nintro = 0
+        }
+        function add_intro(line) { intro[++nintro] = line }
+        function flush_verse() {
+                if (have) put(chap, vnum, vb)
+                have = 0; vb = ""
+        }
+        function start_book(k,    i, n, bits) {
+                if (b > 0) {
+                        flush_verse()
+                        if (mode == "intro") put_intro()
+                        close(out)
+                }
+                b = k
+                out = folder "/" file_of(bookname[b])
+                print file_of(bookname[b]) > (folder "/booklist")
+                print bookname[b] > (folder "/booknames")
+                mode = "intro"; chap = 0; vnum = 0; have = 0; vb = ""; pre = ""; nintro = 0
+                if (pend != "") {       # (a heading of this book)
+                        n = split(pend, bits, / \t /)
+                        for (i = 1; i <= n; i++) { add_intro(bits[i]); add_intro("") }
+                        pend = ""
+                }
+        }
+        function chapter_heading(line, n) {
+                return line == bookname[b] " Chapter " n || line == bookname[b] " Chapter " n "."
+        }
+        function heading_like(t) {
+                return t == toupper(t) && t ~ /[A-Z]/ && length(t) <= 60
+        }
+        # a paragraph (para[1..np]) of a book with chapters, once its
+        # chapter 1 has begun
+        function paragraph(    f, p, i, rest, lab, num, n, t) {
+                f = para[1]
+                p = para[1]
+                for (i = 2; i <= np; i++) p = p " " para[i]
+                np = 0
+                if (b < nb && starts(f, heading[b + 1])) {
+                        start_book(b + 1)
+                        add_intro(f)
+                        return 2        # (the rest of it: its introduction)
+                }
+                if (chapter_heading(f, chap + 1)) {
+                        flush_verse()
+                        chap++; vnum = 0; pre = pend; pend = ""; wrote0 = 0
+                        rest = substr(p, length(f) + 2)
+                        if (rest != "") pre = part(pre, plain(rest))
+                        return 0
+                }
+                if (f ~ / Chapter [0-9]+\.?$/ && starts(f, bookname[b] " Chapter "))
+                        fail("\"" f "\" out of order (in " bookname[b] " " chap ")")
+                if (match(p, /^[0-9]+a?:[0-9]+[.:]? ?/)) {
+                        lab = substr(p, 1, index(p, ":") - 1)
+                        num = substr(p, index(p, ":") + 1, RLENGTH - index(p, ":"))
+                        gsub(/[^0-9]/, "", num)
+                        rest = substr(p, RLENGTH + 1)
+                        if (lab != chap "" && lab != chap "a")
+                                fail("verse " lab ":" num " in " bookname[b] " chapter " chap)
+                        n = num + 0
+                        if (lab == chap "" && n == vnum && have) {
+                                # the same number again: more of that verse,
+                                # on a line of its own (the numbers after it
+                                # go on from it)
+                                vb = part(vb, plain(rest)); repeated++
+                                return 0
+                        }
+                        if (lab != chap "" || n < vnum) { n = vnum + 1; renumbered++ }
+                        else if (n > vnum + 1) gaps++
+                        if (vnum == 0) {
+                                if (pre != "") { put(chap, 0, pre); pre = ""; wrote0 = 1 }
+                                if (n > 1 && !wrote0)
+                                        fail(bookname[b] " " chap " starts at verse " n ", with nothing before it")
+                        }
+                        flush_verse()
+                        t = plain(rest)
+                        vb = (pend != "") ? pend " \t " t : t
+                        pend = ""; vnum = n; have = 1
+                        return 0
+                }
+                t = plain(p)
+                if (vnum == 0) { pre = part(pre, t); return 0 }
+                if (heading_like(t) || pend != "") { pend = part(pend, t); notes++; return 0 }
+                vb = part(vb, t); notes++
+                return 0
+        }
+        FILENAME == ARGV[1] {
+                if ($1 == "book" || $1 == "text") { nb++; kind[nb] = $1; bookname[nb] = $2; heading[nb] = $3 }
+                next
+        }
+        /^\*\*\* START OF / { body = 1; next }
+        /^\*\*\* END OF / { body = 0; next }
+        !body { next }
+        {
+                line = $0
+                sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+                text[++lines] = line
+                if (line != "") lengths[++nlengths] = chars(line)
+        }
+        END {
+                if (failed) exit
+                if (lines == 0) fail("no text between Gutenberg'\''s START and END lines")
+                for (i = 1; i <= nlengths; i++) count[lengths[i]]++
+                for (wrap = 0; wrap < 1000; wrap++) {
+                        under += count[wrap]
+                        if (under >= nlengths * 0.99) break
+                }
+                for (i = 1; i <= lines; i++)
+                        if (text[i] == heading[1]) { book1 = i; break }
+                if (!book1) fail("no heading \"" heading[1] "\"")
+                start_book(1)
+                for (i = 1; i < book1; i++)
+                        add_intro(text[i])
+                skip_intro = 0
+                for (i = book1; i <= lines; i++) {
+                        line = text[i]
+                        if (mode == "intro") {
+                                if (b < nb && kind[b] == "text" && starts(line, heading[b + 1])) {
+                                        start_book(b + 1)
+                                        add_intro(line)
+                                        continue
+                                }
+                                if (kind[b] == "book" && chapter_heading(line, 1)) {
+                                        put_intro()
+                                        mode = "verses"
+                                        np = 1; para[1] = line
+                                        continue
+                                }
+                                add_intro(line)
+                                continue
+                        }
+                        if (line == "") {
+                                if (np) {
+                                        if (paragraph() == 2) {
+                                                # (a new book: the rest of its heading
+                                                # paragraph is its introduction)
+                                                for (k = 2; k <= saved_np; k++) add_intro(saved[k])
+                                                add_intro("")
+                                        }
+                                }
+                                continue
+                        }
+                        para[++np] = line
+                        saved_np = np; saved[np] = line
+                }
+                if (np && mode == "verses") paragraph()
+                if (have && pend != "") { vb = part(vb, pend); pend = "" }
+                flush_verse()
+                if (mode == "intro") put_intro()
+                if (b != nb) fail("found " b " of its " nb " books (the next: \"" heading[b + 1] "\")")
+                for (k = 1; k <= nb; k++)
+                        if (kind[k] == "book" && !counted[k]) fail(bookname[k] " has no verses")
+                print "notes " notes ", numbered on " renumbered ", repeated " repeated ", gaps " gaps > "/dev/stderr"
+                print "ok " nb " " verses
+        }' "$tmp/detail" -
+}
+
 # add NUMBER URL: add the text (sets problem on failure)
 add() {
         folder=$here/$name
@@ -558,6 +856,7 @@ add() {
         mkdir "$folder" || { problem="couldn't make the folder $folder"; return 1; }
         case $format in
         chapters) result=$(split_chapters "$tmp/text" "$1" "$folder" | tail -n 1) ;;
+        paragraphs) result=$(split_paragraphs "$tmp/text" "$1" "$folder" | tail -n 1) ;;
         *) result="problem this script doesn't know the format $format" ;;
         esac
         case $result in
@@ -865,7 +1164,9 @@ if [ -z "$number_arg" ]; then
         # (lines of 50 columns at most: a phone's screen)
         echo "Find it on gutenberg.org, check it is the one,"
         echo "and type its ebook number here: the EBook-No."
-        echo "on its page (17 for the Book of Mormon)."
+        echo "on its page. EBaC knows, for now:"
+        echo "  17    the Book of Mormon (BOM-PG)"
+        echo "  1581  the Douay-Rheims Bible (DRC-PG)"
         ours > "$tmp/ours"
         if [ -s "$tmp/ours" ]; then
                 echo

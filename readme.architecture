@@ -1269,6 +1269,51 @@ first:
 
   17   BOM-PG The Book of Mormon (format: "Book Chapter N", then "C:V
              text")
+  1581 DRC-PG The Douay-Rheims Bible, Challoner revision (format:
+             "paragraphs"; November 5, 2026: see below)
+
+The Douay-Rheims (November 5, 2026; the designer's decisions). Gutenberg
+has it twice: ebook 8300, whose own header says "an improved and more
+complete edition" is ebook 1581, and 1581. Compared: both have the 73
+books and Challoner's notes (about 1,750); 8300 lacks 1 Machabees 4:32,
+two chapter headings (Job 39, 1 Machabees 2), and numbers Psalm 9's
+second half from 1 again; 1581 has every verse and heading, marks that
+half "9a", and has appendices (the 1609 Prayer of Manasses and 3 and 4
+Esdras, the 1610 Abdias and 1582 Jude "for comparison", the 1582
+Preface to the Reader, and its glossary, "Hard Words Explicated"). 1581
+is the one known, as DRC-PG (beside GitHub's DRC). Its layout, the
+"paragraphs" format (split_paragraphs() in add-gutenberg.sh), as for
+the Book of Mormon with these:
+
+  - Paragraphs, not lines: a verse is a paragraph, "1:1. In the
+    beginning..." (slips accepted: "1:18:", "4:1 ", "19:18.They").
+  - A note (a paragraph after a verse) is kept in the verse it follows,
+    on a line of its own; a heading between verses, in capitals (ALEPH.
+    in Psalm 118), on a line of its own before the verse it heads, or,
+    if a chapter or book comes first, before that. A line of its own is
+    a tab in the verse's text, alone between spaces (so that EBaC's
+    readers, which read words between spaces, never join it to a word):
+    EBaC shows each part after a tab on a new line (dis_verse() and
+    count_lines() in userint.c, which agree, a part at a time), and the
+    index skips it, as punctuation; ebac-api speaks it as a space.
+  - A chapter's summary, and its psalm title, are its verse 0.
+  - Numbering: a verse numbered lower than the one before (Psalm 9's
+    second half, "9a", and Psalm 113's, which 1581 numbers from 1
+    again) is numbered on from it: 9:22-9:39, 113:9-113:26, as most
+    Douay-Rheims editions number them. The same number again
+    (Proverbs 12:12, twice) is more of that verse, on a line of its own,
+    so the numbers after it stay as printed. Psalms 115 and 147 start at
+    verses 10 and 12 as printed, after their titles (verse 0).
+  - An appendix, whose verses are numbered within its running text, is
+    a book of rows only (chapter 0), its numbers kept as printed:
+    Prayer of Manasses, 3 Esdras, 4 Esdras, Abdias 1610, Jude 1582,
+    Preface 1582, Hard Words 1582. A whole chapter of 3 Esdras is one
+    paragraph, so one row, up to 14,000 bytes: LONGESTVERSE is 16,000
+    (it was 4,000; the CoCo keeps 700, and adds no texts).
+
+Checked: every word of the text between Gutenberg's START and END lines
+is in the books, but the chapter-heading lines and verse numbers, whose
+place is EBaC's own numbering.
 
 The address, from the number. The number is looked up first in the
 list built in (a number not there is refused, with no request made).
