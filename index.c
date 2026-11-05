@@ -163,15 +163,32 @@ if (line_start)
     in_brackets = FALSE;
 }
 
-/* Read until a delimeter is found, or EOF. A word too long for word[] is
+/* Read until a delimeter is found (a space, a line's end, or a note's
+   brace: see below), or EOF. A word too long for word[] is
    cut short, but all of it is read, and counted in raw_length. */
 raw_length = 1;
+c = UCHAR(word[0]);
 for(;;)
 {
+    /* A {note} joined to the words around it, as "God{After ...}" or
+       "...elders."}By" in the World English Bible, is a word apart: a "}"
+       ends a word, and a "{" starts one, as a space would (the text as it
+       is; November 2026) */
+    if (c == '}')
+    {
+        ended_line = FALSE;
+        break;
+    }
     c = fgetc(book_file);
     if (c == ' ' || c == '\n' || feof(book_file))
     {
         ended_line = (c == '\n');      /* so the next word starts a line */
+        break;
+    }
+    if (c == '{')
+    {
+        ungetc(c, book_file);          /* (the next word's start) */
+        ended_line = FALSE;
         break;
     }
     raw_length++;

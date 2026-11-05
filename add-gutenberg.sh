@@ -92,7 +92,28 @@ fi
 #              before them, or headings (in capitals) of the verse after
 #              them. A "text" line is a book without chapters or verses
 #              (an appendix): its rows only. (See split_paragraphs().)
+#   verses     each book starts with a line "Book 01 Genesis" (its name
+#              from there: no book lines needed); a verse is "001:001
+#              text", its wrapped lines indented under it; anything before
+#              the first book is its chapter 0. (See split_verses().)
+#   sidebyside several translations in one text, each verse a number
+#              "002.255" and then a paragraph per translation, each
+#              starting with its key ("Y: "); a "translation" line per
+#              translation: its key, short name, and where the text says
+#              which it is (that line, after "= ", is its title). A
+#              chapter starts with " Chapter 2:", then its heading lines
+#              (its verse 0); the books are given by "book" lines, the
+#              first chapter of each with them. (See split_sidebyside().)
+#
+# A text of several translations has their short names, separated by
+# spaces, as its short name: each is added, and removed, on its own.
 KNOWN='
+16955	YUSUFALI-PG PICKTHALL-PG SHAKIR-PG	sidebyside
+translation	Y	YUSUFALI-PG
+translation	P	PICKTHALL-PG
+translation	S	SHAKIR-PG
+book	Qur'"'"'an	1
+8294	WEB-PG	verses
 1581	DRC-PG	paragraphs
 book	Genesis	THE BOOK OF GENESIS
 book	Exodus	THE BOOK OF EXODUS
@@ -212,7 +233,8 @@ function plain(s) {
 }'
 
 tmp=""
-adding=""
+adding=""                       # (the names being added: see drop_adding)
+names=""
 from_ebac=""
 start_with=""
 failed=0
@@ -232,7 +254,7 @@ back_to_ebac() {
 }
 
 interrupted() {
-        [ -n "$adding" ] && [ -d "$adding" ] && rm -rf "$adding"
+        drop_adding
         echo
         if [ -n "$from_ebac" ]; then
                 echo "Stopped."
@@ -277,7 +299,8 @@ known() {
 known_detail() {
         printf '%s\n' "$KNOWN" | $AWK -F '\t' -v n="$1" '
                 $1 ~ /^[0-9]+$/ { this = ($1 == n); next }
-                this && ($1 == "book" || $1 == "text" || $1 == "front") { print }'
+                this && ($1 == "book" || $1 == "text" || $1 == "front" ||
+                         $1 == "translation") { print }'
 }
 
 # fetch URL FILE (sets problem on failure)
@@ -859,18 +882,281 @@ split_paragraphs() {
         }' "$tmp/detail" -
 }
 
-# add NUMBER URL: add the text (sets problem on failure)
+# split_verses FILE NUMBER FOLDER: the "verses" format (see KNOWN), into
+# FOLDER's book files, booklist and booknames. Prints "ok BOOKS VERSES" or
+# "problem MESSAGE". Nothing in the text is left out:
+#   - a book's line ("Book 01 Genesis") starts it, and names it (the line
+#     itself isn't kept: its number is the book's place, its name the
+#     book's);
+#   - a verse, "001:001 In the beginning...", goes on in the lines under
+#     it (indented), joined to it with a space, as the text wraps it;
+#   - its brackets and braces are kept as they are: [words supplied], and
+#     {notes} (EBaC's own marks for them; braces joined to a word end it,
+#     in the index: see read_word() in index.c), and a psalm's title,
+#     <<A Psalm by David.>>, at the start of its verse 1, as printed;
+#   - what comes before the first book is that book's chapter 0, a row a
+#     line (blank lines at its start and end left out).
+# The verses must come in order, from 1:1, each book's chapters one after
+# another and each chapter's verses too: anything else stops it.
+split_verses() {
+        tr -d '\r' < "$1" | $AWK -v folder="$3" "$PLAIN"'
+        function fail(m) { if (!failed) print "problem " m; failed = 1; exit }
+        function file_of(name,    f) { f = name; gsub(/[^A-Za-z0-9]/, "", f); return f }
+        function put(c, v, text) {
+                if (text == "")
+                        print "[" c ":" v "]" > out
+                else
+                        print "[" c ":" v "] " text > out
+                verses++
+        }
+        function flush() { if (have) put(chap, vnum, plain(vb)); have = 0 }
+        /^\*\*\* START OF / { body = 1; next }
+        /^\*\*\* END OF / { body = 0; next }
+        !body { next }
+        /^Book [0-9]+ / {
+                flush()
+                if (b > 0 && chap == 0) fail(name " has no verses")
+                n = $2 + 0
+                if (n != b + 1) fail("book " n " after book " b)
+                b = n
+                name = $0; sub(/^Book [0-9]+ +/, "", name); sub(/ +$/, "", name)
+                if (out != "") close(out)
+                out = folder "/" file_of(name)
+                print file_of(name) > (folder "/booklist")
+                print name > (folder "/booknames")
+                chap = 0; vnum = 0
+                if (b == 1) {           # (what came before: its chapter 0)
+                        for (first = 1; first <= nfront && front[first] == ""; first++) ;
+                        for (last = nfront; last >= first && front[last] == ""; last--) ;
+                        for (i = first; i <= last; i++) put(0, i - first + 1, plain(front[i]))
+                }
+                next
+        }
+        b == 0 { front[++nfront] = $0; next }
+        /^[0-9]+:[0-9]+ / {
+                flush()
+                c = substr($1, 1, index($1, ":") - 1) + 0
+                v = substr($1, index($1, ":") + 1) + 0
+                if (!((c == chap && v == vnum + 1) || (c == chap + 1 && v == 1)))
+                        fail("verse " c ":" v " of " name " after " chap ":" vnum)
+                chap = c; vnum = v
+                vb = substr($0, length($1) + 2); have = 1
+                next
+        }
+        /^ +[^ ]/ {
+                if (!have) fail("a line of " name " outside a verse: " $0)
+                vb = vb " " $0
+                next
+        }
+        /^ *$/ { next }
+        { fail("a line not understood in " name ": " $0) }
+        END {
+                if (failed) exit
+                flush()
+                if (b == 0) fail("no books in the text")
+                if (chap == 0) fail(name " has no verses")
+                print "ok " b " " verses
+        }'
+}
+
+# split_sidebyside FILE NUMBER HERE: the "sidebyside" format (see KNOWN):
+# each translation into its own folder, HERE/NAME, as a text of its own.
+# Prints "title NAME TITLE" for each, then "ok BOOKS VERSES" (the same for
+# each) or "problem MESSAGE". Nothing in the text is left out:
+#   - each translation's paragraph of a verse is that verse in it (its key,
+#     "Y: ", is the translation's, not kept in the verse), its lines
+#     joined with a space, as the text wraps them; it may go on in more
+#     paragraphs, until the next key or verse, each on a line of its own
+#     (a tab before it: see dis_verse() in userint.c);
+#   - a chapter's heading lines after " Chapter 2:" (its name; its verses
+#     and where it was revealed) are its verse 0, in each, a line of its
+#     own each (a tab between them: see dis_verse() in userint.c);
+#   - what comes before the first chapter is the first book's chapter 0
+#     in each, a row a paragraph: but the lines saying which translation
+#     each key is go each to its own translation only (its title, too);
+#     blank lines between them, one blank row;
+#   - the " Chapter 2:" lines (EBaC numbers the chapters itself), and the
+#     lines of dashes between the headings and the verses, aren't kept.
+# A verse number must be the one after the verse before ("002.255" after
+# "002.254", or the first of the next chapter): a number line written
+# wrongly in the text (as "0.033" for 017.033) is taken as the next verse
+# only if the next number line is the one after it. Each verse needs a
+# paragraph from every translation, once.
+split_sidebyside() {
+        known_detail "$2" > "$tmp/detail"
+        tr -d '\r' < "$1" | $AWK -F '\t' -v here="$3" "$PLAIN"'
+        function fail(m) { if (!failed) print "problem " m; failed = 1; exit }
+        function file_of(name,    f) { f = name; gsub(/[^A-Za-z0-9]/, "", f); return f }
+        function put(k, c, v, text) {
+                if (text == "")
+                        print "[" c ":" v "]" > out[k]
+                else
+                        print "[" c ":" v "] " text > out[k]
+                count[k]++
+        }
+        function start_book(n,    k) {
+                b = n
+                for (k = 1; k <= nk; k++) {
+                        if (out[k] != "") close(out[k])
+                        out[k] = here "/" tname[k] "/" file_of(bookname[b])
+                        print file_of(bookname[b]) > (here "/" tname[k] "/booklist")
+                        print bookname[b] > (here "/" tname[k] "/booknames")
+                }
+        }
+        # the paragraph being read: of translation key (k), or a heading
+        function end_para() {
+                if (pk != "") {
+                        if (got[pk]) fail("two of " key[pk] ": at " chap ":" vnum)
+                        got[pk] = 1; text[pk] = plain_parts(pb)
+                }
+                pk = ""; pb = ""; brk = 0
+        }
+        # (each part plain, the tabs between them kept)
+        function plain_parts(s,    n, i, bits, t) {
+                n = split(s, bits, /\t/)
+                t = plain(bits[1])
+                for (i = 2; i <= n; i++) t = t " \t " plain(bits[i])
+                return t
+        }
+        function flush_verse(    k) {
+                end_para()
+                if (!have) return
+                for (k = 1; k <= nk; k++) {
+                        if (!got[k]) fail("no " key[k] ": at " chap ":" vnum)
+                        put(k, chap, vnum, text[k])
+                        got[k] = 0
+                }
+                have = 0
+        }
+        function put_front(    k, i, n, row, rows, first, last, blank) {
+                for (k = 1; k <= nk; k++) {
+                        n = 0; row = ""; blank = 0
+                        for (i = 1; i <= nfront; i++) {
+                                if (front[i] == "") {
+                                        if (row != "") { rows[++n] = row; row = "" }
+                                        blank = 1
+                                        continue
+                                }
+                                if (fkey[i] != "" && fkey[i] != k) continue
+                                if (blank && n > 0) rows[++n] = ""
+                                blank = 0
+                                row = (row == "") ? front[i] : row " " front[i]
+                        }
+                        if (row != "") rows[++n] = row
+                        for (i = 1; i <= n; i++) put(k, 0, i, plain(rows[i]))
+                }
+        }
+        FILENAME == ARGV[1] {
+                if ($1 == "translation") { nk++; key[nk] = $2; tname[nk] = $3; which[$2] = nk }
+                if ($1 == "book") { nb++; bookname[nb] = $2; bookstart[nb] = $3 + 0 }
+                next
+        }
+        /^\*\*\* START OF / { body = 1; next }
+        /^\*\*\* END OF / { body = 0; next }
+        !body { next }
+        /^ Chapter [0-9]+:$/ {
+                flush_verse()
+                c = $0; gsub(/[^0-9]/, "", c); c += 0
+                if (c != chap + 1) fail("chapter " c " after chapter " chap)
+                if (chap == 0) {
+                        if (nk == 0 || nb == 0) fail("no translations or books for it in this script")
+                        start_book(1); put_front()
+                } else if (b < nb && c == bookstart[b + 1])
+                        start_book(b + 1)
+                chap = c; vnum = 0; heading = ""; mode = "heading"
+                next
+        }
+        /^-+$/ { next }
+        chap == 0 {
+                # (before the first chapter: which translation each key is)
+                line = $0; sub(/^ +/, "", line); sub(/ +$/, "", line)
+                nfront++; front[nfront] = line; fkey[nfront] = ""
+                if (match(line, /^[^ :]+: = /)) {
+                        k = which[substr(line, 1, index(line, ":") - 1)]
+                        if (k) {
+                                fkey[nfront] = k
+                                title[k] = substr(line, RLENGTH + 1)
+                        }
+                }
+                next
+        }
+        mode == "heading" && !/^[0-9.]+$/ {
+                line = plain($0)
+                if (line != "") heading = (heading == "") ? line : heading " \t " line
+                next
+        }
+        /^[0-9.]+$/ {
+                flush_verse()
+                if (mode == "heading") {
+                        for (k = 1; k <= nk; k++) put(k, chap, 0, heading)
+                        mode = "verses"
+                }
+                if ($0 ~ /^[0-9]+\.[0-9]+$/ && length($0) == 7) {
+                        c = substr($0, 1, 3) + 0; v = substr($0, 5) + 0
+                        if (c != chap || v != vnum + 1)
+                                fail("verse " $0 " after " chap ":" vnum)
+                } else {
+                        # (written wrongly: the next verse, if the next
+                        # number line says so)
+                        # (the check above, on that line, makes sure)
+                        v = vnum + 1; slips++
+                }
+                vnum = v; have = 1
+                next
+        }
+        /^[^ :]+: / && have {
+                k = which[substr($0, 1, index($0, ":") - 1)]
+                if (k) {
+                        end_para()
+                        pk = k; pb = substr($0, index($0, ":") + 2)
+                        next
+                }
+        }
+        # (a blank line: the paragraph may go on after it, a new paragraph
+        # of the same translation, on a line of its own; until a key, or
+        # the next verse)
+        /^$/ { if (pk != "") brk = 1; next }
+        {
+                if (pk == "") fail("a line not understood, at " chap ":" vnum ": " $0)
+                pb = pb (brk ? "\t" : " ") $0
+                if (brk) paras++
+                brk = 0
+        }
+        END {
+                if (failed) exit
+                flush_verse()
+                if (chap == 0) fail("no chapters in the text")
+                for (k = 1; k <= nk; k++) {
+                        if (title[k] == "") fail("the text doesn'"'"'t say which translation " key[k] " is")
+                        if (count[k] != count[1]) fail("the translations have different numbers of verses")
+                        print "title\t" tname[k] "\t" plain(title[k])
+                }
+                print "number lines written wrongly, taken as the next verse: " slips ", paragraphs within a verse: " paras > "/dev/stderr"
+                print "ok " nb " " count[1]
+        }' "$tmp/detail" -
+}
+
+# add NUMBER URL: add the text, as each of its names (sets problem on
+# failure)
 add() {
-        folder=$here/$name
-        adding=$folder
-        printf '%s: writing its books into the folder %s...\n' "$name" "$name"
-        rm -rf "$folder"
-        mkdir "$folder" || { problem="couldn't make the folder $folder"; return 1; }
+        if [ "$name" = "$names" ]; then
+                printf '%s: writing its books into the folder %s...\n' "$name" "$name"
+        else
+                printf 'Ebook %s: writing its translations into the folders %s...\n' "$1" "$names"
+        fi
+        adding=$names
+        for n in $names; do
+                rm -rf "$here/$n"
+                mkdir "$here/$n" || { problem="couldn't make the folder $here/$n"; return 1; }
+        done
         case $format in
-        chapters) result=$(split_chapters "$tmp/text" "$1" "$folder" | tail -n 1) ;;
-        paragraphs) result=$(split_paragraphs "$tmp/text" "$1" "$folder" | tail -n 1) ;;
-        *) result="problem this script doesn't know the format $format" ;;
+        chapters) split_chapters "$tmp/text" "$1" "$here/$name" > "$tmp/split" ;;
+        paragraphs) split_paragraphs "$tmp/text" "$1" "$here/$name" > "$tmp/split" ;;
+        verses) split_verses "$tmp/text" "$1" "$here/$name" > "$tmp/split" ;;
+        sidebyside) split_sidebyside "$tmp/text" "$1" "$here" > "$tmp/split" ;;
+        *) echo "problem this script doesn't know the format $format" > "$tmp/split" ;;
         esac
+        result=$(tail -n 1 "$tmp/split")
         case $result in
         "ok "*) ;;
         "problem "*) problem=${result#problem }; return 1 ;;
@@ -878,37 +1164,60 @@ add() {
         esac
         set -- $result
         total=$3
-        printf '%s: building the concordance index...\n' "$name"
         index_program || return 1
-        (cd "$folder" && "$here/index" -y > /dev/null) || { problem="building the index failed"; return 1; }
-        found=$(index_verses "$folder")
-        if [ "$found" != "$total" ]; then
-                problem="the index has $found verses, but the text has $total"
-                return 1
-        fi
-        { printf 'License: %s\n' "$license_text"
-          [ -n "$terms" ] && printf 'Terms: %s\n' "$terms"
-          [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
-          printf 'Details: https://www.gutenberg.org/ebooks/%s\n' "$number"
-          printf 'Agreed: %s (%s)\n' "$(date '+%Y-%m-%d')" "$agreed"
-        } > "$folder/license" || { problem="couldn't write $name/license"; return 1; }
-        { [ -n "$etag" ] && printf 'Version: %s\n' "$etag"
-          [ -n "$size" ] && printf 'Size: %s\n' "$size"
-          [ -n "$modified" ] && printf 'Modified: %s\n' "$modified"
-          [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
-          printf 'Checksum: %s\n' "$checksum"
-          printf 'Downloaded: %s\n' "$(date '+%Y-%m-%d')"
-          printf 'Layout: %s\n' "$LAYOUT"
-        } > "$folder/version"
-        { printf 'Ebook: %s\n' "$number"
-          printf 'Address: %s\n' "$url"
-        } > "$folder/gutenberg" || { problem="couldn't write $name/gutenberg"; return 1; }
-        { printf '%-11s %s\n' "$name" "$title"
-          without_line "$name"; } > "$tmp/trans" &&
-                cat "$tmp/trans" > "$here/trans"
+        for n in $names; do
+                folder=$here/$n
+                printf '%s: building the concordance index...\n' "$n"
+                (cd "$folder" && "$here/index" -y > /dev/null) || { problem="building the index of $n failed"; return 1; }
+                found=$(index_verses "$folder")
+                if [ "$found" != "$total" ]; then
+                        problem="the index of $n has $found verses, but the text has $total"
+                        return 1
+                fi
+                { printf 'License: %s\n' "$license_text"
+                  [ -n "$terms" ] && printf 'Terms: %s\n' "$terms"
+                  [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
+                  printf 'Details: https://www.gutenberg.org/ebooks/%s\n' "$number"
+                  printf 'Agreed: %s (%s)\n' "$(date '+%Y-%m-%d')" "$agreed"
+                } > "$folder/license" || { problem="couldn't write $n/license"; return 1; }
+                { [ -n "$etag" ] && printf 'Version: %s\n' "$etag"
+                  [ -n "$size" ] && printf 'Size: %s\n' "$size"
+                  [ -n "$modified" ] && printf 'Modified: %s\n' "$modified"
+                  [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
+                  printf 'Checksum: %s\n' "$checksum"
+                  printf 'Downloaded: %s\n' "$(date '+%Y-%m-%d')"
+                  printf 'Layout: %s\n' "$LAYOUT"
+                } > "$folder/version"
+                { printf 'Ebook: %s\n' "$number"
+                  printf 'Address: %s\n' "$url"
+                } > "$folder/gutenberg" || { problem="couldn't write $n/gutenberg"; return 1; }
+        done
+        # (into trans, at the top, in the order of names: so the last first)
+        for n in $(printf '%s\n' $names | $AWK '{ l[NR] = $0 } END { for (i = NR; i > 0; i--) print l[i] }'); do
+                t=$($AWK -F '\t' -v n="$n" '$1 == "title" && $2 == n { print $3 }' "$tmp/split")
+                [ -n "$t" ] || t=$title
+                { printf '%-11s %s\n' "$n" "$t"
+                  without_line "$n"; } > "$tmp/trans" &&
+                        cat "$tmp/trans" > "$here/trans"
+        done
         adding=""
-        printf '%s: done. %s is ready: start EBaC and press C to choose it.\n' "$name" "$title"
+        for n in $names; do
+                printf '%s: done. %s is ready: start EBaC and press C to choose it.\n' "$n" "$(trans_title "$n")"
+        done
         return 0
+}
+
+# trans_title NAME: its title, as trans lists it
+trans_title() {
+        $AWK -v n="$1" '$1 == n { $1 = ""; sub(/^ +/, ""); print; exit }' "$here/trans"
+}
+
+# drop_adding: the folders of a text not wholly added (stopped, or failed)
+drop_adding() {
+        for n in $adding; do
+                [ -d "$here/$n" ] && rm -rf "$here/$n"
+        done
+        adding=""
 }
 
 # The address of an ebook's plain text in UTF-8, from its number:
@@ -1037,11 +1346,30 @@ download_text() {
         # (the same text as the copy kept, though nothing said so before:
         # not added again)
         checksum=$(cksum < "$tmp/text" | $AWK '{ print $1 " " $2 }')
-        if [ -f "$here/$name/gutenberg" ] && [ "$checksum" = "$(kept_field "$name" Checksum)" ] &&
-           same_layout "$name"; then
+        if all_same_checksum; then
                 already_have
                 return 1
         fi
+        return 0
+}
+
+# all_same_version: whether the copy of each of the text's names kept is
+# the version offered now (see same_version): if one is missing, or older,
+# the text is added again, as all of them
+all_same_version() {
+        for n in $names; do
+                same_version "$n" || return 1
+        done
+        return 0
+}
+
+# all_same_checksum: whether each copy kept is of the very text downloaded
+all_same_checksum() {
+        for n in $names; do
+                [ -f "$here/$n/gutenberg" ] &&
+                        [ "$checksum" = "$(kept_field "$n" Checksum)" ] &&
+                        same_layout "$n" || return 1
+        done
         return 0
 }
 
@@ -1065,19 +1393,22 @@ add_number() {
                 problem="ebook $number isn't one this importer knows yet (each text's layout is added by hand; see readme.architecture)"
                 return 1
         fi
-        name=$(printf '%s\n' "$line" | cut -f2)
+        names=$(printf '%s\n' "$line" | cut -f2)
+        name=${names%% *}               # (the first, for what is said)
         format=$(printf '%s\n' "$line" | cut -f3)
-        if [ -d "$here/$name" ] && [ ! -f "$here/$name/gutenberg" ]; then
-                problem="a translation named $name is there already, not from Project Gutenberg"
-                return 1
-        fi
+        for n in $names; do
+                if [ -d "$here/$n" ] && [ ! -f "$here/$n/gutenberg" ]; then
+                        problem="a translation named $n is there already, not from Project Gutenberg"
+                        return 1
+                fi
+        done
         url=$(printf "$PLAIN_TEXT" "$number")
         version_now=$(version_of "$url")
         etag=$(printf '%s\n' "$version_now" | cut -f1)
         size=$(printf '%s\n' "$version_now" | cut -f2)
         modified=$(printf '%s\n' "$version_now" | cut -f3)
         updated=""
-        same_version "$name" && { already_have; return 1; }
+        all_same_version && { already_have; return 1; }
         # Its page first: its title, last update and copyright status,
         # agreed to before the text is downloaded. (Without its page, the
         # text is downloaded first, and its license read from it.)
@@ -1100,7 +1431,7 @@ add_number() {
                         page_read=no    # (not as expected: as without it)
                         page_why="its page has no copyright status"
                 fi
-                same_version "$name" && { already_have; return 1; }
+                all_same_version && { already_have; return 1; }
         fi
         if [ $page_read = yes ]; then
                 [ -n "$title" ] || title="Project Gutenberg ebook $number"
@@ -1186,6 +1517,9 @@ if [ -z "$number_arg" ]; then
         echo "on its page. EBaC knows, for now:"
         echo "  17    the Book of Mormon (BOM-PG)"
         echo "  1581  the Douay-Rheims Bible (DRC-PG)"
+        echo "  8294  the World English Bible (WEB-PG)"
+        echo "  16955 the Qur'an in three translations:"
+        echo "        YUSUFALI-PG, PICKTHALL-PG, SHAKIR-PG"
         ours > "$tmp/ours"
         if [ -s "$tmp/ours" ]; then
                 echo
@@ -1238,9 +1572,12 @@ if [ -n "$number_arg" ]; then
         if add_number "$number_arg"; then
                 start_with=$name
         else
-                [ -n "$adding" ] && [ -d "$adding" ] && rm -rf "$adding"
-                adding=""
-                printf '%s: not added: %s.\n' "${name:-$number_arg}" "$problem"
+                drop_adding
+                if [ -n "$names" ] && [ "$names" != "$name" ]; then
+                        printf 'Ebook %s (%s): not added: %s.\n' "$number_arg" "$names" "$problem"
+                else
+                        printf '%s: not added: %s.\n' "${name:-$number_arg}" "$problem"
+                fi
                 failed=1
         fi
 fi

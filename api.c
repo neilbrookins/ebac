@@ -341,7 +341,7 @@ static char *full_name(int b, char *name)
         return (name);
 }
 
-/* Purpose: a verse's text, without the [ ] marks, for speech; and
+/* Purpose: a verse's text, without the [ ] and << >> marks, for speech; and
             without its notes, which aren't the verse's text (see "Notes"
             in readme.architecture): a part after a tab that starts with
             a "-" alone, and anything in { } (a note in the verse, as
@@ -383,6 +383,9 @@ static void plain_text(char *from, char *to, int size)
                         }
                         to[n++] = ' ';
                 }
+                else if ((from[0] == '<' && from[1] == '<') ||
+                         (from[0] == '>' && from[1] == '>'))
+                        from++;         /* (<<a psalm's title>>: its words) */
                 else if (*from != '[' && *from != ']' && *from != '}')
                         to[n++] = *from;
         to[n] = '\0';
@@ -562,7 +565,8 @@ static void translations(void)
 /*
 ** The ways a book may be spoken: its full name, and, for a numbered book
 ** ("1 Samuel", "I Samuel"), with the number as a digit, a word ("First
-** Samuel"), "1st" and a Roman numeral.
+** Samuel"), "1st" and a Roman numeral; and a name with an apostrophe
+** without it ("Qur'an", "Quran").
 */
 static void print_spoken(char *full)
 {
@@ -606,6 +610,17 @@ static void print_spoken(char *full)
                         printf(", ");
                         json_string(v);
                 }
+        }
+        /* and without its apostrophes, as speech is heard ("Qur'an":
+           "Quran") */
+        for (i = 0, n = 0; full[i] != '\0' && n < (int) sizeof(v) - 1; i++)
+                if (full[i] != '\'')
+                        v[n++] = full[i];
+        v[n] = '\0';
+        if (strcmp(v, full) != 0)
+        {
+                printf(", ");
+                json_string(v);
         }
         printf("]");
 }

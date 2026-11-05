@@ -276,7 +276,12 @@ A word is in brackets if it is inside a [ ... ] that starts at the
 beginning of a word and ends at the end of one: "[was]" in
 "darkness [was] upon", both words of "[it was]". A verse number in
 brackets, [1:1], is a verse number, not a bracketed word. The same for
-{ ... }.
+{ ... }. A brace also ends a word, as a space does (November 5, 2026;
+the designer's decision): a note joined to the words around it, as the
+World English Bible has 776 ("God{After "God," ...} created",
+"..."twenty-four"}elders"), is words apart from them, so "God" and
+"elders" are found, and "God created" too, the note left out. The text
+stays as it is; only the index (read_word() in index.c) reads it so.
 
 The last word. The last word of a verse has its full position flagged
 LAST (the bit 0x40000000 set): a word's record holds only its own
@@ -1271,6 +1276,11 @@ first:
              text")
   1581 DRC-PG The Douay-Rheims Bible, Challoner revision (format:
              "paragraphs"; November 5, 2026: see below)
+  8294 WEB-PG The World English Bible (format: "verses"; November 5,
+             2026: see below)
+  16955 YUSUFALI-PG, PICKTHALL-PG, SHAKIR-PG: the Qur'an in three
+             translations, side by side (format: "sidebyside";
+             November 5, 2026: see below)
 
 The Douay-Rheims (November 5, 2026; the designer's decisions). Gutenberg
 has it twice: ebook 8300, whose own header says "an improved and more
@@ -1353,6 +1363,56 @@ verse's number isn't changed: a note is part of its verse, as before.
 Checked: every word of the text between Gutenberg's START and END lines
 is in the books, but the chapter-heading lines and verse numbers, whose
 place is EBaC's own numbering.
+
+The World English Bible (November 5, 2026; the designer's decisions),
+ebook 8294, 66 books, 31,102 verses. Its layout needs nearly nothing:
+"Book 01 Genesis" starts a book (and names it: the names are the
+text's, so it has no book lines in the list), "001:001 In the
+beginning..." a verse, whose wrapped lines are indented under it. It
+already has EBaC's own marks: [words supplied] and {notes}. A note
+joined to a word ends it, in the index (see "A brace also ends a word"
+above); voice leaves notes out (see "Notes"). A psalm's title is at the
+start of its verse 1, <<A Psalm by David.>>, kept so; voice reads its
+words without the << >>. The line before the first book ("From
+www.ebible.org with slight reformatting by Martin Ward.") is Genesis's
+chapter 0. Checked: all 767,900 words, in order, and the 66 names.
+
+The Qur'an in three translations (November 5, 2026; the designer's
+decisions), ebook 16955, "Three Translations of The Koran (Al-Qur'an)
+side by side": each verse a number, "002.255", then a paragraph from
+each of Abdullah Yusuf Ali ("Y: "), Marmaduke Pickthall ("P: ") and
+Mohammad Habib Shakir ("S: "). Split into three translations,
+YUSUFALI-PG, PICKTHALL-PG and SHAKIR-PG, each the words of its
+translator only, as printed: to compare them, open EBaC three times,
+one in each (nothing more is needed; EBaC shows one translation at a
+time, and runs as many times at once as wanted). Added and kept as one
+text, ebook 16955: added together, each its own folder and line in
+trans (titled from the text's own key lines, "Qur'an Translation by
+Abdullah Yusuf Ali"), each removed on its own (adding the ebook again
+adds all three, if one is missing). A text of several translations
+has their names, separated by spaces, as its name in the list.
+
+  - One book, "Qur'an", its surahs its 114 chapters: so references are
+    as the Qur'an is cited, Qur'an 2:255. Voice hears it as "Quran"
+    too (a book's name without its apostrophe is one of its spoken
+    forms: print_spoken() in api.c).
+  - A surah's heading (its name, "AL-BAQARA (THE COW)", and "Total
+    Verses: 286 Revealed At: MADINA") is its verse 0, in each
+    translation, a line each. The " Chapter 2:" lines (EBaC numbers
+    the chapters itself) and the lines of dashes aren't kept.
+  - Before the first surah: who re-proofed it (in each), and the line
+    saying which translation each key is, in that translation only.
+  - A translator's verse may go on in more than one paragraph (Yusuf
+    Ali's 2:60, and ten more): each later one on a line of its own (a
+    tab before it), as in the Douay-Rheims.
+  - Four verse-number lines are written wrongly in the text: "0.033"
+    for 17:33, "039.04" for 39:46, "04.032" for 45:32, "05.026" for
+    56:26. Such a line, between the right neighbours, is taken as the
+    verse between them; anything else stops the import.
+
+Checked: every word of each translation, in order (Yusuf Ali 169,952,
+Pickthall 157,687, Shakir 163,028); each has 6,236 verses, and 114
+headings.
 
 The address, from the number. The number is looked up first in the
 list built in (a number not there is refused, with no request made).
