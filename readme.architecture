@@ -1331,7 +1331,12 @@ verse's number isn't changed: a note is part of its verse, as before.
     add-gutenberg.sh does, for the Douay-Rheims (1,793 notes). A note
     is a paragraph of the source: two glosses in one paragraph ("The
     tree of life.... The tree of knowledge...." under Genesis 2:9) are
-    one note, as printed.
+    one note, as printed. Splitting a note at each gloss (its "...."),
+    so each had its "---", was considered and declined (November 5,
+    2026; the designer's decision): the text is kept as its source
+    lays it out, with as little parsing as possible, since each added
+    rule can be wrong, and a rule that fits one author's notes ("...."
+    starting a gloss) may not fit another's.
   - Voice: ebac-api's "spoken" leaves notes out (plain_text() in
     api.c), so Assist reads only the verse; "text" is the verse as
     stored. A search that matched a word of a note still finds that
