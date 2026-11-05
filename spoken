@@ -1,0 +1,14 @@
+# spoken -- other ways a book's name may be heard, for voice (the EBaC
+# integration's sentences): what speech recognition may write for a name
+# said aloud ("Coran 3:3"), so that it is understood as that book. See
+# "Voice" in readme.architecture.
+#
+# One book to a line: its full name, as the translation's booknames has it
+# (any case), "=", then the other forms, separated by commas. A book no
+# translation in use has is passed over. (Forms EBaC makes itself need not
+# be listed: "First Samuel" for "1 Samuel", "Quran" for "Qur'an".)
+#
+# Only for voice: what is typed in EBaC is matched by its letters, as
+# always.
+
+Qur'an = Koran, Coran, Kuran, Quoran, Qoran

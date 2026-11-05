@@ -1322,6 +1322,18 @@ the Book of Mormon with these:
     paragraph, so one row, up to 14,000 bytes: LONGESTVERSE is 16,000
     (it was 4,000; the CoCo keeps 700, and adds no texts).
 
+Names as heard (November 5, 2026; the designer's decision). Speech
+recognition writes a name it hears as it guesses it: "Qur'an" said
+aloud comes back "Quran", "Koran" or "Coran". The other forms are data,
+not code: the file "spoken" in the EBaC folder, beside "groups", a line
+per book ("Qur'an = Koran, Coran, Kuran, Quoran, Qoran"), its forms
+added to the book's spoken forms in ebac-api's /books (print_heard() in
+api.c), which the integration's sentences take. Only for voice: typed
+references are matched as before. EBaC makes some forms itself and they
+needn't be listed: a numbered book's ("First Samuel"), and a name
+without its apostrophes ("Quran"). The integration learns new forms
+when it is set up again (a restart of Home Assistant, or Reload).
+
 Notes (November 5, 2026; the designer's decision). Someone reading a
 passage aloud to an audience, told to stop at a verse, could read on
 into the note under it, and see that it is a note (its "...." after the

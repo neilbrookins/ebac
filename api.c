@@ -566,8 +566,10 @@ static void translations(void)
 ** The ways a book may be spoken: its full name, and, for a numbered book
 ** ("1 Samuel", "I Samuel"), with the number as a digit, a word ("First
 ** Samuel"), "1st" and a Roman numeral; and a name with an apostrophe
-** without it ("Qur'an", "Quran").
+** without it ("Qur'an", "Quran"); and the forms the file "spoken" gives.
 */
+static void print_heard(char *full);
+
 static void print_spoken(char *full)
 {
         static char *words[] = { "", "First", "Second", "Third", "Fourth" };
@@ -622,7 +624,72 @@ static void print_spoken(char *full)
                 printf(", ");
                 json_string(v);
         }
+        print_heard(full);
         printf("]");
+}
+
+/*
+** Purpose: print, after the forms above, the other forms the file
+**          "spoken" in the EBaC folder gives for the book full ("Qur'an =
+**          Koran, Coran"): ways speech recognition may write its name. Each
+**          starts with ", ". (Data, not code: see the file.)
+*/
+#define MAXHEARD 4000
+static void print_heard(char *full)
+{
+        static char *lines[MAXHEARD];
+        static int loaded = -1;
+        char line[1000], *p, *form, *end;
+        int i, n;
+        FILE *f;
+
+        if (loaded < 0)
+        {
+                loaded = 0;
+                if ((f = root_fopen("spoken")) != NULL)
+                {
+                        while (loaded < MAXHEARD && fgets(line, sizeof(line), f) != NULL)
+                        {
+                                if ((p = strchr(line, '#')) != NULL)
+                                        *p = '\0';
+                                n = strlen(line);
+                                while (n > 0 && isspace(UCHAR(line[n - 1])))
+                                        line[--n] = '\0';
+                                if (strchr(line, '=') == NULL ||
+                                    (lines[loaded] = malloc(n + 1)) == NULL)
+                                        continue;
+                                strcpy(lines[loaded++], line);
+                        }
+                        fclose(f);
+                }
+        }
+        for (i = 0; i < loaded; i++)
+        {
+                strcpy(line, lines[i]);
+                p = strchr(line, '=');
+                for (end = p; end > line && isspace(UCHAR(end[-1])); end--)
+                        ;
+                *end = '\0';
+                for (form = line; isspace(UCHAR(*form)); form++)
+                        ;
+                if (strcasecmp(form, full) != 0)
+                        continue;
+                for (form = p + 1; form != NULL; form = p)
+                {
+                        if ((p = strchr(form, ',')) != NULL)
+                                *p++ = '\0';
+                        while (isspace(UCHAR(*form)))
+                                form++;
+                        for (end = form + strlen(form); end > form && isspace(UCHAR(end[-1])); end--)
+                                ;
+                        *end = '\0';
+                        if (*form != '\0')
+                        {
+                                printf(", ");
+                                json_string(form);
+                        }
+                }
+        }
 }
 
 /*
