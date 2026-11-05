@@ -6,7 +6,7 @@
 #   sh add-gutenberg.sh 17             add ebook 17
 #   sh add-gutenberg.sh --agree 17     the same, agreeing to its license (for
 #                                      scripts: no one to answer)
-#   sh add-gutenberg.sh --remove BOM   remove one added by this script
+#   sh add-gutenberg.sh --remove BOM-PG  remove one added by this script
 #   sh add-gutenberg.sh --list         list those added by this script
 #   sh add-gutenberg.sh --file PATH 17 read the text from PATH instead of
 #                                      downloading it (for testing)
@@ -31,7 +31,7 @@
 #      the text is downloaded first, and its license read from it);
 #   3. checks there is room on the disk, and downloads it;
 #   4. splits it into a file per book, in a folder named by its short name
-#      (BOM), with booklist, booknames, license and version files (license:
+#      (BOM-PG), with booklist, booknames, license and version files (license:
 #      what was agreed to, and the terms the text itself gives);
 #   5. builds its concordance index, and checks it has every verse;
 #   6. adds it to the top of 'trans', so that EBaC starts with it.
@@ -57,7 +57,7 @@
 # This script adds and removes only its own texts (those whose folder has
 # a file named gutenberg); add-translation.sh, scrollmapper's.
 #
-# EBaC runs this itself for P)roject Gutenberg on its main menu, as "sh
+# EBaC runs this itself for P)roject Gutenberg under A)dd on its main menu, as "sh
 # add-gutenberg.sh --from-ebac PROGRAM NAME", and is started again when it
 # is done, as for add-translation.sh.
 
@@ -86,7 +86,7 @@ fi
 #              and may start in the middle of a line, with the book's name
 #              before them or not ("...them. 2:13 Neither", "4 Nephi 1:1").
 KNOWN='
-17	BOM	chapters
+17	BOM-PG	chapters
 book	1 Nephi	THE FIRST BOOK OF NEPHI
 book	2 Nephi	THE SECOND BOOK OF NEPHI
 book	Jacob	THE BOOK OF JACOB
@@ -179,7 +179,7 @@ press_any_key() {
         echo
 }
 
-# known NUMBER: the text's line of KNOWN ("17<tab>BOM<tab>chapters"), or ""
+# known NUMBER: the text's line of KNOWN ("17<tab>BOM-PG<tab>chapters"), or ""
 known() {
         printf '%s\n' "$KNOWN" | $AWK -F '\t' -v n="$1" '
                 $1 ~ /^[0-9]+$/ { this = ($1 == n); if (this) print; next }'
@@ -288,10 +288,34 @@ without_line() {
         $AWK -v n="$1" '$1 != n' "$here/trans"
 }
 
+# Short names end in -PG (November 2026), so that a text from Project
+# Gutenberg and one from GitHub (add-translation.sh's) can both be kept,
+# side by side: DRC-PG and DRC. A text added before, under its name
+# without -PG (BOM), is renamed: its folder, and its line in trans, in its
+# place there (so EBaC starts with the same one).
+rename_old_names() {
+        printf '%s\n' "$KNOWN" | $AWK -F '\t' '$1 ~ /^[0-9]+$/ { print $2 }' |
+        while read -r new; do
+                old=${new%-PG}
+                [ "$old" != "$new" ] && [ -f "$here/$old/gutenberg" ] &&
+                        [ ! -e "$here/$new" ] || continue
+                mv "$here/$old" "$here/$new" || continue
+                if [ -f "$here/trans" ]; then
+                        $AWK -v o="$old" -v n="$new" '
+                                $1 == o { t = $0; sub(/^[^ \t]+[ \t]+/, "", t)
+                                          printf "%-11s %s\n", n, t; next }
+                                { print }' "$here/trans" > "$here/trans.new" &&
+                                cat "$here/trans.new" > "$here/trans"
+                        rm -f "$here/trans.new"
+                fi
+                printf '%s: renamed %s (from Project Gutenberg).\n' "$old" "$new"
+        done
+}
+
 # remove NAME (sets problem on failure)
 remove() {
         if [ ! -f "$here/$1/gutenberg" ]; then
-                problem="it wasn't added from Project Gutenberg (A removes scrollmapper's)"
+                problem="it wasn't added from Project Gutenberg (A, then G, removes GitHub's)"
                 return 1
         fi
         without_line "$1" > "$tmp/trans"
@@ -810,6 +834,13 @@ while [ $# -gt 0 ]; do
         shift
 done
 
+renamed=$(rename_old_names)
+[ -n "$from_ebac" ] || { [ -n "$renamed" ] && printf '%s\n' "$renamed"; }
+case $start_with in
+*-PG) ;;
+?*) [ -f "$here/$start_with-PG/gutenberg" ] && [ ! -e "$here/$start_with" ] &&
+        start_with=$start_with-PG ;;     # (EBaC's, renamed just now)
+esac
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/ebac-gutenberg.XXXXXX") || exit 1
 trap cleanup EXIT
 trap interrupted INT
@@ -830,6 +861,7 @@ if [ -z "$number_arg" ]; then
         [ -t 1 ] && { clear 2> /dev/null || echo; }
         echo "Add a text from Project Gutenberg"
         echo
+        [ -n "$renamed" ] && { printf '%s\n' "$renamed"; echo; }
         # (lines of 50 columns at most: a phone's screen)
         echo "Find it on gutenberg.org, check it is the one,"
         echo "and type its ebook number here: the EBook-No."

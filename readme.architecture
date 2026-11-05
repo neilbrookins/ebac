@@ -1267,7 +1267,7 @@ Pearl of Great Price, the Doctrine and Covenants) is looked at by hand,
 and added to the list, with a format of its own if it needs one. The
 first:
 
-  17   BOM   The Book of Mormon (format: "Book Chapter N", then "C:V
+  17   BOM-PG The Book of Mormon (format: "Book Chapter N", then "C:V
              text")
 
 The address, from the number. The number is looked up first in the
@@ -1307,6 +1307,26 @@ gives), Updated: (the page's date), Details: and Agreed:. If the page
 can't be read, or hasn't the copyright status (Gutenberg changed its
 layout, say), it is as before: the text is downloaded first and its
 license read from it. --page PATH reads a saved page instead, for tests.
+
+Where to add from (November 5, 2026; the designer's request). The main
+menu has one choice for adding, A)dd; it no longer has P. A)dd asks where
+from (add_menu() in userint.c, still EBaC's own screen): G)itHub (or 1),
+scrollmapper's bible_databases, runs add-translation.sh; P)roject
+Gutenberg (or 2), by ebook number, runs add-gutenberg.sh; X goes back.
+Another place, later, is another line there and another importer. The
+Home Assistant app's page takes a tap on any lettered line of a menu.
+
+Names from more than one place. The same Bible can come from both places
+(the Douay-Rheims: DRC from GitHub), and both should be kept, to compare
+them side by side. So a text from Project Gutenberg has -PG at the end of
+its short name (DRC-PG, BOM-PG): the names can't clash, and where a text
+came from shows. GitHub's names are as before (not "(GH)": translations
+already added keep their names, and a name with parentheses needs quoting
+on a command line). One added before under its name without -PG (BOM)
+is renamed the next time add-gutenberg.sh runs: its folder and its line
+in trans, in its place. Each importer adds and removes only its own
+texts, and add-translation.sh never writes into a folder with a
+gutenberg file, whatever its name.
 
 The same version: refused, kept in the folder's version file; removing
 it first (in P, as r) lets it be downloaded again. (Fixed November 2,

@@ -34,11 +34,11 @@ static char program_path[512] = "";
 /*
 ** The translation importer, add-translation.sh in BIBLEROOT (a shell
 ** script), if it is there; otherwise "". The main menu offers A)dd a
-** translation only when it is set.
+** translation when it or the next is set, and A)dd offers it as G)itHub.
 */
 static char importer[600] = "";
-/* and the importer of Project Gutenberg's texts, add-gutenberg.sh, for
-   P)roject Gutenberg, likewise */
+/* and the importer of Project Gutenberg's texts, add-gutenberg.sh, offered
+   likewise, as P)roject Gutenberg under A)dd (see add_menu()) */
 static char gutenberg[600] = "";
 #endif
 
@@ -87,6 +87,9 @@ struct bcv_type bcv;
 
 /* functions used only in this file */
 static int main_menu P((void));
+#ifdef UNIXV
+static void add_menu P((void));
+#endif
 static void remove_char P((char *strg));
 static int get_number P((void));
 static struct bcv_type *bcv_menu P((void));
@@ -127,6 +130,62 @@ static int tag_label P((int tag));
 static int key_to_tag P((int key));
 static int screen_key P((void));
 
+#ifdef UNIXV
+/*
+** A)dd: where to add a text from (November 2026; the designer's request).
+** Each place has an importer of its own, a shell script, run only when it
+** is chosen here: G)itHub, scrollmapper's bible_databases (add-
+** translation.sh), and P)roject Gutenberg, by ebook number
+** (add-gutenberg.sh). A new place is another line here and another
+** script. Each importer adds, and removes, only its own texts; a text from
+** Project Gutenberg has "-PG" at the end of its short name (DRC-PG), so
+** that one from each place can be kept side by side.
+*/
+static void add_menu(void)
+{
+        int key;
+
+        for (;;)
+        {
+                cls();
+                printf("\n\n");
+                underline();
+                printf("Add or remove a translation\n");
+                underend();
+                printf("\nWhere from?\n\n");
+                if (importer[0] != '\0')
+                        printf("G)itHub: Bible translations, by language\n"
+                               "   (scrollmapper's bible_databases)\n\n");
+                if (gutenberg[0] != '\0')
+                        printf("P)roject Gutenberg: a text, by its ebook\n"
+                               "   number (its short name ends in -PG)\n\n");
+                printf("X) Back to the main menu\n\n");
+                printf("Please press %s%sor X now.\n",
+                       importer[0] != '\0' ? "G (or 1), " : "",
+                       gutenberg[0] != '\0' ? "P (or 2), " : "");
+                scr_mode("menu");
+                key = tolower(screen_key());
+                if ((key == 'g' || key == '1') && importer[0] != '\0')
+                {
+                        run_importer(importer, "translation importer");
+                        return;         /* (only if it couldn't start) */
+                }
+                if ((key == 'p' || key == '2') && gutenberg[0] != '\0')
+                {
+                        run_importer(gutenberg, "Project Gutenberg importer");
+                        return;
+                }
+                if (key == 'x' || key == 0x1b || key == '\r')
+                        return;
+                if (key != KEY_REDRAW)
+                {
+                        putchar('\7');
+                        fflush(stdout);
+                }
+        }
+}
+#endif
+
 static int main_menu(void)
 {
         cls();
@@ -147,22 +206,16 @@ static int main_menu(void)
            touch screen (see gestures.js in the Home Assistant app) */
         printf("C)hange to a different translation\n\n");
 #ifdef UNIXV
-        if (importer[0] != '\0')
+        if (importer[0] != '\0' || gutenberg[0] != '\0')
                 printf("A)dd or remove a translation\n\n");
-        if (gutenberg[0] != '\0')
-                printf("P)roject Gutenberg: add a text\n\n");
 #endif
         printf("V)iew by:   Bookname Chapter:Verse\n\n");
         printf("S)earch by: Keyword(s)\n\n");
         printf("I)nformation about EBaC\n\n");
         printf("E)xit Program\n\n");
 #ifdef UNIXV
-        if (importer[0] != '\0' && gutenberg[0] != '\0')
-                printf("Please press C, A, P, V, S, I, or E now.\n");
-        else if (importer[0] != '\0')
+        if (importer[0] != '\0' || gutenberg[0] != '\0')
                 printf("Please press C, A, V, S, I, or E now.\n");
-        else if (gutenberg[0] != '\0')
-                printf("Please press C, P, V, S, I, or E now.\n");
         else
 #endif
         printf("Please press C, V, S, I, or E now.\n");
@@ -1891,14 +1944,8 @@ int main(int argc, char **argv)
 			break;
 #ifdef UNIXV
 		case 'a':
-			if (importer[0] != '\0')
-				run_importer(importer, "translation importer");
-			else
-				putchar('\7');
-			break;
-		case 'p':
-			if (gutenberg[0] != '\0')
-				run_importer(gutenberg, "Project Gutenberg importer");
+			if (importer[0] != '\0' || gutenberg[0] != '\0')
+				add_menu();
 			else
 				putchar('\7');
 			break;

@@ -771,6 +771,13 @@ add_to() {
         name=$1
         title=$2
         folder=$here/$name
+        # (a text from Project Gutenberg, add-gutenberg.sh's, is never
+        # written over: its short name ends in -PG, so it shouldn't share
+        # one, but if it ever does, it is left alone)
+        if [ -f "$folder/gutenberg" ]; then
+                problem="$name is a text from Project Gutenberg (A, then P, removes it)"
+                return 1
+        fi
         enough_room || return 1
         printf '%s: downloading...\n' "$name"
         fetch "formats/txt/$name.txt" "$tmp/text" || return 1
