@@ -636,6 +636,43 @@
     }
 
     /*
+    ** The mouse wheel: up and down arrows, as many as the lines the wheel
+    ** moved, so EBaC goes back or on a verse for each (a notch of an
+    ** ordinary wheel: about six). The terminal (xterm.js) does this itself
+    ** only when it keeps no scrolled-off lines; it keeps one (see
+    ** noScrollback), and would scroll that, showing nothing new, so the
+    ** wheel is turned into arrows here, as it did (November 5, 2026).
+    ** Only on a screen EBaC names; elsewhere (the translation importers)
+    ** the terminal does as it does.
+    */
+    var wheelLines = 0;         /* part of a line, carried to the next turn */
+    function onWheel(e) {
+        var screen, cell, n, seq, out = "";
+
+        if (!namedScreen() || e.deltaY === 0 || e.shiftKey)
+            return;
+        if (e.deltaMode === 1)                  /* (lines) */
+            wheelLines += e.deltaY;
+        else if (e.deltaMode === 2)             /* (pages) */
+            wheelLines += e.deltaY * term.rows;
+        else {                                  /* (pixels) */
+            screen = term.element.querySelector(".xterm-screen") || term.element;
+            cell = screen.getBoundingClientRect().height / term.rows;
+            wheelLines += e.deltaY / (cell > 0 ? cell : 16);
+        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        n = (wheelLines < 0) ? Math.ceil(wheelLines) : Math.floor(wheelLines);
+        wheelLines -= n;
+        seq = "\x1b" + ((term.modes && term.modes.applicationCursorKeysMode) ? "O" : "[") +
+              (n < 0 ? "A" : "B");
+        for (n = Math.abs(n); n > 0; n--)
+            out += seq;
+        if (out)
+            send(out);
+    }
+
+    /*
     ** A click with the mouse does what a tap does: a menu line, a
     ** translation, a result, and on "Press any key", goes on (November 5,
     ** 2026: before, a click there did nothing, and the screen could only
@@ -930,6 +967,7 @@
             two = null;
         }, true);
         el.addEventListener("click", onClick, true);
+        el.addEventListener("wheel", onWheel, { capture: true, passive: false });
         /* (on the terminal, capturing: before the typing box's own
            handlers, which these keep from seeing what they take) */
         el.addEventListener("keydown", onKeyDown, true);
