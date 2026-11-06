@@ -635,14 +635,22 @@
         }
     }
 
-    /* with a mouse, a click on a menu line, translation or result works too */
+    /*
+    ** A click with the mouse does what a tap does: a menu line, a
+    ** translation, a result, and on "Press any key", goes on (November 5,
+    ** 2026: before, a click there did nothing, and the screen could only
+    ** be left by a key). But not a click that ends selecting text, to copy
+    ** it (the mouse dragged across it): that leaves the screen as it is.
+    */
     function onClick(e) {
         var action;
 
         if (Date.now() - lastTouchEnd < 1000)
             return;                     /* the click a tap already handled */
+        if (term && term.hasSelection && term.hasSelection())
+            return;                     /* text selected, to copy */
         action = tapAction(e.clientY);
-        if (action && action.key !== " ")
+        if (action)
             send(action.key);
     }
 
