@@ -393,6 +393,80 @@ static void plain_text(char *from, char *to, int size)
                 to[--n] = '\0';
 }
 
+/*
+** Purpose: the words the file "said" in the EBaC folder says to say
+**          another way aloud ("יהוה = Adonai"), put in place in the spoken
+**          text s (of size bytes): a word with no vowels a voice can't
+**          read, and guesses at (said as "yo"). Only whole words: not
+**          one inside a longer word. Only for speech: what is shown and
+**          searched is the text as it is. (Data, not code: see the file.)
+*/
+#define MAXSAID 200
+static int word_char(char *p)
+{
+        return (*p != '\0' && (UCHAR(*p) >= 0x80 || isalnum(UCHAR(*p))));
+}
+
+static void say_words(char *s, int size)
+{
+        static char *word[MAXSAID], *as[MAXSAID];
+        static int loaded = -1;
+        char line[1000], *p, *q, *end;
+        int i, wl, al, len;
+        FILE *f;
+
+        if (loaded < 0)
+        {
+                loaded = 0;
+                if ((f = root_fopen("said")) != NULL)
+                {
+                        while (loaded < MAXSAID && fgets(line, sizeof(line), f) != NULL)
+                        {
+                                if ((p = strchr(line, '#')) != NULL)
+                                        *p = '\0';
+                                if ((p = strchr(line, '=')) == NULL)
+                                        continue;
+                                *p++ = '\0';
+                                for (q = line; isspace(UCHAR(*q)); q++)
+                                        ;
+                                for (end = q + strlen(q); end > q && isspace(UCHAR(end[-1])); end--)
+                                        ;
+                                *end = '\0';
+                                while (isspace(UCHAR(*p)))
+                                        p++;
+                                for (end = p + strlen(p); end > p && isspace(UCHAR(end[-1])); end--)
+                                        ;
+                                *end = '\0';
+                                if (*q == '\0' || *p == '\0' ||
+                                    (word[loaded] = malloc(strlen(q) + 1)) == NULL ||
+                                    (as[loaded] = malloc(strlen(p) + 1)) == NULL)
+                                        continue;
+                                strcpy(word[loaded], q);
+                                strcpy(as[loaded++], p);
+                        }
+                        fclose(f);
+                }
+        }
+        for (i = 0; i < loaded; i++)
+        {
+                wl = strlen(word[i]);
+                al = strlen(as[i]);
+                for (p = s; (p = strstr(p, word[i])) != NULL; )
+                {
+                        len = strlen(s);
+                        if ((p > s && word_char(p - 1)) || word_char(p + wl) ||
+                            len - wl + al >= size)
+                        {
+                                p += wl;
+                                continue;
+                        }
+                        memmove(p + al, p + wl, len - (p - s) - wl + 1);
+                        memcpy(p, as[i], al);
+                        p += al;
+                }
+        }
+}
+
 /* Purpose: whether verse svn has any text (the source has empty ones) */
 static int has_text(long svn)
 {
@@ -432,6 +506,7 @@ static void print_verse(long svn, long prev)
         }
         v = get_verse(svn);
         plain_text(v->data_array, text, sizeof(text));
+        say_words(text, sizeof(text));
         if (strcmp(v->chapt_array, "0") == 0)
         {
                 /* chapter 0, the front matter: what it is, then each part

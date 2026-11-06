@@ -15,9 +15,10 @@
 #
 #   - the image's translations, importers (add-translation.sh,
 #     add-gutenberg.sh), index program, groups of books (groups,
-#     groups.KJVA) and books' names as heard (spoken), as links into the image (made again at each
-#     start, so they follow updates; a real file put in place of one, such
-#     as a groups file of the user's own, is left alone);
+#     groups.KJVA), books' names as heard (spoken) and words said
+#     another way aloud (said), as links into the image (made again at
+#     each start, so they follow updates; a real file put in place of
+#     one, such as a groups file of the user's own, is left alone);
 #   - the translations the user added, as folders of their own;
 #   - 'trans': the image's list at first; then the user's, in its order
 #     (EBaC starts with the first: an added translation goes at the top),
@@ -54,6 +55,7 @@ link add-translation.sh
 link add-gutenberg.sh
 link index
 link spoken             # (other forms of books' names, for voice)
+link said               # (words said another way aloud, for voice)
 set +f                  # (the groups files, by their names: groups.*)
 for file in "$image"/groups "$image"/groups.*; do
     [ -f "$file" ] && link "${file##*/}"

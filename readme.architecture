@@ -828,6 +828,18 @@ The answer is the verse's "spoken" text, which Assist speaks (text to
 speech) and shows. Long passages: one verse unless asked; "read on"
 reads the number set in the options.
 
+Words said another way (November 2026). A voice can't read some words
+as they are written: "יהוה", the divine name with no vowel points, was
+read by a Hebrew voice as "yo". The data file "said" in the EBaC folder
+lists such words and what to say for them ("יהוה = Adonai", the word
+traditionally read in its place; the designer's choice). ebac-api puts
+them in the "spoken" text only, for every voice; the screen, the
+answer's "text" and searching keep the word as the text has it.
+  - Whole words only: a letter joined to the front (ליהוה) or vowel
+    points make another word, which needs a line of its own.
+  - Data, not code, as "spoken" is: in the image, linked into /data by
+    ebac-setup so that it follows updates.
+
 Changing the translation by voice (planned, October 2026; not built
 yet). "Change translation to KJVA", "select translation King James",
 "switch to the Lexham translation", "use the Reina Valera translation";

@@ -34,7 +34,7 @@ RUN if [ -n "$EBAC_COMMIT" ]; then set -- EBAC_COMMIT="$EBAC_COMMIT"; else set -
     && git config --global --add safe.directory /src \
     && make "$@" EBAC_PACKAGE="Docker" \
     && mkdir -p /out \
-    && cp bible ebac-api ebac-admin index add-translation.sh add-gutenberg.sh trans groups groups.* spoken /out/ \
+    && cp bible ebac-api ebac-admin index add-translation.sh add-gutenberg.sh trans groups groups.* spoken said /out/ \
     && cat index.c both.h utf8.c utf8.h | sha256sum | cut -c1-64 > /out/index.version
 
 # ---- Stage 2: the King James text, with its index ----

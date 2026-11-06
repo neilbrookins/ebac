@@ -1,0 +1,14 @@
+# said -- words said another way aloud, for voice (the EBaC integration's
+# answers): a word a voice can't read as it is written, such as a name
+# with no vowels, which it guesses at ("יהוה" was said as "yo"). See
+# "Voice" in readme.architecture.
+#
+# One word to a line: the word as the text has it, "=", then what to say.
+# Only whole words are changed, not one inside a longer word. A word with
+# vowel points, or with a letter joined to its front, is another word, and
+# needs a line of its own.
+#
+# Only for what is spoken: the screen, the text in voice answers, and
+# searching all keep the word as the text has it.
+
+יהוה = Adonai
