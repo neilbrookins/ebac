@@ -883,13 +883,26 @@
             });
     }
 
-    /* keep no scrolled-off lines, so there is nothing to scroll back to */
+    /*
+    ** Keep almost no scrolled-off lines, so there is nothing to scroll back
+    ** to: one, not none. With none, the terminal (xterm.js) can break while
+    ** the window is resized quickly ("Cannot read properties of undefined
+    ** (reading 'loadCell')", and in lineFeed, "isWrapped"): its screen and
+    ** its lines no longer agree, it stops drawing what comes, and so stops
+    ** telling ttyd it is ready for more; ttyd waits, EBaC waits on ttyd,
+    ** and the page no longer answers keys until it is reloaded (found
+    ** dragging a browser window's size about, at up to 271 columns). With
+    ** one line kept, 160 bursts of resizing at random sizes up to 280
+    ** columns gave no errors, where with none the first few froze it.
+    ** (November 5, 2026.)
+    */
+    var SCROLLBACK = 1;
     function noScrollback(t) {
         try {
             if (t.options)
-                t.options.scrollback = 0;
+                t.options.scrollback = SCROLLBACK;
             else
-                t.setOption("scrollback", 0);   /* older terminals */
+                t.setOption("scrollback", SCROLLBACK);   /* older terminals */
         } catch (err) {
             /* leave it */
         }
@@ -933,7 +946,7 @@
         if (t && t.parser && t !== term)
             listen(t);
         /* ttyd applies its settings when it connects: keep scrollback off */
-        if (t && t === term && t.options && t.options.scrollback !== 0)
+        if (t && t === term && t.options && t.options.scrollback !== SCROLLBACK)
             noScrollback(t);
         if (t && t.element && t === term && t !== touchTerm)
             attach(t);
