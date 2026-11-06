@@ -1334,7 +1334,7 @@ in /data, ebac-api's scripts. The app (neilbrookins/ebac-ha-app) no
 longer keeps copies: its build takes them from EBaC's source, at the
 commit it pins, with the program.
   - The standalone image is prebuilt, ghcr.io/neilbrookins/ebac, for
-    amd64 and arm64, by a workflow at each change to main (tested
+    amd64, arm64 and arm/v7 (32-bit Raspberry Pi OS), by a workflow at each change to main (tested
     first: the page, ebac-api, the commit). Plain Docker users expect
     one "docker run"; building it themselves (from GitHub's source, a
     Dockerfile in docker/) is documented too. The app goes on building

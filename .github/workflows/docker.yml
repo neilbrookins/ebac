@@ -1,6 +1,7 @@
 # The standalone image, ghcr.io/neilbrookins/ebac (see docker/README.md):
 # built from each change to main, tested, and published for PCs (amd64)
-# and ARM computers such as the Raspberry Pi (arm64). Tagged "latest" and
+# and ARM computers such as the Raspberry Pi (arm64, and arm/v7 for the
+# 32-bit Raspberry Pi OS). Tagged "latest" and
 # "sha-" and the commit. (The Home Assistant app builds from the same
 # files, on each Home Assistant, at the commit it pins.)
 name: Docker image
@@ -74,7 +75,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           build-args: EBAC_COMMIT=${{ steps.commit.outputs.text }}
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: |
             ghcr.io/neilbrookins/ebac:latest

@@ -25,7 +25,8 @@ announcing ebac-api to Home Assistant), which call the same `ebac-web`.
 
 - **The standalone image**, `ghcr.io/neilbrookins/ebac`, is built, tested
   and published by [.github/workflows/docker.yml](../.github/workflows/docker.yml)
-  at each change to `main`, for amd64 and arm64.
+  at each change to `main`, for amd64, arm64 and arm/v7 (the 32-bit
+  Raspberry Pi OS).
 - **The app** builds on each Home Assistant, from EBaC's source at the
   commit its Dockerfile pins (`EBAC_COMMIT`), these files included: a new
   app version, pinning a newer commit, brings both the program and these.

@@ -9,7 +9,7 @@ EBaC comes four ways. They're the same program, made from the same source, so ea
 | | Way | Best for | You get | You need |
 |---|---|---|---|---|
 | 1 | **[The Home Assistant app](#installing-in-home-assistant)** | Anyone with Home Assistant | EBaC in Home Assistant's sidebar, on a phone, tablet or computer: tapping, swiping and clicking as well as the keyboard. Updates itself. Voice ("Genesis 1:1") with the EBaC integration. Each Home Assistant user has their own search history. | Home Assistant (with apps: Home Assistant OS) |
-| 2 | **[Docker, in a web page](#installing-with-docker)** | Anyone without Home Assistant | The same web page as the app, with tapping, swiping and clicking, opened in any browser, on a phone too. One command to install; one to update. | A computer that runs Docker (Linux, a Raspberry Pi, a NAS, Windows or a Mac with Docker Desktop) |
+| 2 | **[Docker, in a web page](#installing-with-docker)** | Anyone without Home Assistant | The same web page as the app, with tapping, swiping and clicking, opened in any browser, on a phone too. One command to install; one to update. | Docker, which is free: the steps show how to get it, with one command on Linux or a Raspberry Pi, or an app on Windows or a Mac |
 | 3 | **[Docker, in a terminal](#ebac-in-a-terminal-with-docker)** | Keyboard-only use, on a computer with Docker | EBaC in your terminal window, with no web page: keys only, no tapping or clicking. | Docker |
 | 4 | **[Built from source](#installing-on-linux)** | Computers without Docker, and vintage ones | EBaC in a terminal window, built with a few typed commands: keys only. Runs on almost anything, down to an MS-DOS PC. | A C compiler, `make` and ncurses (the steps say how to get them) |
 
@@ -47,6 +47,8 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 - [Installing](#installing)
   - [Installing in Home Assistant](#installing-in-home-assistant)
   - [Installing with Docker](#installing-with-docker)
+    - [Step 1: Get Docker](#step-1-get-docker)
+    - [Step 2: Start EBaC](#step-2-start-ebac)
     - [EBaC in a terminal with Docker](#ebac-in-a-terminal-with-docker)
   - [Installing on Linux](#installing-on-linux)
     - [First-time install (do this only once)](#first-time-install-do-this-only-once)
@@ -90,15 +92,49 @@ The steps, with a button that adds EBaC to your Home Assistant in one click, are
 
 ### Installing with Docker
 
-EBaC in a web page, with tapping, swiping and clicking, without Home Assistant: the same page the Home Assistant app has. It needs a computer that runs [Docker](https://docs.docker.com/get-started/get-docker/), such as Linux, a Raspberry Pi (64-bit), a NAS, or Windows or a Mac with Docker Desktop. The image is ready-made for PCs (amd64) and ARM computers (arm64), and Docker picks the right one.
+EBaC in a web page, with tapping, swiping and clicking, without Home Assistant: the same page the Home Assistant app has. It runs in [Docker](https://www.docker.com/), a free program that runs ready-made programs ("containers") the same way on any computer. Two steps: get Docker (once), then start EBaC.
 
-**Start it** (one command, typed in a terminal):
+#### Step 1: Get Docker
+
+Already have it? Type `docker --version` in a terminal: if it answers with a version, skip to step 2.
+
+Docker's website offers two things, and you need only one:
+
+- **Docker Engine** is Docker itself, the part that runs in the background. On **Linux** (including a Raspberry Pi) this is all you need, and your system can install it with one command, below.
+- **Docker Desktop** is an app for **Windows** and **Mac** that brings Docker Engine along with it, with windows to manage it. (On Linux you don't need it.)
+
+**Raspberry Pi OS, Debian, Ubuntu or Linux Mint** (type these in a terminal; the first asks for your password):
+
+```sh
+sudo apt update && sudo apt install -y docker.io
+sudo usermod -aG docker $USER
+```
+
+Then **log out and back in** (or restart), so the second line takes effect: it lets you use Docker without typing `sudo` each time. Docker starts by itself, now and whenever the computer starts. (This is the Docker your system itself provides, kept up to date with your other updates. Docker's own newest version is also available, with [Docker's install steps](https://docs.docker.com/engine/install/), but the one above is all EBaC needs.)
+
+**Fedora:**
+
+```sh
+sudo dnf install -y moby-engine
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+```
+
+then log out and back in.
+
+**Windows 10 or 11, or a Mac:** download and install **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (free for personal use), and open it once; it then starts with the computer. Type the commands in step 2 in **PowerShell** (Windows) or **Terminal** (Mac).
+
+**Raspberry Pi:** any Pi from the 2 on, with the 32-bit or 64-bit Raspberry Pi OS. (Not the original Pi 1 or the Pi Zero / Zero W, which Docker doesn't support; the Zero 2 W is fine.)
+
+#### Step 2: Start EBaC
+
+One command, typed in a terminal:
 
 ```sh
 docker run -d --name ebac --restart unless-stopped -p 7681:7681 -v ebac-data:/data ghcr.io/neilbrookins/ebac
 ```
 
-Then open **http://localhost:7681** in a web browser on the same computer, or **http://*the computer's address*:7681** from a phone or another computer on your network. The volume `ebac-data` keeps the translations you add and each user's search history, so they outlast updates.
+The first time, it downloads EBaC (a minute or so). Then open **http://localhost:7681** in a web browser on the same computer, or **http://*the computer's address*:7681** from a phone or another computer on your network (on a Raspberry Pi, `hostname -I` shows its address). EBaC starts again by itself whenever the computer does. The volume `ebac-data` keeps the translations you add and each user's search history, so they outlast updates.
 
 **A login.** Without one, anyone who can reach port 7681 can use EBaC. To ask for a user name and password, add `-e EBAC_USER=yourname -e EBAC_PASSWORD=yourpassword` before the image's name. Behind a reverse proxy that logs users in itself (such as Authelia), add `-e EBAC_AUTH_HEADER=Remote-User` (the header that names the user) instead, so each person has their own search history. Don't put EBaC on the internet without one or the other.
 
@@ -126,7 +162,7 @@ then use `ebac` in place of `ghcr.io/neilbrookins/ebac` in the commands above. (
 
 #### EBaC in a terminal with Docker
 
-The same image runs EBaC in your terminal window, with no web page: keys only, no tapping or clicking (for those, use the web page above). Nothing to build:
+The same image runs EBaC in your terminal window, with no web page: keys only, no tapping or clicking (for those, use the web page above). Get Docker first ([step 1](#step-1-get-docker) above); then, with nothing to build:
 
 ```sh
 docker run -it --rm -v ebac-data:/data ghcr.io/neilbrookins/ebac terminal
