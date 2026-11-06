@@ -826,12 +826,25 @@
             e.preventDefault();
     }
 
+    /*
+    ** A paste is the terminal's own: it sends the text from the paste event
+    ** but lets the browser put it in the typing box too. Sent again from
+    ** the box, a paste on a phone (with no key down, unlike Ctrl+V) reached
+    ** EBaC twice: "jesusjesus". So a paste in the box is only cleared away.
+    */
     function onInput(e) {
         if (!term || e.target !== term.textarea || !takesTyping() ||
                 (realKeyDown && !composing))
             return;
         debug("input " + e.inputType + " " + JSON.stringify(e.data));
         e.stopImmediatePropagation();
+        if (e.inputType === "insertFromPaste") {
+            if (!composing)
+                emptyBox();
+            else
+                boxSeen = term.textarea.value;
+            return;
+        }
         sendBoxChange();
         if (!composing)
             emptyBox();
