@@ -6,11 +6,47 @@
 # One word to a line: the word as the text has it, "=", then what to say.
 # Only whole words are changed, not one inside a longer word. A word with
 # vowel points, or with a letter joined to its front, is another word, and
-# needs a line of its own.
+# needs a line of its own. Chant marks (cantillation) and meteg aren't
+# compared, nor the order the marks are stored in: the Westminster
+# Leningrad Codex writes "יְהוָה" some 500 ways with them, all one line here.
 #
 # Only what is heard changes: the EBaC integration's voice ("EBaC voice",
 # chosen in an Assist voice setup) puts these in place on the way to the
 # speaker. The screen, the text Assist shows, and searching all keep the
 # word as the text has it.
 
+# The divine name, with no vowel points (as the Restored Name King James
+# has it): said "Adonai", the word traditionally read in its place.
 יהוה = Adonai
+
+# The name with vowel points (the Westminster Leningrad Codex, read by a
+# Hebrew voice): said in Hebrew as it is traditionally read: אֲדֹנָי
+# (Adonai); אֱלֹהִים (Elohim) where it has the vowels of Elohim (hiriq
+# under the vav), as where Adonai stands beside it. A letter joined to its
+# front stays (לַיהוָה, "to the LORD": לַאדֹנָי). Every form in that text,
+# most often first.
+יְהוָה = אֲדֹנָי
+לַיהוָה = לַאדֹנָי
+יְהוִה = אֱלֹהִים
+וַיהוָה = וַאדֹנָי
+בַּיהוָה = בַּאֲדֹנָי
+יְהֹוָה = אֲדֹנָי
+יְהֹוִה = אֱלֹהִים
+מֵיְהוָה = מֵאֲדֹנָי
+בַיהוָה = בַאדֹנָי
+מֵיהוָה = מֵאֲדֹנָי
+כַּיהוָה = כַּאֲדֹנָי
+לַיהֹוָה = לַאדֹנָי
+וּמֵיְהוָה = וּמֵאֲדֹנָי
+יֱהוִה = אֱלֹהִים
+וּבַיהוָה = וּבַאדֹנָי
+וְלַיהוָה = וְלַאדֹנָי
+וַיהֹוָה = וַאדֹנָי
+לַיְהוָה = לַאדֹנָי
+יֱהֹוִה = אֱלֹהִים
+בַּיהֹוָה = בַּאֲדֹנָי
+הַיהוָה = הַאדֹנָי
+יְהוִהּ = אֱלֹהִים
+יְהוָהּ = אֲדֹנָי
+וְלֵיהוִה = וְלֵאלֹהִים
+שֶׁיֲהוָה = שֶׁאֲדֹנָי

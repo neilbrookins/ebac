@@ -849,7 +849,15 @@ traditionally read in its place; the designer's choice).
   - ebac-api's "said" request gives the list; the integration asks for
     it at setup and with its regular check.
   - Whole words only: a letter joined to the front (ליהוה) or vowel
-    points make another word, which needs a line of its own.
+    points make another word, which needs a line of its own. Chant
+    marks and meteg aren't compared, nor the order marks are stored in:
+    the Westminster Leningrad Codex writes the name in 564 ways with
+    them, which come to 25 lines.
+  - What is said: "Adonai" for the unpointed name in English texts; in
+    Hebrew, for the pointed name (read by a Hebrew voice), אֲדֹנָי, or
+    אֱלֹהִים where it has the vowels of Elohim, as tradition reads it;
+    a letter joined to the front stays (לַיהוָה: לַאדֹנָי). The
+    designer's choices, November 2026.
   - Data, not code, as "spoken" is: in the image, linked into /data by
     ebac-setup so that it follows updates.
 
