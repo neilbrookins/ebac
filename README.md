@@ -49,6 +49,8 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
   - [Installing with Docker](#installing-with-docker)
     - [Step 1: Get Docker](#step-1-get-docker)
     - [Step 2: Start EBaC](#step-2-start-ebac)
+    - [Updating](#updating)
+    - [Removing EBaC from Docker](#removing-ebac-from-docker)
     - [EBaC in a terminal with Docker](#ebac-in-a-terminal-with-docker)
   - [Installing on Linux](#installing-on-linux)
     - [First-time install (do this only once)](#first-time-install-do-this-only-once)
@@ -138,15 +140,7 @@ The first time, it downloads EBaC (a minute or so). Then open **http://localhost
 
 **A login.** Without one, anyone who can reach port 7681 can use EBaC. To ask for a user name and password, add `-e EBAC_USER=yourname -e EBAC_PASSWORD=yourpassword` before the image's name. Behind a reverse proxy that logs users in itself (such as Authelia), add `-e EBAC_AUTH_HEADER=Remote-User` (the header that names the user) instead, so each person has their own search history. Don't put EBaC on the internet without one or the other.
 
-**Update it** to the newest version (your translations and history are kept, in the volume):
-
-```sh
-docker pull ghcr.io/neilbrookins/ebac
-docker rm -f ebac
-docker run -d --name ebac --restart unless-stopped -p 7681:7681 -v ebac-data:/data ghcr.io/neilbrookins/ebac
-```
-
-**With Docker Compose** instead: [docker/docker-compose.yml](docker/docker-compose.yml) is ready to copy. `docker compose up -d` starts it; `docker compose pull && docker compose up -d` updates it.
+**With Docker Compose** instead: [docker/docker-compose.yml](docker/docker-compose.yml) is ready to copy. `docker compose up -d` starts it; `docker compose pull && docker compose up -d` updates it (keeping the volume: see [Updating](#updating)).
 
 **Building it yourself** instead of downloading it ready-made (it takes a few minutes, a little longer on a Raspberry Pi, and gives the same thing):
 
@@ -159,6 +153,53 @@ then use `ebac` in place of `ghcr.io/neilbrookins/ebac` in the commands above. (
 **Voice, with Home Assistant but without apps** (Home Assistant Container or Core): the [EBaC integration](https://github.com/neilbrookins/ebac-ha-integration) can use this container too. Add `-p 8080:8080` to the `docker run` command, and give the integration the address `http://the computer's address:8080/cgi-bin/ebac`. To let voice add and remove translations, add `-e EBAC_ALLOW_ADD=yes` (and `-e EBAC_ALLOW_REMOVE=yes`); both are off unless you do.
 
 **If something goes wrong:** `docker logs ebac` shows what EBaC said as it started. `-e EBAC_DEBUG=true` adds the troubleshooting box to the page (what it sees of the screen's size and the keyboard), for reporting a problem with tapping or the keyboard.
+
+#### Updating
+
+**Updating never loses your translations or search history.** Docker keeps three things apart:
+
+| | What it is | What updating does to it |
+|---|---|---|
+| **The image** | EBaC itself, ready-made: the program, the King James text, the web page. Read-only. | Replaced by the newer one. |
+| **The container** | One running copy of the image, named `ebac`. | Removed, and made again from the newer image. |
+| **The volume** `ebac-data` | Everything EBaC keeps: the translations you've added, each user's search history. | **Nothing.** The new container uses the same volume, so everything is just as you left it. |
+
+So updating is: get the newer image, remove the old container, and start a new one with the same volume:
+
+```sh
+docker pull ghcr.io/neilbrookins/ebac
+docker rm -f ebac
+docker run -d --name ebac --restart unless-stopped -p 7681:7681 -v ebac-data:/data ghcr.io/neilbrookins/ebac
+```
+
+`docker pull` prints a line for each **layer** of the image (the image is stored in parts) and downloads only the layers that changed: usually just EBaC's program and page, a few hundred kilobytes, while the King James text and the rest are kept from before. (Use the same options in the new `docker run` as you started it with, such as a login.)
+
+Each update leaves the previous image on disk, unused and unnamed. To free that space now and then (your translations aren't touched):
+
+```sh
+docker image prune
+```
+
+`docker system df` shows how much space Docker's images, containers and volumes take.
+
+#### Removing EBaC from Docker
+
+Remove the container and the images:
+
+```sh
+docker rm -f ebac
+docker rmi ghcr.io/neilbrookins/ebac
+docker image prune
+```
+
+That leaves the volume, with your translations and search history, so that if you start EBaC again later (step 2), they're all still there. To remove those too, **for good** (they can't be got back, except from a backup you made of the volume):
+
+```sh
+docker volume rm ebac-data
+```
+
+(With Docker Compose: `docker compose down` removes the container; `docker compose down -v` the volume too.)
+
 
 #### EBaC in a terminal with Docker
 
