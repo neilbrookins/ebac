@@ -26,6 +26,7 @@ jobs:
         run: |
           echo "text=$(git log -1 --format='%h, %cs')" >> "$GITHUB_OUTPUT"
           echo "short=$(git log -1 --format='%h')" >> "$GITHUB_OUTPUT"
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -36,7 +37,14 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
-          build-args: EBAC_COMMIT=${{ steps.commit.outputs.text }}
+          build-args: |
+            EBAC_COMMIT=${{ steps.commit.outputs.text }}
+            PACKAGES_REFRESH=${{ steps.commit.outputs.week }}
+          # (the build's cache, kept between runs: an unchanged step, such
+          # as the King James text's, gives the very same layer, so each
+          # version of the image shares it; see docker/Dockerfile)
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           load: true
           tags: ebac:test
 
@@ -74,9 +82,23 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
-          build-args: EBAC_COMMIT=${{ steps.commit.outputs.text }}
+          build-args: |
+            EBAC_COMMIT=${{ steps.commit.outputs.text }}
+            PACKAGES_REFRESH=${{ steps.commit.outputs.week }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: |
             ghcr.io/neilbrookins/ebac:latest
             ghcr.io/neilbrookins/ebac:sha-${{ steps.commit.outputs.short }}
+
+      # The layers of the image for PCs, and their sizes: from one version
+      # to the next, the unchanged ones (the King James text, the packages
+      # within a week) keep the same digest, so are stored once.
+      - name: Layers
+        run: |
+          d=$(docker buildx imagetools inspect --raw ghcr.io/neilbrookins/ebac:sha-${{ steps.commit.outputs.short }} |
+              jq -r '.manifests[] | select(.platform.architecture == "amd64") | .digest')
+          docker buildx imagetools inspect --raw ghcr.io/neilbrookins/ebac@$d |
+              jq -r '.layers[] | "\(.digest[7:19])  \(.size / 1048576 * 100 | round / 100) MB"'
