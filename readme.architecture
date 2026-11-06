@@ -718,6 +718,9 @@ with {"error": "..."}):
   /search?q=...&t=AV&max=10
                           a search in EBaC's own syntax: the number of
                           verses, and the first max of them
+  /said                   words to say another way aloud (the file
+                          "said"): [{"word": "יהוה", "say": "Adonai"}],
+                          for the integration's voice
 
 t= is a translation's name, as in trans (the first of trans if none).
 
@@ -832,9 +835,19 @@ Words said another way (November 2026). A voice can't read some words
 as they are written: "יהוה", the divine name with no vowel points, was
 read by a Hebrew voice as "yo". The data file "said" in the EBaC folder
 lists such words and what to say for them ("יהוה = Adonai", the word
-traditionally read in its place; the designer's choice). ebac-api puts
-them in the "spoken" text only, for every voice; the screen, the
-answer's "text" and searching keep the word as the text has it.
+traditionally read in its place; the designer's choice).
+  - Only what is heard changes. Assist shows the same text it speaks
+    (Home Assistant's pipeline speaks the answer's plain speech, and
+    the conversation shows it), so the change can't be made in the
+    answer: shown, "Adonai" would claim letters the text doesn't have.
+    So the EBaC integration has a voice of its own, "EBaC voice"
+    (tts.ebac_voice), chosen in an Assist voice setup: it puts the
+    words in place and hands the text to the voice set in its options
+    (Home Assistant Cloud, Piper), with the same language and voice.
+    The verse's "spoken" text, the screen and searching keep the word
+    as the text has it.
+  - ebac-api's "said" request gives the list; the integration asks for
+    it at setup and with its regular check.
   - Whole words only: a letter joined to the front (ליהוה) or vowel
     points make another word, which needs a line of its own.
   - Data, not code, as "spoken" is: in the image, linked into /data by
