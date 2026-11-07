@@ -1020,6 +1020,7 @@ void change_translations(void)
 	int n; /* number the user selects */
 	int count; /* how many translations there are */
 	int per_page, first, typed;
+	int pages;              /* how many pages the list takes */
 	int spaced;     /* a blank line between the translations */
 	char *digit;
 	char new_dir[1024 + MAX_ETLA + 2]; /* example: ../nrsv */
@@ -1036,8 +1037,32 @@ void change_translations(void)
 	for(;;)
 	{
 		cls();
-		/* (a shorter heading in a narrow window, so it stays on one line) */
-		if (count <= 9 || s_cols - 1 >= 53)
+		/* a page: as many as fit between the heading and the prompt
+		   (all of them, spaced, if they fit so) */
+		spaced = (2 * count - 1 <= s_lines - 4);
+		per_page = spaced ? count : s_lines - 4;
+		if (per_page < 1)
+			per_page = 1;
+		if (first >= count)
+			first = count - 1;
+		first -= first % per_page;
+		pages = (count <= 9) ? 1 : (count + per_page - 1) / per_page;
+		/*
+		** (a shorter heading in a narrow window, so it stays on one line;
+		** with the page, when there are more, so that the first page
+		** doesn't look like the whole list: a phone's keyboard can leave
+		** room for fewer, as add-translation.sh's lists do)
+		*/
+		if (pages > 1)
+		{
+			if (s_cols - 1 >= 66)
+				printf("Please select the number of the translation desired (page %d of %d):\n\n",
+				    first / per_page + 1, pages);
+			else
+				printf("Choose a translation (page %d of %d):\n\n",
+				    first / per_page + 1, pages);
+		}
+		else if (count <= 9 || s_cols - 1 >= 53)
 			printf("Please select the number of the translation desired:\n\n");
 		else
 			printf("Choose a translation:\n\n");
@@ -1086,15 +1111,6 @@ void change_translations(void)
 				return;
 			break;
 		}
-		/* a page: as many as fit between the heading and the prompt
-		   (all of them, spaced, if they fit so) */
-		spaced = (2 * count - 1 <= s_lines - 4);
-		per_page = spaced ? count : s_lines - 4;
-		if (per_page < 1)
-			per_page = 1;
-		if (first >= count)
-			first = count - 1;
-		first -= first % per_page;
 		for (i = first; i < count && i < first + per_page; i++)
 		{
 			if (spaced && i > first)
@@ -1103,10 +1119,13 @@ void change_translations(void)
 			print_trans(i, 4);
 		}
 		printf("\n");
+		/* (paging named only when there is more than one page) */
 		if (s_cols - 1 >= 66)
-			printf("A number and Enter, d first to start with it (space, p: page; x: back): ");
+			printf("A number and Enter, d first to start with it (%sx: back): ",
+			    pages > 1 ? "space, p: page; " : "");
 		else
-			printf("Number, Enter; d5: default (n/p: page; x: back): ");
+			printf("Number, Enter; d5: default (%sx: back): ",
+			    pages > 1 ? "n/p: page; " : "");
 		fflush(stdout);
 		typed = 0;
 		n = 0;
