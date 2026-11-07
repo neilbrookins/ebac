@@ -1062,7 +1062,7 @@ void change_translations(void)
 				printf("Choose a translation (page %d of %d):\n\n",
 				    first / per_page + 1, pages);
 		}
-		else if (count <= 9 || s_cols - 1 >= 53)
+		else if (s_cols - 1 >= 53)
 			printf("Please select the number of the translation desired:\n\n");
 		else
 			printf("Choose a translation:\n\n");

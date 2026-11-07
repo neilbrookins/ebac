@@ -97,6 +97,11 @@ static int count_lines P((int tag, char *bookname, char *strg, int indent,
                        int top_of_screen));
 static void dis_one_line P((char *strg));
 static int mostly_rtl P((char *s));
+static int mostly_hebrew P((char *s));
+static void count_letters P((char *s, int *rtl, int *hebrew, int *ltr));
+static void hebrew_number P((int n, char *out));
+static void reference P((struct bcv_array_type *bcv_arrays, char *out));
+static void print_margin P((char *label, int cols, int right));
 static void dis_verse P((char *strg, int indent, int firstTime));
 static void dis_part P((char *strg, int indent, int firstTime));
 static int count_part P((int tag, char *bookname, char *strg, int indent,
@@ -643,7 +648,8 @@ static int count_part(int tag, char *bookname, char *strg, int indent, int top_o
 }
 
 /* Purpose: Display one line of text to the screen. Highlight, via reverse
-            video, the word being searched for.
+            video, the word being searched for. (The line isn't ended: a
+            margin on the right may follow it; see verse_line().)
 */
 #define BYTE_IS(c, b) (((c) & 0xFF) == (b))
 
@@ -703,7 +709,6 @@ static void dis_one_line(char *strg)
                 hi[from] = (rev_word[k] != 0);
     }
     print_visual(strg, hi);
-    putchar('\n');
     free(hi);
 }
 
@@ -747,14 +752,25 @@ static void print_visual(char *s, char *hi)
 ** most dv_left (-1: all of it). With dv_body_only, display_verse() shows
 ** neither the book's heading nor the verse's number (a later part).
 ** dv_note: the next line is a note's first, with "---" in its margin.
+**
+** The margin: the 8 columns beside a verse's lines, at the end of their
+** indent. dv_label: what the first line's margin shows, the verse's
+** reference (NULL: shown already, by display_verse(), in a list).
+** dv_right: the margin on the right, where a verse written right to left
+** (Hebrew) begins: its reference first, read that way, as Hebrew Bibles
+** have it. (In a list it stays on the left, under the pick letters.)
 */
 static int dv_skip = 0, dv_left = -1, dv_body_only = FALSE, dv_note = FALSE;
+static char *dv_label = NULL;
+static int dv_right = FALSE;
 
-/* Purpose: one line of a verse, as dis_verse() wraps it: indented, but for
-   the first, which follows the verse's number; or left out (see above) */
+/* Purpose: one line of a verse, as dis_verse() wraps it, with its margin
+   (see above); or left out (see above) */
 static void verse_line(char *strg, int indent, int firstTime)
 {
         int note = dv_note;
+        int n = (int) strlen(strg), pad;
+        char *margin, kept;
 
         dv_note = FALSE;        /* (only a note's first line) */
         if (dv_skip > 0)
@@ -766,60 +782,177 @@ static void verse_line(char *strg, int indent, int firstTime)
                 return;
         if (dv_left > 0)
                 dv_left--;
-        if ((firstTime == FALSE || dv_body_only) && note && indent >= 8)
-                /* (under the verse's number, which is 8 columns before its
-                   text: at the left of a passage, after the book's name in
-                   a list of search results) */
-                printf("%s---     ", spaces + MAXINDENT - (indent - 8));
-        else if (firstTime == FALSE || dv_body_only)
-                printf("%s", spaces + MAXINDENT - indent);
+        /* what the margin shows: the reference on the verse's first line,
+           "---" on a note's first, else nothing */
+        if (firstTime && !dv_body_only)
+                margin = dv_label;
+        else
+                margin = note ? "---" : "";
+        /* (a list's indent: the pick letter and book, then the margin) */
+        if (margin != NULL && !dv_right)
+        {
+                printf("%s", spaces + MAXINDENT - (indent - 8));
+                print_margin(margin, 8, FALSE);
+        }
         if (mostly_rtl(strg))
         {
-                /* right to left: its start at the screen's last column, and the
-                   spaces before it, on the left, where its end is.
-                   (Terminals are assumed to take a full line without
-                   wrapping, as modern ones do. Spaces after its text, as
-                   a verse's last line can have, are left out.) */
-                int n = (int) strlen(strg), pad;
-                char kept;
-
+                /* right to left: its start at the end of the line (before a
+                   margin on the right), and the spaces before it, on the
+                   left, where its end is. (Terminals are assumed to take a
+                   full line without wrapping, as modern ones do. Spaces
+                   after its text, as a verse's last line can have, are
+                   left out.) */
                 while (n > 0 && strg[n - 1] == ' ')
                         n--;
                 pad = s_cols - indent - u8_cols(strg, n);
                 while (pad-- > 0)
                         putchar(' ');
-                kept = strg[n];
-                strg[n] = '\0';
-                dis_one_line(strg);
-                strg[n] = kept;
+        }
+        kept = strg[n];
+        strg[n] = '\0';
+        dis_one_line(strg);
+        strg[n] = kept;
+        if (dv_right)
+                print_margin(margin, indent, TRUE);
+        putchar('\n');
+}
+
+/* Purpose: a margin of cols columns with label in it: at its left, or (on
+   the right) at its right, the screen's edge */
+static void print_margin(char *label, int cols, int right)
+{
+        int pad = cols - u8_cols(label, (int) strlen(label));
+
+        if (right)
+                while (pad-- > 0)
+                        putchar(' ');
+        print_visual(label, (char *) NULL);
+        if (!right)
+                while (pad-- > 0)
+                        putchar(' ');
+}
+
+/*
+** Purpose: a verse's reference, as its margin shows it: "1:13"; for a
+**          verse in Hebrew, in Hebrew letters, as Hebrew Bibles number
+**          them (alef:yod-gimel for 1:13, chapter first, read right to left).
+*/
+static void reference(struct bcv_array_type *bcv_arrays, char *out)
+{
+        char *chapter = bcv_arrays->chapt_array, *verse = bcv_arrays->verse_array;
+
+        if (mostly_hebrew(bcv_arrays->data_array))
+        {
+                hebrew_number(atoi(chapter), out);
+                strcat(out, ":");
+                hebrew_number(atoi(verse), out + strlen(out));
+        }
+        else
+                sprintf(out, "%s:%s", chapter, verse);
+}
+
+/*
+** Purpose: n (0 to 999) in Hebrew letters, as Hebrew Bibles number
+**          chapters and verses: hundreds, tens, then ones, each a letter
+**          worth that much (176: qof ayin vav, 100 70 6). 15 and 16 are
+**          9 and 6, 9 and 7 (tet vav, tet zayin), not 10 and 5, 10 and 6,
+**          which spell the divine name. 0, which has no letter (verse 0,
+**          the text before verse 1: see index.c), stays 0. In UTF-8: a
+**          letter is 0xD7 and then 0x90 and its place in the alphabet
+**          (final forms counted).
+*/
+static void hebrew_number(int n, char *out)
+{
+        static char ones[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };      /* alef .. tet */
+        static char tens[] = { 9, 11, 12, 14, 16, 17, 18, 20, 22 };
+                                        /* yod kaf lamed mem nun samekh ayin pe tsadi */
+        static char hundreds[] = { 23, 24, 25, 26 };    /* qof resh shin tav */
+        int k = 0;
+
+        if (n == 0)
+        {
+                strcpy(out, "0");
                 return;
         }
-        dis_one_line(strg);
+#define LETTER(place) (out[k++] = (char) 0xD7, out[k++] = (char) (0x90 + (place)))
+        while (n >= 400)
+        {
+                LETTER(hundreds[3]);
+                n -= 400;
+        }
+        if (n >= 100)
+        {
+                LETTER(hundreds[n / 100 - 1]);
+                n %= 100;
+        }
+        if (n == 15 || n == 16)
+        {
+                LETTER(ones[8]);
+                LETTER(ones[n - 10]);
+                n = 0;
+        }
+        if (n >= 10)
+        {
+                LETTER(tens[n / 10 - 1]);
+                n %= 10;
+        }
+        if (n >= 1)
+                LETTER(ones[n - 1]);
+#undef LETTER
+        out[k] = '\0';
 }
 
 /*
 ** Purpose: whether a line of a verse is mostly right to left (Hebrew,
 **          Arabic, any script u8_is_rtl() says is written right to left,
 **          the same test that turns it about), so is aligned on the right:
-**          more of its letters are right to left than left to right. (Digits, which Hebrew text has among
-**          its letters, spaces and punctuation don't count either way; a
-**          line half and half stays on the left.)
+**          more of its letters are right to left than left to right.
+**          (Digits, which Hebrew text has among its letters, spaces and
+**          punctuation don't count either way; a line half and half stays
+**          on the left.)
 */
 static int mostly_rtl(char *s)
 {
-        int i = 0, rtl = 0, ltr = 0;
+        int rtl, hebrew, ltr;
 
+        count_letters(s, &rtl, &hebrew, &ltr);
+        return (rtl > ltr);
+}
+
+/* Purpose: whether a verse is mostly in Hebrew letters (so numbered in them:
+            see reference()) */
+static int mostly_hebrew(char *s)
+{
+        int rtl, hebrew, ltr;
+
+        count_letters(s, &rtl, &hebrew, &ltr);
+        return (hebrew > ltr + (rtl - hebrew));
+}
+
+/* Purpose: how many of s's letters are written right to left, how many of
+            those are Hebrew (U+0590 to U+05FF), and how many left to right
+            (marks, as vowel points, aren't letters; see mostly_rtl()) */
+static void count_letters(char *s, int *rtl, int *hebrew, int *ltr)
+{
+        int i = 0;
+        long code;
+
+        *rtl = *hebrew = *ltr = 0;
         while (s[i] != '\0')
         {
                 if (u8_width(&s[i]) == 0)
                         ;       /* (a mark, as a vowel point: not a letter) */
                 else if (u8_is_rtl(&s[i]))
-                        rtl++;
+                {
+                        (*rtl)++;
+                        code = u8_code(&s[i]);
+                        if (code >= 0x0590L && code <= 0x05FFL)
+                                (*hebrew)++;
+                }
                 else if (u8_is_letter(&s[i]) && !isdigit(UCHAR(s[i])))
-                        ltr++;
+                        (*ltr)++;
                 i += u8_len(&s[i]);
         }
-        return (rtl > ltr);
 }
 
 /* Purpose: show a verse's text, a part at a time: each part after a tab on
@@ -909,8 +1042,10 @@ static int book_cols(char *name, int most)
 */
 static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verIndent, int top_of_screen)
 {
-        int cv_length;
         static char previous_book[MAXBOOKNAME] = { '\0' };
+        static char label[40];  /* the reference: dv_label (see verse_line()) */
+
+        reference(bcv_arrays, label);
         if (tag != -1)
         {
             printf("%c)", tag_label(tag));
@@ -977,25 +1112,26 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
               printf(" (%s)\n", etla);
            }
         }
-        if (dv_body_only)
-                ;       /* (indented by verse_line()) */
-        else if (tag == -1 && (strcmp(bcv_arrays->chapt_array, "0") == 0 ||
-                          strcmp(bcv_arrays->verse_array, "0") == 0))
+        /* the reference, in the margin of the verse's first line: on the
+           left in a list, after the book (shown here); in a passage,
+           where verse_line() puts it, on the right for a verse written
+           right to left. Verse 0 or chapter 0, the text before verse 1 or
+           chapter 1 (see index.c), is plain text in a passage, without
+           the 0, which isn't in the source (in a list, its reference is
+           shown, as any verse's). */
+        if (tag != -1)
         {
-                /* verse 0 or chapter 0, the text before verse 1 or chapter
-                   1 (see index.c): plain text, without the 0, which isn't
-                   in the source (in a list of search results, its
-                   reference is shown, as any verse's) */
-                printf("%s", spaces + MAXINDENT - 8);
+                print_margin(label, 8, FALSE);
+                dv_label = NULL;
+                dv_right = FALSE;
         }
         else
         {
-                printf("%s:", bcv_arrays->chapt_array);
-                printf("%s", bcv_arrays->verse_array);
-                cv_length = strlen(bcv_arrays->chapt_array);
-                cv_length++;  /* Count the colon */
-                cv_length += strlen(bcv_arrays->verse_array);
-                printf("%s", spaces + cv_length + MAXINDENT - 8);
+                if (strcmp(bcv_arrays->chapt_array, "0") == 0 ||
+                    strcmp(bcv_arrays->verse_array, "0") == 0)
+                        label[0] = '\0';
+                dv_label = label;
+                dv_right = mostly_rtl(bcv_arrays->data_array);
         }
         dis_verse(bcv_arrays->data_array, verIndent, TRUE);
         strcpy(previous_book, bcv_arrays->book_array);

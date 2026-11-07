@@ -586,6 +586,32 @@ Lines are wrapped first, so each line of the screen is turned about on
 its own. The search line, while it is typed, shows Hebrew in the order
 typed (the line editor puts each character on the screen as it comes).
 
+A Hebrew verse's reference (November 7, 2026; the designer's request,
+to look as Hebrew Bibles do, such as Chabad.org's).
+  - Its margin is on the right, where a verse written right to left
+    begins: the text, right aligned, then the reference at the screen's
+    right edge, the mirror of an English verse's. Each line of the verse
+    keeps the margin's 8 columns there, as an English verse's lines keep
+    them on the left; a note's "---" goes there too.
+  - The reference is in Hebrew letters, chapter and verse both, chapter
+    first (rightmost): Genesis 1:13 is alef:yod-gimel. Hundreds, tens,
+    then ones, each a letter worth that much; 15 and 16 are tet-vav and
+    tet-zayin, as tradition writes them, not the letters of the divine
+    name. The chapter stays, as in every translation (the designer's
+    choice: one form for all; Hebrew Bibles often show the verse alone).
+  - In lists (search results), the reference stays on the left, after
+    the book, under the pick letters, in Hebrew letters for a Hebrew
+    verse. Typed references stay in digits.
+  - Which side: the verse's text, mostly right to left (mostly_rtl());
+    Hebrew letters: mostly Hebrew (mostly_hebrew()), so another
+    right-to-left script would keep its digits.
+  - In the code, one place lays a line out: verse_line() prints the
+    margin, then the text, or the text, then the margin (print_margin()
+    puts a label at a margin's outer edge, either side), from what
+    display_verse() sets for the verse: dv_label (the reference, from
+    reference() and hebrew_number()) and dv_right. dis_one_line() no
+    longer ends the line, so a margin can follow it.
+
 Typing, pasting and copying right to left (November 4, 2026; the
 designer's request). Three parts:
 
