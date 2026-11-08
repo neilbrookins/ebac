@@ -75,9 +75,11 @@ fi
 
 # ---- The texts this script knows ----------------------------------------
 #
-# A line per text: its ebook number, short name, format; then a line per
-# book: "book", its name (as EBaC shows it), and the start of the heading
-# that begins it in the text.
+# A line per text: its ebook number, short name, format, title and
+# language (for the list the EBaC integration reads, --catalog: what is
+# said for it, and the language it is listed in); then a line per book:
+# "book", its name (as EBaC shows it), and the start of the heading that
+# begins it in the text.
 #
 # Formats:
 #   chapters   books start with their heading (and a summary); a book of
@@ -108,13 +110,13 @@ fi
 # A text of several translations has their short names, separated by
 # spaces, as its short name: each is added, and removed, on its own.
 KNOWN='
-16955	YUSUFALI-PG PICKTHALL-PG SHAKIR-PG	sidebyside
+16955	YUSUFALI-PG PICKTHALL-PG SHAKIR-PG	sidebyside	The Qur'"'"'an in three translations	en
 translation	Y	YUSUFALI-PG
 translation	P	PICKTHALL-PG
 translation	S	SHAKIR-PG
 book	Qur'"'"'an	1
-8294	WEB-PG	verses
-1581	DRC-PG	paragraphs
+8294	WEB-PG	verses	The World English Bible	en
+1581	DRC-PG	paragraphs	The Douay-Rheims Bible	en
 book	Genesis	THE BOOK OF GENESIS
 book	Exodus	THE BOOK OF EXODUS
 book	Leviticus	THE BOOK OF LEVITICUS
@@ -195,7 +197,7 @@ text	Abdias 1610	BOOKS FOR COMPARISON
 text	Jude 1582	THE CATHOLIKE EPISTLE OF IVDE THE APOSTLE.
 text	Preface 1582	THE PREFACE TO THE READER
 text	Hard Words 1582	HARD VVORDES EXPLICATED
-17	BOM-PG	chapters
+17	BOM-PG	chapters	The Book of Mormon	en
 book	1 Nephi	THE FIRST BOOK OF NEPHI
 book	2 Nephi	THE SECOND BOOK OF NEPHI
 book	Jacob	THE BOOK OF JACOB
@@ -453,8 +455,13 @@ agree() {
         printf 'License: %s\n' "$license_text"
         printf 'Details: https://www.gutenberg.org/ebooks/%s\n' "$1"
         if [ "$agree_all" = yes ]; then
-                printf 'Agreed to, with --agree.\n'
-                agreed="with --agree"
+                if [ -n "$agreed_how" ]; then
+                        printf 'Agreed to, %s.\n' "$agreed_how"
+                        agreed=$agreed_how
+                else
+                        printf 'Agreed to, with --agree.\n'
+                        agreed="with --agree"
+                fi
                 return 0
         fi
         if [ ! -t 0 ]; then
@@ -1192,13 +1199,24 @@ add() {
                   printf 'Address: %s\n' "$url"
                 } > "$folder/gutenberg" || { problem="couldn't write $n/gutenberg"; return 1; }
         done
-        # (into trans, at the top, in the order of names: so the last first)
-        for n in $(printf '%s\n' $names | $AWK '{ l[NR] = $0 } END { for (i = NR; i > 0; i--) print l[i] }'); do
+        # (into trans, at the top, in the order of names: so the last first;
+        # with --at-end, at the end, in their order, as add-translation.sh
+        # does for voice: EBaC's default stays the first)
+        if [ "$at_end" = yes ]; then
+                order=$names
+        else
+                order=$(printf '%s\n' $names | $AWK '{ l[NR] = $0 } END { for (i = NR; i > 0; i--) print l[i] }')
+        fi
+        for n in $order; do
                 t=$($AWK -F '\t' -v n="$n" '$1 == "title" && $2 == n { print $3 }' "$tmp/split")
                 [ -n "$t" ] || t=$title
-                { printf '%-11s %s\n' "$n" "$t"
-                  without_line "$n"; } > "$tmp/trans" &&
-                        cat "$tmp/trans" > "$here/trans"
+                if [ "$at_end" = yes ]; then
+                        { without_line "$n"
+                          printf '%-11s %s\n' "$n" "$t"; } > "$tmp/trans"
+                else
+                        { printf '%-11s %s\n' "$n" "$t"
+                          without_line "$n"; } > "$tmp/trans"
+                fi && cat "$tmp/trans" > "$here/trans"
         done
         adding=""
         for n in $names; do
@@ -1456,9 +1474,77 @@ add_number() {
         add "$number" "$url"
 }
 
+# ---- For programs (the EBaC integration's voice, through ebac-admin), as
+# add-translation.sh's: what can be added, a text's license, whether it is
+# added. Only the texts in KNOWN: each needs its layout, added by hand.
+
+# known_texts: a line per text in KNOWN: number, names, format, title,
+# language
+known_texts() {
+        printf '%s\n' "$KNOWN" | $AWK -F '\t' '$1 ~ /^[0-9]+$/'
+}
+
+# all_ours NAMES: whether each is a text this script added
+all_ours() {
+        for n in $1; do
+                [ -f "$here/$n/gutenberg" ] || return 1
+        done
+        return 0
+}
+
+# --catalog: as add-translation.sh's: "language", code, English name, own
+# name, how many; then "translation", its ebook number (what --license,
+# --check and adding take), language, title, 1 if added, and its short
+# names (the texts' own, which the integration matches too: DRC-PG).
+catalog() {
+        known_texts > "$tmp/known"
+        $AWK -F '\t' '{ n[$5]++ }
+                END { for (l in n) print "language\t" l "\t" (l == "en" ? "English" : l) "\t" (l == "en" ? "English" : l) "\t" n[l] }' "$tmp/known"
+        while IFS='	' read -r number names format title language; do
+                added=0
+                all_ours "$names" && added=1
+                printf 'translation\t%s\t%s\t%s\t%s\t%s\n' "$number" "$language" "$title" "$added" "$names"
+        done < "$tmp/known"
+}
+
+# license_facts NUMBER: its title and license, from its page (as adding
+# shows them; the license from Gutenberg's own terms if the page can't be
+# read), into title and license_text
+license_facts() {
+        title=$(printf '%s\n' "$(known "$1")" | cut -f4)
+        license_text="Project Gutenberg License ($GUTENBERG_LICENSE)"
+        if fetch "$(printf "$PAGE" "$1")" "$tmp/page" 2> /dev/null; then
+                page_facts "$tmp/page" > "$tmp/facts"
+                rights=$($AWK -F '\t' '$1 == "rights" { print $2 }' "$tmp/facts")
+                [ -n "$rights" ] && license_text="$rights Project Gutenberg License ($GUTENBERG_LICENSE)"
+        fi
+}
+
+# check_number NUMBER: "added" or "not added"; and, if what is kept is the
+# version offered now, "same version", a tab, and when it was downloaded
+check_number() {
+        names=$(printf '%s\n' "$(known "$1")" | cut -f2)
+        if all_ours "$names"; then
+                echo added
+                url=$(printf "$PLAIN_TEXT" "$1")
+                version_now=$(version_of "$url")
+                etag=$(printf '%s\n' "$version_now" | cut -f1)
+                size=$(printf '%s\n' "$version_now" | cut -f2)
+                modified=$(printf '%s\n' "$version_now" | cut -f3)
+                updated=""
+                all_same_version &&
+                        printf 'same version\t%s\n' "$(kept_field "${names%% *}" Downloaded)"
+        else
+                echo "not added"
+        fi
+        return 0
+}
+
 usage() {
         echo "usage: sh add-gutenberg.sh [--agree] [--file PATH] [--page PATH] NUMBER | --remove NAME | --list"
         echo "Adds a text from Project Gutenberg to EBaC by its ebook number, or removes one."
+        echo "For programs: --catalog, --license NUMBER, --check NUMBER, --at-end (into trans"
+        echo "last), --agreed-how TEXT (with --agree: how it was agreed to)."
 }
 
 # ---- the arguments
@@ -1468,9 +1554,19 @@ from_page=""
 number_arg=""
 remove_name=""
 list_only=no
+mode=""
+mode_number=""
+at_end=no
+agreed_how=""
 while [ $# -gt 0 ]; do
         case $1 in
         --agree) agree_all=yes ;;
+        --catalog) mode=catalog ;;
+        --license|--check)
+                [ $# -ge 2 ] || { usage >&2; exit 2; }
+                mode=${1#--}; mode_number=$2; shift ;;
+        --at-end) at_end=yes ;;
+        --agreed-how) [ $# -ge 2 ] || { usage >&2; exit 2; }; agreed_how=$2; shift ;;
         --list) list_only=yes ;;
         --file) [ $# -ge 2 ] || { usage >&2; exit 2; }; from_file=$2; shift ;;
         --page) [ $# -ge 2 ] || { usage >&2; exit 2; }; from_page=$2; shift ;;
@@ -1498,6 +1594,27 @@ if [ $list_only = yes ]; then
         ours | $AWK -F '\t' '{ print $1 ": " $2 }'
         exit 0
 fi
+
+case $mode in
+catalog)
+        catalog
+        exit 0
+        ;;
+license|check)
+        if [ -z "$(known "$mode_number")" ]; then
+                printf 'ebook %s isn'"'"'t one this importer knows (17, 1581, 8294, 16955).\n' "$mode_number" >&2
+                exit 1
+        fi
+        if [ $mode = license ]; then
+                license_facts "$mode_number"
+                printf 'Title: %s\nLicense: %s\nDetails: %s\n' "$title" "$license_text" \
+                        "$(printf "$PAGE" "$mode_number")"
+        else
+                check_number "$mode_number"
+        fi
+        exit 0
+        ;;
+esac
 
 if [ -n "$remove_name" ]; then
         remove "$remove_name" || { printf '%s: not removed: %s.\n' "$remove_name" "$problem"; exit 1; }

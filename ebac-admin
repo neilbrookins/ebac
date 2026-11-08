@@ -11,13 +11,23 @@
 # options, both off unless checked). See "More of EBaC by voice" in
 # readme.architecture.
 #
+# Sources (November 8, 2026): source= in a request says which importer:
+#   scrollmapper   add-translation.sh: scrollmapper's bible_databases (the
+#                  default, as before)
+#   thiagobodruk   add-thiagobodruk.sh: thiagobodruk/bible (names -TB)
+#   gutenberg      add-gutenberg.sh: Project Gutenberg, the ebooks it knows,
+#                  by number (name=8294); its catalog gives each one's
+#                  short names too ("names": "WEB-PG")
+# Removing takes no source: the importer that added the translation, by its
+# folder's mark (gutenberg, thiagobodruk; scrollmapper's have none).
+#
 # Requests (PATH_INFO, QUERY_STRING; the answer is JSON; an error is HTTP
 # 400, or 403 when not allowed, or 409 when another add is under way, with
 # {"error": "..."}):
 #
 #   permissions            {"add": true|false, "remove": true|false}
 #   catalog                every language and translation that can be added
-#                          (and whether it is): add-translation.sh --catalog
+#                          (and whether it is): the importer's --catalog
 #   license?name=LITV      its title, license and details page
 #   check?name=LITV        whether it is added, and if so whether the source
 #                          has the same version (then adding it is refused)
@@ -32,17 +42,15 @@
 #
 # By hand, for testing: BIBLEROOT=~/ebac sh ebac-admin 'check?name=LITV'
 #
-# BIBLEROOT is EBaC's folder, with add-translation.sh in it. The adds'
+# BIBLEROOT is EBaC's folder, with the importers in it. The adds'
 # progress is kept in BIBLEROOT/.voice-adds: NAME.state (running, done or
-# failed, and when), NAME.log (what add-translation.sh printed) and
-# NAME.pid.
+# failed, and when), NAME.log (what the importer printed) and NAME.pid.
 
 LC_ALL=C
 export LC_ALL
 set -f
 
 root=${BIBLEROOT:-.}
-importer=$root/add-translation.sh
 jobs=$root/.voice-adds
 
 if [ -n "${GATEWAY_INTERFACE:-}" ]; then
@@ -116,7 +124,28 @@ name_param() {
 
 bool() { if "$@"; then echo true; else echo false; fi; }
 
-[ -f "$importer" ] || fail "400 Bad Request" "add-translation.sh isn't in $root"
+# the importer of source= (see Sources, above)
+source=$(param source)
+case $source in
+"" | scrollmapper) importer=$root/add-translation.sh ;;
+thiagobodruk) importer=$root/add-thiagobodruk.sh ;;
+gutenberg) importer=$root/add-gutenberg.sh ;;
+*) fail "400 Bad Request" "no such source: $source (scrollmapper, thiagobodruk, gutenberg)" ;;
+esac
+
+# importer_of NAME: the importer that added the translation NAME, by its
+# folder's mark (for removing)
+importer_of() {
+        if [ -f "$root/$1/gutenberg" ]; then
+                echo "$root/add-gutenberg.sh"
+        elif [ -f "$root/$1/thiagobodruk" ]; then
+                echo "$root/add-thiagobodruk.sh"
+        else
+                echo "$root/add-translation.sh"
+        fi
+}
+
+[ -f "$importer" ] || fail "400 Bad Request" "${importer##*/} isn't in $root"
 
 case $request in
 permissions)
@@ -138,7 +167,7 @@ catalog)
                 langs = langs (langs == "" ? "\n  " : ",\n  ") "{\"code\": " j($2) ", \"english\": " j($3) ", \"own\": " j($4) ", \"count\": " ($5 + 0) "}"
         }
         $1 == "translation" {
-                trans = trans (trans == "" ? "\n  " : ",\n  ") "{\"name\": " j($2) ", \"language\": " j($3) ", \"title\": " j($4) ", \"added\": " ($5 == 1 ? "true" : "false") "}"
+                trans = trans (trans == "" ? "\n  " : ",\n  ") "{\"name\": " j($2) ", \"language\": " j($3) ", \"title\": " j($4) ", \"added\": " ($5 == 1 ? "true" : "false") ($6 != "" ? ", \"names\": " j($6) : "") "}"
         }
         END { print "{\"languages\": [" langs "],\n \"translations\": [" trans "]}" }'
         ;;
@@ -193,9 +222,11 @@ add)
         $detach sh -c '
                 importer=$1 name=$2 agreed=$3 jobs=$4
                 echo $$ > "$jobs/$name.pid"     # (its own: setsid may fork)
+                # (done: as the importer says; a Gutenberg ebook, asked
+                # for by number, is done under its short names)
                 if sh "$importer" --agree --agreed-how "$agreed" --at-end "$name" \
                         > "$jobs/$name.log" 2>&1 < /dev/null &&
-                   grep -F "$name: done." "$jobs/$name.log" > /dev/null; then
+                   grep -F ": done." "$jobs/$name.log" > /dev/null; then
                         printf "done\t%s\n" "$(date "+%Y-%m-%d %H:%M")" > "$jobs/$name.state"
                 else
                         printf "failed\t%s\n" "$(date "+%Y-%m-%d %H:%M")" > "$jobs/$name.state"
@@ -236,7 +267,7 @@ remove)
         # (one of EBaC's own, as the King James Version in the Home
         # Assistant app: a link into the image, never removed)
         [ -L "$root/$name" ] && fail "400 Bad Request" "$name is one of EBaC's own, and can't be removed"
-        out=$(sh "$importer" --remove "$name" 2>&1 < /dev/null)
+        out=$(sh "$(importer_of "$name")" --remove "$name" 2>&1 < /dev/null)
         case $out in
         *"$name: removed."*)
                 headers "200 OK"

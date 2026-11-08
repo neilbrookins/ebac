@@ -954,6 +954,28 @@ the new one (its results differ), from its first result. "next result"
 used to be taken by Home Assistant's media player ("no device is
 playing"): EBaC's sentence is matched first now.
 
+Sources by voice (November 8, 2026; the designer's request). "Add
+translation" looks in a source as well as a language, both for the whole
+house: the integration's Source option (Configure: a dropdown of the
+three), changed by voice too ("use Gutenberg translations", "use
+translations from Thiago Bodruk": a source's name is tried before a
+language's), and kept until changed, so several are added by name alone.
+  - ebac-admin takes source= (scrollmapper, the default; thiagobodruk;
+    gutenberg) and runs that importer; removing takes none: the importer
+    whose mark the folder has (gutenberg, thiagobodruk, else
+    scrollmapper's), so each removes only its own.
+  - add-gutenberg.sh gained the programs' modes add-translation.sh has:
+    --catalog (its KNOWN ebooks, with a title and language each, by
+    number, and their short names), --license NUMBER, --check NUMBER,
+    --at-end and --agreed-how. Only the ebooks it has a layout for can be
+    added (17, 1581, 8294, 16955): by number ("add translation 8294") or
+    name ("DRC"); after adding, the integration reads from its first short
+    name (WEB-PG), not the number.
+  - A name said without its source's ending means that source's ("NIV":
+    NIV-TB; "DRC": DRC-PG): matched first as said, then without the
+    ending, then by title. The same for choosing and removing among those
+    added: "KJVA" is KJVA, not KJVA-TB, while there is a KJVA.
+
 More of EBaC by voice (design review of October 29, 2026; being built:
 ebac-api's info and license requests, and ebac-admin, below). The aim: what EBaC's menus do, Assist can do, so that the
 integration has no gaps beside the app. From the review's list of what
