@@ -96,6 +96,9 @@ problem=""
 cleanup() {
         [ -n "$tmp" ] && rm -rf "$tmp"
         tmp=""
+        # (the terminal as it was, if read_line had changed it)
+        [ -n "$tty_saved" ] && stty "$tty_saved" 2> /dev/null
+        tty_saved=""
 }
 
 # Start a new EBaC in this program's place (when run from EBaC).
@@ -544,9 +547,8 @@ agree() {
                 # up, isn't an answer: read on, without asking again; what
                 # was typed is kept)
                 resized=0
-                while read_line; status=$?; [ $status -eq 2 ]; do
-                        resized=0
-                done
+                read_line --through-resize
+                status=$?
                 [ $status -eq 1 ] && answer=n                     # (end of input)
                 case $(printf '%s\n' "$answer" | tr 'A-Z' 'a-z') in
                 y|yes) agreed="typed y"; return 0 ;;
@@ -896,28 +898,110 @@ clear_screen() {
 
 # Show the translations a screenful at a time, and ask which to add.
 # Sets chosen to their short names; none to stop.
-# read_line: read a line typed into answer. Returns 2, with nothing read, if
-# the window changes size meanwhile (or since the screen was drawn), so that
-# it can be drawn again at the new size: as when a phone's keyboard comes up
-# just after the list was drawn, which would push its top off the screen.
-# 1 at the end of input.
+# read_line [--through-resize]: read a line typed into answer. Returns 1 at
+# the end of input; 2, with nothing read yet, if the window changes size
+# meanwhile (or since the screen was drawn), so that the caller can draw it
+# again for the new size, as when a phone's keyboard comes up or goes down
+# (the WINCH trap sets resized); with --through-resize, it reads on
+# instead, the screen being left as it is (the license question).
+#
+# At a terminal, it reads a key at a time, echoing it, and keeps what is
+# typed so far in typed: so when it is called again after the screen is
+# drawn again, it shows that first, and what is on the screen is what
+# Enter will send. (Read by the terminal a line at a time, as before, the
+# typed part was in the terminal's own buffer, unseen after the screen was
+# drawn again, but sent all the same with Enter: November 8, 2026.)
+# Backspace takes back a character (a whole one, in UTF-8), CTRL-U the
+# line; CTRL-D, on an empty line, is the end of input; other control keys,
+# and the rest of an escape sequence (an arrow key), are left out. Each
+# key is a dd, which returns every half second when none is typed, so that
+# a resize is seen in time. Otherwise (not a terminal, or no stty or dd),
+# the line is read whole.
+typed=""
+tty_saved=""
 read_line() {
         answer=""
-        [ "$resized" = 1 ] && return 2
-        if [ -n "${BASH_VERSION:-}" ]; then
-                # (bash doesn't let a signal interrupt read: wait a second at
-                # a time, and look in between)
-                while :; do
-                        read -r -t 1 answer && return 0
-                        [ $? -gt 128 ] || { answer=""; return 1; }
-                        [ "$resized" = 1 ] && { answer=""; return 2; }
-                done
+        [ "$resized" = 1 ] && [ "$1" != --through-resize ] && return 2
+        if [ ! -t 0 ] || ! command -v dd > /dev/null 2>&1 ||
+           ! tty_saved=$(stty -g 2> /dev/null); then
+                tty_saved=""
+                read -r answer && return 0
+                answer=""
+                return 1
         fi
-        read -r answer && return 0
-        answer=""
-        [ "$resized" = 1 ] && return 2  # (dash, BusyBox: read was interrupted)
-        return 1
+        stty -icanon -echo min 0 time 5 2> /dev/null
+        printf '%s' "$typed"            # (shown again, after a redraw)
+        skipping=""                     # (the rest of an escape sequence)
+        while :; do
+                if [ "$resized" = 1 ] && [ "$1" != --through-resize ]; then
+                        stty "$tty_saved" 2> /dev/null
+                        tty_saved=""
+                        return 2
+                fi
+                key=$(dd bs=1 count=1 2> /dev/null; echo x)
+                key=${key%x}
+                case $key in
+                "")     ;;              # (none typed in half a second)
+                "$NL"|"$CR")
+                        printf '\n'
+                        answer=$typed
+                        typed=""
+                        break ;;
+                "$DEL"|"$BS")
+                        if [ -n "$typed" ]; then
+                                typed=$(without_last "$typed")
+                                printf '\b \b'
+                        fi ;;
+                "$CTRL_U")
+                        while [ -n "$typed" ]; do
+                                typed=$(without_last "$typed")
+                                printf '\b \b'
+                        done ;;
+                "$CTRL_D")
+                        if [ -z "$typed" ]; then
+                                stty "$tty_saved" 2> /dev/null
+                                tty_saved=""
+                                return 1
+                        fi ;;
+                "$ESC") skipping=yes ;;
+                [$CONTROL])
+                        ;;              # (another control key: left out)
+                *)
+                        if [ -n "$skipping" ]; then
+                                # (an escape sequence ends with a letter or ~)
+                                case $key in [A-Za-z~]) skipping="" ;; esac
+                        else
+                                typed=$typed$key
+                                printf '%s' "$key"
+                        fi ;;
+                esac
+        done
+        stty "$tty_saved" 2> /dev/null
+        tty_saved=""
+        return 0
 }
+
+# without_last TEXT: TEXT without its last character: in UTF-8, its last
+# byte and, if that continues a character, the bytes back to its start
+without_last() {
+        rest=$1
+        while :; do
+                case $rest in
+                *[$CONTINUATION]) rest=${rest%?} ;;
+                *) break ;;
+                esac
+        done
+        printf '%s' "${rest%?}"
+}
+NL=$(printf '\nx'); NL=${NL%x}
+CR=$(printf '\r')
+DEL=$(printf '\177')
+BS=$(printf '\b')
+CTRL_U=$(printf '\025')
+CTRL_D=$(printf '\004')
+ESC=$(printf '\033')
+CONTROL=$(printf '\001-\037')           # (a range, in a pattern)
+CONTINUATION=$(printf '\200-\277')      # (UTF-8's continuation bytes)
 
 # Show the languages a screenful at a time, and ask for one. Sets lang to
 # its code, and lang_name and lang_nospace; lang is "" to stop.
@@ -1276,14 +1360,13 @@ importer_main() {
                 [ -n "$chosen" ] && clear_screen
         fi
 
-        between=""
+        first=yes
         for action in $chosen; do
                 name=${action#?}
                 # A blank line between translations: each one's last line is how it
                 # ended, and the blanks count the translations done.
-                printf '%s' "$between"
-                between='
-        '
+                [ -z "$first" ] && printf '\n'
+                first=""
                 case $action in
                 -*)
                         if remove "$name"; then
