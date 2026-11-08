@@ -6,15 +6,16 @@
 # /data is a volume: see docker/README.md).
 #
 # The image holds EBaC as built: the program, its 'trans' list, the
-# King James text (AV), the translation importer (add-translation.sh) and
-# the index program. The image is replaced when the app is updated, so
+# King James text (AV), the translation importers (add-thiagobodruk.sh,
+# add-translation.sh, add-gutenberg.sh, and importer.sh, which the first two
+# share) and the index program. The image is replaced when the app is updated, so
 # translations the user adds (A on EBaC's main menu) are kept in
 # /data/ebac instead, which Home Assistant keeps across restarts and
 # updates, and includes in backups. This makes /data/ebac a complete EBaC
 # folder:
 #
-#   - the image's translations, importers (add-translation.sh,
-#     add-gutenberg.sh), index program, groups of books (groups,
+#   - the image's translations, importers (add-thiagobodruk.sh,
+#     add-translation.sh, add-gutenberg.sh, importer.sh), index program, groups of books (groups,
 #     groups.KJVA), books' names as heard (spoken) and words said
 #     another way aloud (said), as links into the image (made again at
 #     each start, so they follow updates; a real file put in place of
@@ -51,6 +52,8 @@ names() {
     awk '$1 != "" && substr($1, 1, 1) != "#" { print $1 }' "$1"
 }
 
+link importer.sh        # (what the first two importers share)
+link add-thiagobodruk.sh
 link add-translation.sh
 link add-gutenberg.sh
 link index

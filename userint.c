@@ -32,14 +32,17 @@ static char program_path[512] = "";
 
 #ifdef UNIXV
 /*
-** The translation importer, add-translation.sh in BIBLEROOT (a shell
-** script), if it is there; otherwise "". The main menu offers A)dd a
-** translation when it or the next is set, and A)dd offers it as G)itHub.
+** The importers of translations, shell scripts in BIBLEROOT, each "" if it
+** isn't there: thiagobodruk/bible's (add-thiagobodruk.sh), scrollmapper's
+** bible_databases (add-translation.sh), and Project Gutenberg's
+** (add-gutenberg.sh). The main menu offers A)dd a translation when any is
+** there, and A)dd offers each (see add_menu()).
 */
-static char importer[600] = "";
-/* and the importer of Project Gutenberg's texts, add-gutenberg.sh, offered
-   likewise, as P)roject Gutenberg under A)dd (see add_menu()) */
+static char thiagobodruk[600] = "";
+static char scrollmapper[600] = "";
 static char gutenberg[600] = "";
+#define ANY_IMPORTER \
+        (thiagobodruk[0] != '\0' || scrollmapper[0] != '\0' || gutenberg[0] != '\0')
 #endif
 
 #define WIDTH (s_cols - 1)
@@ -142,12 +145,15 @@ static int screen_key P((void));
 /*
 ** A)dd: where to add a text from (November 2026; the designer's request).
 ** Each place has an importer of its own, a shell script, run only when it
-** is chosen here: G)itHub, scrollmapper's bible_databases (add-
-** translation.sh), and P)roject Gutenberg, by ebook number
+** is chosen here, each known by its letter: T)hiagobodruk/bible (add-
+** thiagobodruk.sh, its XML Bibles, the first since November 8),
+** S)crollmapper's bible_databases (add-translation.sh; G for GitHub
+** before), both by language, and P)roject Gutenberg, by ebook number
 ** (add-gutenberg.sh). A new place is another line here and another
-** script. Each importer adds, and removes, only its own texts; a text from
-** Project Gutenberg has "-PG" at the end of its short name (DRC-PG), so
-** that one from each place can be kept side by side.
+** script. Each importer adds, and removes, only its own texts; the short
+** name of a text from thiagobodruk/bible ends in "-TB" (KJVA-TB), and of
+** one from Project Gutenberg in "-PG" (DRC-PG), so that the same
+** translation from each place can be kept side by side.
 */
 static void add_menu(void)
 {
@@ -161,24 +167,33 @@ static void add_menu(void)
                 printf("Add or remove a translation\n");
                 underend();
                 printf("\nWhere from?\n\n");
-                if (importer[0] != '\0')
-                        printf("G)itHub: Bible translations, by language\n"
-                               "   (scrollmapper's bible_databases)\n\n");
+                if (thiagobodruk[0] != '\0')
+                        printf("T)hiagobodruk/bible on GitHub: Bibles,\n"
+                               "   by language (short names end in -TB)\n\n");
+                if (scrollmapper[0] != '\0')
+                        printf("S)crollmapper's bible_databases on GitHub:\n"
+                               "   Bible translations, by language\n\n");
                 if (gutenberg[0] != '\0')
                         printf("P)roject Gutenberg: a text, by its ebook\n"
                                "   number (its short name ends in -PG)\n\n");
                 printf("X) Back to the main menu\n\n");
-                printf("Please press %s%sor X now.\n",
-                       importer[0] != '\0' ? "G (or 1), " : "",
-                       gutenberg[0] != '\0' ? "P (or 2), " : "");
+                printf("Please press %s%s%sor X now.\n",
+                       thiagobodruk[0] != '\0' ? "T (1), " : "",
+                       scrollmapper[0] != '\0' ? "S (2), " : "",
+                       gutenberg[0] != '\0' ? "P (3), " : "");
                 scr_mode("menu");
                 key = tolower(screen_key());
-                if ((key == 'g' || key == '1') && importer[0] != '\0')
+                if ((key == 't' || key == '1') && thiagobodruk[0] != '\0')
                 {
-                        run_importer(importer, "translation importer");
+                        run_importer(thiagobodruk, "thiagobodruk/bible importer");
                         return;         /* (only if it couldn't start) */
                 }
-                if ((key == 'p' || key == '2') && gutenberg[0] != '\0')
+                if ((key == 's' || key == '2') && scrollmapper[0] != '\0')
+                {
+                        run_importer(scrollmapper, "scrollmapper importer");
+                        return;
+                }
+                if ((key == 'p' || key == '3') && gutenberg[0] != '\0')
                 {
                         run_importer(gutenberg, "Project Gutenberg importer");
                         return;
@@ -214,7 +229,7 @@ static int main_menu(void)
            touch screen (see gestures.js in the Home Assistant app) */
         printf("C)hange to a different translation\n\n");
 #ifdef UNIXV
-        if (importer[0] != '\0' || gutenberg[0] != '\0')
+        if (ANY_IMPORTER)
                 printf("A)dd or remove a translation\n\n");
 #endif
         printf("V)iew by:   Bookname Chapter:Verse\n\n");
@@ -222,7 +237,7 @@ static int main_menu(void)
         printf("I)nformation about EBaC\n\n");
         printf("E)xit Program\n\n");
 #ifdef UNIXV
-        if (importer[0] != '\0' || gutenberg[0] != '\0')
+        if (ANY_IMPORTER)
                 printf("Please press C, A, V, S, I, or E now.\n");
         else
 #endif
@@ -2156,7 +2171,8 @@ int main(int argc, char **argv)
         if (argc > 1)
                 start_trans = argv[1];  /* "bible BSB": start with BSB */
 #ifdef UNIXV
-        find_importer(importer, sizeof(importer), "add-translation.sh");
+        find_importer(thiagobodruk, sizeof(thiagobodruk), "add-thiagobodruk.sh");
+        find_importer(scrollmapper, sizeof(scrollmapper), "add-translation.sh");
         find_importer(gutenberg, sizeof(gutenberg), "add-gutenberg.sh");
 #endif
         initialize();
@@ -2170,7 +2186,7 @@ int main(int argc, char **argv)
 			break;
 #ifdef UNIXV
 		case 'a':
-			if (importer[0] != '\0' || gutenberg[0] != '\0')
+			if (ANY_IMPORTER)
 				add_menu();
 			else
 				putchar('\7');

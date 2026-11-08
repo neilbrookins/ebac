@@ -1559,6 +1559,7 @@ menu has one choice for adding, A)dd; it no longer has P. A)dd asks where
 from (add_menu() in userint.c, still EBaC's own screen): G)itHub (or 1),
 scrollmapper's bible_databases, runs add-translation.sh; P)roject
 Gutenberg (or 2), by ebook number, runs add-gutenberg.sh; X goes back.
+(Since November 8: T, S and P; see "A third place".)
 Another place, later, is another line there and another importer. The
 Home Assistant app's page takes a tap on any lettered line of a menu.
 
@@ -1573,6 +1574,52 @@ is renamed the next time add-gutenberg.sh runs: its folder and its line
 in trans, in its place. Each importer adds and removes only its own
 texts, and add-translation.sh never writes into a folder with a
 gutenberg file, whatever its name.
+
+A third place: thiagobodruk/bible (November 8, 2026; the designer's
+request). https://github.com/thiagobodruk/bible has some 140 Bibles in 85
+languages as XML (and JSON), many not in scrollmapper's collection (the
+NIV, the NLT). A)dd lists it first:
+
+  T)hiagobodruk/bible (or 1)   add-thiagobodruk.sh, its translations
+  S)crollmapper (or 2)         add-translation.sh (G before: with two
+                               places on GitHub, each is named for its own)
+  P)roject Gutenberg (or 3)    add-gutenberg.sh
+
+Names: its short name in capitals with -TB after it (en_kjva: KJVA-TB),
+as Gutenberg's have -PG; its folder has a file, thiagobodruk, saying so.
+Each importer adds and removes only its own: others_text() in
+importer.sh refuses a folder another's mark is in.
+
+One importer, two sources (importer.sh). The two GitHub importers share
+everything but their source: the lists of languages and translations, the
+license question, room on the disk, writing the books (book names, plain
+punctuation, the plan that checks each chapter starts at verse 1), the
+index and its check, 'trans', versions, removing, and the arguments.
+importer.sh holds that, moved from add-translation.sh as it was (its
+texts, re-added, came out byte for byte the same). Each importer sets
+PROGRAM, SOURCE and OWN_MARK, and defines all_translations, license_of,
+version_of, fetch_text and usage; then runs importer_main. fetch_text
+gives the text in one layout, scrollmapper's plain text ("### Book", then
+"[1:1] text"): scrollmapper's as it is, thiagobodruk's read out of its
+XML (a tag at a time; XML's escaped characters become the characters; a
+tag it doesn't know, or text outside a verse, refuses the file rather than
+read it wrongly). So the same text comes out the same from either source.
+
+Checked against each other (the designer's plan): the King James Version
+from each. All 31,102 verses of the 66 books were in both; 30,790 had the
+same words. The rest are the editions': scrollmapper's (CrossWire's KJVA,
+with Strong's numbers) has "Lord" for LORD and fewer commas ("without form
+and void"), some spellings differ (Abida, Abidah), and thiagobodruk's has
+the King James margin notes run into some 300 verses ("I am the LORD : :
+or, JEHOVAH"), as its XML has them. Every verse of KJVA-TB, NIV-TB and
+NLT-TB was then checked against its XML: the same, word for word (31,102,
+31,087 and 31,045 verses). Its "King James Version with Apocrypha" has no
+Apocrypha: the source's.
+
+Licenses: the collection is MIT-licensed, but says of its texts that they
+are their owners', all rights reserved; some (the NIV, the NLT) are under
+copyright. The license question says that, and links its README's
+section on it.
 
 The same version: refused, kept in the folder's version file; removing
 it first (in P, as r) lets it be downloaded again. (Fixed November 2,

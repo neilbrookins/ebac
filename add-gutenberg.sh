@@ -433,7 +433,7 @@ rename_old_names() {
 # remove NAME (sets problem on failure)
 remove() {
         if [ ! -f "$here/$1/gutenberg" ]; then
-                problem="it wasn't added from Project Gutenberg (A, then G, removes GitHub's)"
+                problem="it wasn't added from Project Gutenberg (A, then T or S, removes those from GitHub)"
                 return 1
         fi
         without_line "$1" > "$tmp/trans"
