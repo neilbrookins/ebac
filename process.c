@@ -36,6 +36,7 @@ static int rtl_cursor P((char *line, int k));
 static int rtl_cluster P((int place));
 static void rtl_show P((char *line, int place));
 static int rtl_step P((char *line, int place, int dir));
+static int rtl_edge P((char *line, int dir));
 static int rtl_key P((int c, char *line, int *place));
 static char *fgets_cr P((char *s, int n, FILE *iop));
 static int compare P((long int first, long int second, int prox));
@@ -375,9 +376,10 @@ static int rtl_layout(char *line, int n)
 }
 
 /* Purpose: the column of the cursor between cluster k - 1 and cluster k (in
-            reading order), after rtl_layout(): where a letter typed there
-            goes (to the left of the one before it, if that is right to
-            left) */
+            reading order), after rtl_layout(): on cluster k, the one a
+            letter typed there goes before, as the cursor of a line left to
+            right is (so at the start, on the first letter, at the right
+            edge; at the end, past the last, on its left) */
 static int rtl_cursor(char *line, int k)
 {
         int col, p;
@@ -392,10 +394,8 @@ static int rtl_cursor(char *line, int k)
                 else
                         col = rtl_col[p] - 1;
         }
-        else if (rtl_class[0] == RTL_L)
-                col = rtl_col[0];
         else
-                col = rtl_col[0] + u8_cols(&line[rtl_start[0]], rtl_len[0]);
+                col = rtl_col[0];
         if (col > s_cols - 1)
                 col = s_cols - 1;
         if (col < 0)
@@ -473,6 +473,19 @@ static int rtl_step(char *line, int place, int dir)
         return (best < rtl_n ? rtl_start[best] : (int) strlen(line));
 }
 
+/* Purpose: the byte place of the cursor at the left (dir -1) or right (+1)
+            end of the line on the screen: as far as Left or Right go */
+static int rtl_edge(char *line, int dir)
+{
+        int place = 0, next;
+
+        if (dir > 0)
+                place = (int) strlen(line);     /* (any place: a start) */
+        while ((next = rtl_step(line, place, dir)) >= 0)
+                place = next;
+        return (place);
+}
+
 /*
 ** Purpose: a key on the right-to-left search line: the line edited in
 **          reading order, and drawn again. Returns TRUE if it was taken
@@ -532,12 +545,15 @@ static int rtl_key(int c, char *line, int *place)
                 *place = k;
                 break;
         case 0x18:      /* Home: the start of the line (on the right) */
-        case 0x1:
                 *place = 0;
                 break;
         case 0x12:      /* End: its end (on the left) */
-        case 0x5:
                 *place = (int) strlen(line);
+                break;
+        case 0x1:       /* Ctrl-A, Ctrl-E: the left and right ends of the */
+        case 0x5:       /* line on the screen, as Left and Right go (the long
+                           swipes of the web page's gestures.js) */
+                *place = rtl_edge(line, c == 0x1 ? -1 : 1);
                 break;
         case 0x10:      /* the history: get_line()'s */
         case 0x7:

@@ -30,8 +30,9 @@
  *                                               the history, up: the next
  *                                               (Up and Down arrows), any length;
  *                                               left/right: cursor left/right,
- *                                               a long one: to the start/end
- *                                               (Home, End)
+ *                                               a long one: to that end of the
+ *                                               line (CTRL-A, CTRL-E; on a
+ *                                               Hebrew line too, as it looks)
  *   input     keyboard up: Enter               left: erase a character
  *   (book,                                      (Backspace), a long one: the
  *   chapter,                                    whole entry (CTRL-U);
@@ -509,8 +510,12 @@
                 return "x";                     /* back */
             if (mode === "search") {            /* move the cursor */
                 if (dx < 0)
-                    return longSide ? "\x01" : "\x02";  /* Home, Left */
-                return longSide ? "\x05" : "\x06";      /* End, Right */
+                    /* (CTRL-A, CTRL-E: the left and right ends as the line
+                       is shown, which on a Hebrew line are its end and its
+                       start; the keyboard's Home and End keep their own
+                       meaning, its start and end) */
+                    return longSide ? "\x01" : "\x02";  /* left end, Left */
+                return longSide ? "\x05" : "\x06";      /* right end, Right */
             }
             if (mode === "input" && dx < 0)     /* erase */
                 /* CTRL-U, or Backspace as the keyboard's own sends it

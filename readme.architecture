@@ -624,12 +624,18 @@ designer's request). Three parts:
     In an RTL line, runs of left-to-right letters and digits read left
     to right; a space between two of them is in the run ("in the"), and
     so is a mark just before one ("@gen", "=nt", "+1"); the rest takes
-    the line's side. The cursor is where the next letter goes: left of
-    a right-to-left one before it. Backspace erases the one before it
-    (on its right); Delete the one after (on its left); Left and Right
-    move the cursor as they point, to the nearest place on the screen;
-    Home the start (right), End the end (left); Up and Down the history,
-    shown the same way. The line holds what fits on the row (a beep past
+    the line's side. The cursor is on the letter the next one typed goes
+    before, as on a line left to right: at the start, on the first letter
+    (the rightmost); at the end, on the cell left of the last. Backspace
+    erases the one before it (on its right); Delete the one after (on
+    its left); Left and Right move the cursor as they point, to the
+    nearest place on the screen; CTRL-A and CTRL-E to the left and right
+    ends as shown (the web page's long swipes, November 7, 2026: they
+    went the wrong way when they meant the start and end); Home the
+    start (right), End the end (left); Up and Down the history, shown
+    the same way. A search is written in the same order as ever, words
+    then operators, in reading order: so on the screen an operator
+    typed after two Hebrew words appears on their left. The line holds what fits on the row (a beep past
     it). The book, chapter and verse prompts, and the search line of a
     left-to-right translation, are as before.
   - Copying (the Home Assistant app's page, gestures.js): EBaC shows
