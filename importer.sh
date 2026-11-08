@@ -519,7 +519,9 @@ index_verses() {
 # y", "with --agree"); returns 1 if not, with problem saying why.
 agree() {
         license_of "$1"
-        printf '\n'
+        # (no blank line first: importer_main puts one between translations,
+        # and before the first the screen is clear; with both, there were
+        # two, November 8, 2026)
         # (print, not printf: the title may be beyond ASCII)
         $AWK -v l="$1: $2" -v cols="$cols" "$CHARS"'BEGIN { print cut_cols(l, cols - 1) }'
         printf 'License: %s\n' "$license_line"
