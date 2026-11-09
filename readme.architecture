@@ -1660,6 +1660,28 @@ in a search, a reference), tries the short name after the name:
 A translation added before this has no abbreviations file until it is
 added again. (Not on the CoCo: its books are fixed.)
 
+Book names typed in full (November 9, 2026; found by the designer in the
+KJVA-TB, which has Esther and a longer name beginning "Esther"). At the V
+prompt a space or Enter ends a book's name, so a book whose whole name
+is the start of another's could never be chosen: "esther" matched both,
+an error, and there was nothing more to type. match_it() now takes a
+book's whole name, typed in full, as that book, even where it is the
+start of others' (name_is() in userint.c; a number for a Roman numeral
+counts, "1esdras" for IEsdras); a letter more still reaches the longer
+one ("estherg"). It comes before the short names, so a name typed in full
+is never taken for another book's short name. Everywhere a book is typed
+(the V prompt, @ in a search, a reference by voice) goes through
+match_it(), so all of them changed together. No name in the AV is the
+start of another's: the AV is unchanged.
+When a name is still the start of several, the V prompt's error ("There
+is more than one book that matches that name. Please be more specific.")
+is now followed by those books' names, one to a line, as the translation
+writes them (list_book_matches(); where no name starts so, the books
+whose short names do), so it can be seen what more to type: "phil" lists
+Philippians and Philemon. tests/booknames.py checks both, in both builds
+and ebac-api, with a translation made for it (books A, AB, AC, AD, BX,
+BY, IEsdras, IEsdrasGreek), as part of "make test".
+
 Texts without spaces (fixed November 8, 2026; found by the designer in
 Genesis 1:2 of the Japanese JNIV-TB). get_verse() in file.c builds a
 verse from the words read_word() reads, a word being what is between

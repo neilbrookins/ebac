@@ -130,18 +130,21 @@ verses: verses.c
 # memory) and once with RAMDISK (results kept in temporary files), and
 # check that both produce byte-for-byte identical screens for a set of
 # scripted sessions. Any change to the code must keep them identical.
+# Then that a book's whole name chooses it, though other names begin so
+# (tests/booknames.py), in both builds and ebac-api.
 # Needs Python 3. For memory checking as well, run:
 #   make test TESTSAN="-fsanitize=address,undefined"
 TESTCFLAGS= -O1 -g -Wall -Wextra -DUNIXV $(TESTSAN)
 TESTSRC= bible.c file.c userint.c process.c curses.c utf8.c
 # The test also checks that every folder is mentioned in 'trans'.
-test: $(TESTSRC) bible.h both.h screen.h utf8.h tests/sidebyside.py indexes
+test: $(TESTSRC) bible.h both.h screen.h utf8.h tests/sidebyside.py tests/booknames.py indexes ebac-api
 	sh translations.sh check --strict
 	rm -rf tests/build
 	mkdir -p tests/build/noramdisk tests/build/ramdisk
 	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DNORAMDISK -o tests/build/noramdisk/bible $(TESTSRC) $(LIBS)
 	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DRAMDISK -o tests/build/ramdisk/bible $(TESTSRC) $(LIBS)
 	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/ramdisk/bible
+	python3 tests/booknames.py tests/build/noramdisk/bible tests/build/ramdisk/bible ebac-api index
 
 # The passage screen's keys (n p . , f b) from every screen of a made-up
 # translation with verses taller than the screen, at a phone's size and at

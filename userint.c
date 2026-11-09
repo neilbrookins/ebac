@@ -300,6 +300,32 @@ static int number_matches(char *typed, char *name)
 }
 
 /*
+** Purpose: is a bookname typed in full ("esther", in lower case) a book's
+**          whole name (any case), or with a number for its Roman numeral
+**          ("1esdras" for IEsdras)? Not just the start of it, as with
+**          name_starts().
+*/
+static int name_is(char *typed, char *name)
+{
+        int number = 0, i = 0;
+        char *rest = name, lower[MAXWORDLEN];
+
+        strncpy(lower, name, MAXWORDLEN - 1);
+        lower[MAXWORDLEN - 1] = '\0';
+        u8_lower(lower);
+        if (strcmp(lower, typed) == 0)
+                return (TRUE);
+        while (isdigit(UCHAR(typed[i])) && number < 1000)
+                number = number * 10 + (typed[i++] - '0');
+        if (i == 0 || number == 0 || roman_start(name, &rest) != number)
+                return (FALSE);
+        strncpy(lower, rest, MAXWORDLEN - 1);
+        lower[MAXWORDLEN - 1] = '\0';
+        u8_lower(lower);
+        return (strcmp(lower, &typed[i]) == 0);
+}
+
+/*
 ** Purpose: does a partial bookname, in lower case, match the start of a
 **          book's name (any case), or (see number_matches()) its number?
 */
@@ -339,6 +365,42 @@ void print_book_matches(char *book_str)
                 if (name_starts(typed, book[i].name))
                         printf("%s%s", ++shown == 1 ? "" :
                                shown == count ? " and " : ", ", book[i].name);
+}
+
+/*
+** Purpose: print the names of the books a partial bookname matches, one to
+**          a line, as the translation writes them, after "There is more
+**          than one book that matches that name" at the V prompt (November
+**          9, 2026, the designer's request): so it can be seen what more
+**          to type. The books whose names start so; if none do, those
+**          whose short names start so (as match_it() matches them).
+*/
+static void list_book_matches(char *book_str)
+{
+#ifndef COCO
+        extern struct bva *book;
+#else
+        extern struct bva book[];
+#endif
+        char typed[MAXWORDLEN];
+        int i, shown = 0;
+
+        strncpy(typed, book_str, MAXWORDLEN - 1);
+        typed[MAXWORDLEN - 1] = '\0';
+        u8_lower(typed);
+        for (i = 0; i < numbooks; i++)
+                if (name_starts(typed, book[i].name))
+                {
+                        printf("%s\n", book[i].name);
+                        shown++;
+                }
+#ifndef COCO
+        if (shown == 0)
+                for (i = 0; i < numbooks; i++)
+                        if (book[i].abbr[0] != '\0' &&
+                            strncmp(book[i].abbr, typed, strlen(typed)) == 0)
+                                printf("%s\n", book[i].name);
+#endif
 }
 
 #ifndef COCO
@@ -389,6 +451,14 @@ static int match_abbr(char *typed, int count, int *found)
             and that book, Exodus, is the second book of the Bible. "Exodus"
             will be printed.
 
+            A book's whole name, typed in full, is that book, even where it
+            is also the start of others' names (November 9, 2026, the
+            designer's request): "esther" is Esther, though EstherGreek
+            begins so too, which "estherg" then chooses. Without this,
+            Esther could never be chosen: a space or Enter ends the name,
+            so there is nothing more to type. (No name in the AV is the
+            start of another's.)
+
             A number typed at the start also matches a Roman numeral of the
             same value at the start of a name, as the translation writes it:
             "2th" matches IIThessalonians, and "3" IIIJohn. (So the same
@@ -434,6 +504,14 @@ int match_it(char *book_str,
                                 savei = i;
                         }
                 }
+                if (count > 1)          /* (one of them typed in full?) */
+                        for (i = 0; i < numbooks; i++)
+                                if (name_is(book_str, book[i].name))
+                                {
+                                        count = 1;
+                                        savei = i;
+                                        break;
+                                }
 #ifndef COCO
                 if (count != 1)
                         count = match_abbr(book_str, count, &savei);
@@ -601,6 +679,7 @@ get_name_again:
         {
                 printf("\nThere is more than one book that matches that name.\n");
                 printf("Please be more specific.\n");
+                list_book_matches(book_str);    /* (which ones) */
                 goto get_name_again;
         }
 
