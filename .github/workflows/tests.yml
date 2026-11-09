@@ -1,0 +1,34 @@
+# EBaC's tests ("make test", see the makefile): both builds, RAMDISK and
+# NORAMDISK, through the same scripted sessions, which must draw the very
+# same screens; then the book names test (tests/booknames.py). Once as
+# built, and once with the memory and undefined-behavior checkers.
+#
+# On every push and pull request; and before the Docker image is published
+# from main (docker.yml runs this first, and publishes only if it passes).
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: make test${{ matrix.sanitize && ' (memory checks)' || '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitize: ["", "-fsanitize=address,undefined"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: ncurses, to build with
+        run: sudo apt-get update -q && sudo apt-get install -y -q libncurses-dev pkg-config
+      - name: Build
+        run: make all
+      - name: make test
+        run: make test TESTSAN="${{ matrix.sanitize }}"
