@@ -112,7 +112,7 @@ set -f                  # no file-name patterns: a typed * stays a *
 SOURCE=https://raw.githubusercontent.com/scrollmapper/bible_databases/master
 LIST_PATH=docs/main_readme/translation_list.md
 PROGRAM=add-translation
-OWN_MARK=""             # (scrollmapper's texts have no mark of their own)
+OWN_MARK=""             # (those from scrollmapper/bible_databases have no mark of their own)
 
 here=$(cd "$(dirname "$0")" && pwd)
 if [ ! -f "$here/importer.sh" ]; then

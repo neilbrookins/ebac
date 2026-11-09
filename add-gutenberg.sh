@@ -19,7 +19,7 @@
 # searched or listed here: what is added is their own choice. The address
 # of its plain text isn't typed: it is made from the number, as Gutenberg
 # gives it, https://www.gutenberg.org/ebooks/17.txt.utf-8 (see PLAIN_TEXT).
-# Then, as add-translation.sh does for scrollmapper's texts, this:
+# Then, as add-translation.sh does for those from scrollmapper/bible_databases, this:
 #
 #   1. refuses it, by its fingerprint (asked for without downloading it),
 #      if it is the same version as the copy added before (remove that
@@ -55,7 +55,8 @@
 # text, without the 0s, which aren't in the text. (See put_intro().)
 #
 # This script adds and removes only its own texts (those whose folder has
-# a file named gutenberg); add-translation.sh, scrollmapper's.
+# a file named gutenberg); add-translation.sh, those from
+# scrollmapper/bible_databases.
 #
 # EBaC runs this itself for P)roject Gutenberg under A)dd on its main menu, as "sh
 # add-gutenberg.sh --from-ebac PROGRAM NAME", and is started again when it
