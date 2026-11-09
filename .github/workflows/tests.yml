@@ -1,7 +1,8 @@
 # EBaC's tests ("make test", see the makefile): both builds, RAMDISK and
 # NORAMDISK, through the same scripted sessions, which must draw the very
-# same screens; then the book names test (tests/booknames.py). Once as
-# built, and once with the memory and undefined-behavior checkers.
+# same screens; then the book names test (tests/booknames.py), and the test
+# of translations changed by another EBaC or by voice (tests/otherebac.py).
+# Once as built, and once with the memory and undefined-behavior checkers.
 #
 # On every push and pull request; and before the Docker image is published
 # from main (docker.yml runs this first, and publishes only if it passes).
