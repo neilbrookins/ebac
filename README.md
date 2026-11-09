@@ -71,7 +71,7 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 - [Searching](#searching)
 - [Adding other translations](#adding-other-translations)
   - [From thiagobodruk/bible (T)](#from-thiagobodrukbible-t)
-  - [From scrollmapper's bible_databases (S)](#from-scrollmappers-bible_databases-s)
+  - [From scrollmapper/bible_databases (S)](#from-scrollmapperbible_databases-s)
   - [From Project Gutenberg (P)](#from-project-gutenberg-p)
   - [For all three places](#for-all-three-places)
   - [Adding one by hand](#adding-one-by-hand)
@@ -495,7 +495,7 @@ See [`docs`](docs) for more examples.
 EBaC comes with the King James Version (`AV`). To add other translations, press **A** at EBaC's main menu. EBaC then asks **where to add from: one of three places**, each with its own collection and its own steps. Choose one:
 
 1. **T** (or **1**): [**thiagobodruk/bible**](#from-thiagobodrukbible-t), on GitHub. Some 140 Bibles in 85 languages, including the New International Version and the New Living Translation. Their short names end in `-TB`.
-2. **S** (or **2**): [**scrollmapper's bible_databases**](#from-scrollmappers-bible_databases-s), on GitHub. 140 translations in 56 languages, from CrossWire, such as the American Standard Version, the Berean Standard Bible and the Douay-Rheims.
+2. **S** (or **2**): [**scrollmapper/bible_databases**](#from-scrollmapperbible_databases-s), on GitHub. 140 translations in 56 languages, from CrossWire, such as the American Standard Version, the Berean Standard Bible and the Douay-Rheims.
 3. **P** (or **3**): [**Project Gutenberg**](#from-project-gutenberg-p). Particular texts, by ebook number: the Book of Mormon, the World English Bible, the Qur'an in three translations, and others. Their short names end in `-PG`.
 
 **X** goes back to the main menu. (**S** was **G**, for GitHub, before there were two places there.)
@@ -504,7 +504,7 @@ A translation is removed from the same place it was added from. What works the s
 
 ### From thiagobodruk/bible (T)
 
-[thiagobodruk/bible](https://github.com/thiagobodruk/bible) on GitHub has some 140 Bibles in 85 languages, as XML files, many of them not in scrollmapper's collection, such as the New International Version and the New Living Translation. A translation from here has `-TB` (for Thiago Bodruk, whose collection it is) at the end of its short name: `KJVA-TB`, `NIV-TB`, `NLT-TB`. So the same Bible from each place can be kept side by side and compared, such as the King James Version from scrollmapper (`KJVA`) and from here (`KJVA-TB`).
+[thiagobodruk/bible](https://github.com/thiagobodruk/bible) on GitHub has some 140 Bibles in 85 languages, as XML files, many of them not in scrollmapper/bible_databases, such as the New International Version and the New Living Translation. A translation from here has `-TB` (for Thiago Bodruk, whose collection it is) at the end of its short name: `KJVA-TB`, `NIV-TB`, `NLT-TB`. So the same Bible from each place can be kept side by side and compared, such as the King James Version from scrollmapper/bible_databases (`KJVA`) and from here (`KJVA-TB`).
 
 To add one:
 
@@ -532,9 +532,9 @@ sh add-thiagobodruk.sh --remove NIV-TB  # remove this one
 sh add-thiagobodruk.sh --list           # just list them, by language
 ```
 
-### From scrollmapper's bible_databases (S)
+### From scrollmapper/bible_databases (S)
 
-The 34 English translations include the American Standard Version, the Berean Standard Bible, the Lexham English Bible, Young's Literal Translation, Darby, Webster, the Geneva Bible of 1599, the Bible in Basic English, the New Heart English Bible, the Open English Bible, Tyndale, and several New Testaments. They come from the plain-text Bibles of the [bible_databases](https://github.com/scrollmapper/bible_databases) project, made from [CrossWire](https://crosswire.org/sword/modules/ModDisp.jsp?modType=Bibles)'s modules; CrossWire has a few more that aren't available as text there. Three include the Apocrypha: the King James Version with the Apocrypha (KJVA), the Douay-Rheims Bible and the Catholic Public Domain Version.
+The 34 English translations include the American Standard Version, the Berean Standard Bible, the Lexham English Bible, Young's Literal Translation, Darby, Webster, the Geneva Bible of 1599, the Bible in Basic English, the New Heart English Bible, the Open English Bible, Tyndale, and several New Testaments. They come from the plain-text Bibles of [scrollmapper/bible_databases](https://github.com/scrollmapper/bible_databases), made from [CrossWire](https://crosswire.org/sword/modules/ModDisp.jsp?modType=Bibles)'s modules; CrossWire has a few more that aren't available as text there. Three include the Apocrypha: the King James Version with the Apocrypha (KJVA), the Douay-Rheims Bible and the Catholic Public Domain Version.
 
 The list of languages and translations is read from the source each time, so new ones appear as they are added there: 140 translations in 56 languages at the time of writing, including Hebrew and Greek texts. The source gives each translation's language only as a code (`es`); the names of the languages, in English and in the language itself, come from Unicode's [Common Locale Data Repository](https://github.com/unicode-org/cldr-json), fetched the first time a language is seen and kept in `languages.cache` (fetched again after a month). For a language Unicode has no names for, such as `hbo`, the English name comes from IANA's [registry of language codes](https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry): Ancient Hebrew, whose texts (the Westminster Leningrad Codex among them) have the vowel points. Some languages, such as Chinese, Japanese and Thai, are often written without spaces between words; as EBaC searches word by word, searching such a translation works poorly, and EBaC says so (on that language's list, and after adding one whose text has no spaces).
 
@@ -603,7 +603,7 @@ Choosing a translation already added downloads it again, as a fresh copy, and mo
 
 #### Removing a translation
 
-On the list of translations, type **r** and its number, such as `r6`: its folder and its line in `trans` are deleted, so it is no longer offered, and its `*` is gone. Adding and removing can be mixed in one line, done in the order typed: `r10 11 13` removes 10 and adds 11 and 13. If anything in the line is wrong (a number not in the list, or `r` for a translation that isn't added), nothing is done, and the list says what was wrong. Each place removes only its own translations: **T** those from thiagobodruk/bible, **S** those from scrollmapper's, **P** those from Project Gutenberg. Only added translations can be removed, not the King James (`AV`) that comes with EBaC.
+On the list of translations, type **r** and its number, such as `r6`: its folder and its line in `trans` are deleted, so it is no longer offered, and its `*` is gone. Adding and removing can be mixed in one line, done in the order typed: `r10 11 13` removes 10 and adds 11 and 13. If anything in the line is wrong (a number not in the list, or `r` for a translation that isn't added), nothing is done, and the list says what was wrong. Each place removes only its own translations: **T** those from thiagobodruk/bible, **S** those from scrollmapper/bible_databases, **P** those from Project Gutenberg. Only added translations can be removed, not the King James (`AV`) that comes with EBaC.
 
 #### Disk space
 

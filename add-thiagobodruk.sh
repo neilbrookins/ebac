@@ -25,16 +25,16 @@
 #
 # a b (book: its name, as the translation has it, in n), its c (chapters)
 # and their v (verses), numbered; the whole file on one line. Each is read
-# into the layout of scrollmapper's plain text ("### Genesis", then "[1:1]
+# into the plain-text layout of scrollmapper/bible_databases ("### Genesis", then "[1:1]
 # In the beginning ..."), and from there is added as add-translation.sh
-# adds scrollmapper's: the same lists, license question, books, index and
+# adds those from scrollmapper/bible_databases: the same lists, license question, books, index and
 # 'trans' (importer.sh, which both read). So the same text comes out the
 # same from either source; to check, the King James Version from each can
 # be read side by side.
 #
 # Short names. EBaC knows each by the translation's own short name, in
 # capitals, with "-TB" after it (for Thiago Bodruk, whose collection it is):
-# en_kjva is KJVA-TB, en_niv NIV-TB, so that one from scrollmapper (KJVA),
+# en_kjva is KJVA-TB, en_niv NIV-TB, so that one from scrollmapper/bible_databases (KJVA),
 # from Project Gutenberg (DRC-PG) and from here (KJVA-TB) can be kept side by
 # side. The folder of each it adds has a file, thiagobodruk, saying so: this
 # script removes only those, and the other importers leave them alone.
@@ -45,7 +45,7 @@
 # (the King James Version); others are not (the New International Version,
 # the New Living Translation): what may be done with them is their owners'
 # to say. So each is added only by someone who agrees, asked every time, as
-# for scrollmapper's.
+# for scrollmapper/bible_databases.
 #
 # Versions: the XML file's ETag (or, from a folder, its checksum), kept in
 # the translation's folder as add-translation.sh keeps it: the same version
@@ -141,8 +141,8 @@ version_of() {
         esac
 }
 
-# fetch_text NAME FILE: its XML, downloaded and read into scrollmapper's
-# plain-text layout in FILE: "### Book<tab>id" for each b (its n, and its
+# fetch_text NAME FILE: its XML, downloaded and read into the plain-text
+# layout of scrollmapper/bible_databases in FILE: "### Book<tab>id" for each b (its n, and its
 # id, the collection's short name for the book: gn, ex, 1sm, made from the
 # Portuguese names in almost every translation, so typeable in any), then
 # "[C:V]
@@ -151,7 +151,7 @@ version_of() {
 # and then the text after it. XML's five named characters (&amp; and the
 # rest) and numbered ones (&#8217;) become the characters themselves; the
 # rest of the text is left as it is (importer.sh makes typographic
-# punctuation plain, as for scrollmapper's). A file with anything else in
+# punctuation plain, as for scrollmapper/bible_databases). A file with anything else in
 # it is refused, rather than read wrongly.
 fetch_text() {
         fetch "xml/$(source_name "$1").xml" "$tmp/xml" || return 1

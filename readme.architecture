@@ -962,8 +962,8 @@ translations from Thiago Bodruk": a source's name is tried before a
 language's), and kept until changed, so several are added by name alone.
   - ebac-admin takes source= (scrollmapper, the default; thiagobodruk;
     gutenberg) and runs that importer; removing takes none: the importer
-    whose mark the folder has (gutenberg, thiagobodruk, else
-    scrollmapper's), so each removes only its own.
+    whose mark the folder has (gutenberg, thiagobodruk; none for
+    scrollmapper/bible_databases), so each removes only its own.
   - add-gutenberg.sh gained the programs' modes add-translation.sh has:
     --catalog (its KNOWN ebooks, with a title and language each, by
     number, and their short names), --license NUMBER, --check NUMBER,
@@ -1325,8 +1325,8 @@ Texts from Project Gutenberg
 (Design review of October 29, 2026; built: add-gutenberg.sh, zero.dat
 from index.c, verse 0 and chapter 0 in EBaC and ebac-api, tall verses,
 P on the main menu.) Some texts EBaC
-should read, such as the Book of Mormon, aren't in scrollmapper's
-collection but are on Project Gutenberg (gutenberg.org) as plain text,
+should read, such as the Book of Mormon, aren't in
+scrollmapper/bible_databases but are on Project Gutenberg (gutenberg.org) as plain text,
 in chapter and verse. They are added by hand, one at a time:
 
   1. The person finds the text on gutenberg.org themselves (its search)
@@ -1348,7 +1348,8 @@ of books, indexed, in trans), and each script stays simple for its own.
 Some of what they do is alike (downloading, typographic punctuation, the
 index, trans, the license and version files), written in each. Each adds
 and removes only its own: add-translation.sh doesn't remove a Gutenberg
-text, nor add-gutenberg.sh one of scrollmapper's.
+text, nor add-gutenberg.sh one from
+scrollmapper/bible_databases.
 
 One text at a time, one format at a time. Gutenberg's texts are laid out
 in many ways. The script knows a text by its ebook number, from a list
@@ -1579,7 +1580,7 @@ license read from it. --page PATH reads a saved page instead, for tests.
 Where to add from (November 5, 2026; the designer's request). The main
 menu has one choice for adding, A)dd; it no longer has P. A)dd asks where
 from (add_menu() in userint.c, still EBaC's own screen): G)itHub (or 1),
-scrollmapper's bible_databases, runs add-translation.sh; P)roject
+scrollmapper/bible_databases, runs add-translation.sh; P)roject
 Gutenberg (or 2), by ebook number, runs add-gutenberg.sh; X goes back.
 (Since November 8: T, S and P; see "A third place".)
 Another place, later, is another line there and another importer. The
@@ -1599,7 +1600,7 @@ gutenberg file, whatever its name.
 
 A third place: thiagobodruk/bible (November 8, 2026; the designer's
 request). https://github.com/thiagobodruk/bible has some 140 Bibles in 85
-languages as XML (and JSON), many not in scrollmapper's collection (the
+languages as XML (and JSON), many not in scrollmapper/bible_databases (the
 NIV, the NLT). A)dd lists it first:
 
   T)hiagobodruk/bible (or 1)   add-thiagobodruk.sh, its translations
@@ -1621,15 +1622,17 @@ importer.sh holds that, moved from add-translation.sh as it was (its
 texts, re-added, came out byte for byte the same). Each importer sets
 PROGRAM, SOURCE and OWN_MARK, and defines all_translations, license_of,
 version_of, fetch_text and usage; then runs importer_main. fetch_text
-gives the text in one layout, scrollmapper's plain text ("### Book", then
-"[1:1] text"): scrollmapper's as it is, thiagobodruk's read out of its
+gives the text in one layout, the plain text of
+scrollmapper/bible_databases ("### Book", then "[1:1] text"): its own as
+it is, thiagobodruk's read out of its
 XML (a tag at a time; XML's escaped characters become the characters; a
 tag it doesn't know, or text outside a verse, refuses the file rather than
 read it wrongly). So the same text comes out the same from either source.
 
 Checked against each other (the designer's plan): the King James Version
 from each. All 31,102 verses of the 66 books were in both; 30,790 had the
-same words. The rest are the editions': scrollmapper's (CrossWire's KJVA,
+same words. The rest are the editions': the one from
+scrollmapper/bible_databases (CrossWire's KJVA,
 with Strong's numbers) has "Lord" for LORD and fewer commas ("without form
 and void"), some spellings differ (Abida, Abidah), and thiagobodruk's has
 the King James margin notes run into some 300 verses ("I am the LORD : :
@@ -1647,8 +1650,8 @@ letters even in a Japanese or Korean translation, so typeable where the
 name may not be. The importer keeps them: add-thiagobodruk.sh puts each
 after its book's heading, after a tab ("### Genesis<tab>gn"), and
 importer.sh writes them into the folder's abbreviations file, one book a
-line, "gn<tab>Genesis" (the book as booklist has it); scrollmapper's have
-none. EBaC reads the file with booklist (read_abbreviations() in file.c),
+line, "gn<tab>Genesis" (the book as booklist has it); those from
+scrollmapper/bible_databases have none. EBaC reads the file with booklist (read_abbreviations() in file.c),
 and match_it(), which every typed book name goes through (the V prompt, @
 in a search, a reference), tries the short name after the name:
   - typed exactly, it is that book, even where the start of the name fits

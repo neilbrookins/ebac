@@ -1,5 +1,5 @@
 # importer.sh -- what EBaC's importers of Bible translations from GitHub
-#                share: add-translation.sh (scrollmapper's bible_databases)
+#                share: add-translation.sh (scrollmapper/bible_databases)
 #                and add-thiagobodruk.sh (thiagobodruk/bible). Read by
 #                them ("." in sh), not run itself.
 #
@@ -7,7 +7,7 @@
 #   PROGRAM      its name, for messages ("add-translation")
 #   SOURCE       where its translations are by default (a web address)
 #   OWN_MARK     the file its texts' folders have, saying they are its own
-#                ("" for none: scrollmapper's, the first)
+#                ("" for none: scrollmapper/bible_databases, the first)
 #   here         the folder EBaC is in
 # and defines, for its source:
 #   all_translations   every translation, one per line in $tmp/all: short
@@ -17,8 +17,8 @@
 #                      web page with more)
 #   version_of NAME    the text's fingerprint in the source, without
 #                      downloading it ("" if it can't be had)
-#   fetch_text NAME FILE  the text, into FILE, in scrollmapper's plain
-#                      text layout: "### Book" before each book, then a
+#   fetch_text NAME FILE  the text, into FILE, in the plain-text layout of
+#                      scrollmapper/bible_databases: "### Book" before each book, then a
 #                      verse a line, "[1:1] In the beginning..."; a book's
 #                      heading may have its short name in the source after
 #                      a tab ("### Genesis<tab>gn"), kept in the folder's
@@ -567,7 +567,7 @@ agree() {
 # others_text FOLDER: whether FOLDER holds a text another importer added,
 # which this one neither writes over nor removes: its mark says whose
 # (gutenberg: add-gutenberg.sh's; thiagobodruk: add-thiagobodruk.sh's;
-# scrollmapper's have none). Sets problem if so.
+# those from scrollmapper/bible_databases have none). Sets problem if so.
 others_text() {
         if [ "$OWN_MARK" != gutenberg ] && [ -f "$1/gutenberg" ]; then
                 problem="$(basename "$1") is a text from Project Gutenberg (A, then P, removes it)"
@@ -652,7 +652,7 @@ add_to() {
         others_text "$folder" && return 1
         enough_room || return 1
         printf '%s: downloading...\n' "$name"
-        # the text, as scrollmapper's plain text has it ("### Book", then
+        # the text, as the plain text of scrollmapper/bible_databases has it ("### Book", then
         # "[1:1] text"): the importer's own fetch_text
         fetch_text "$name" "$tmp/text" || return 1
 
@@ -819,7 +819,7 @@ add_to() {
         } > "$folder/license" || { problem="couldn't write $name/license"; return 1; }
 
         # the importer's mark, which says the text is its own (none for
-        # scrollmapper's, the first)
+        # scrollmapper/bible_databases, the first)
         if [ -n "$OWN_MARK" ]; then
                 printf '%s\n' "$source" > "$folder/$OWN_MARK" ||
                         { problem="couldn't write $name/$OWN_MARK"; return 1; }

@@ -33,8 +33,8 @@ static char program_path[512] = "";
 #ifdef UNIXV
 /*
 ** The importers of translations, shell scripts in BIBLEROOT, each "" if it
-** isn't there: thiagobodruk/bible's (add-thiagobodruk.sh), scrollmapper's
-** bible_databases (add-translation.sh), and Project Gutenberg's
+** isn't there: thiagobodruk/bible's (add-thiagobodruk.sh), the one for
+** scrollmapper/bible_databases (add-translation.sh), and Project Gutenberg's
 ** (add-gutenberg.sh). The main menu offers A)dd a translation when any is
 ** there, and A)dd offers each (see add_menu()).
 */
@@ -147,7 +147,7 @@ static int screen_key P((void));
 ** Each place has an importer of its own, a shell script, run only when it
 ** is chosen here, each known by its letter: T)hiagobodruk/bible (add-
 ** thiagobodruk.sh, its XML Bibles, the first since November 8),
-** S)crollmapper's bible_databases (add-translation.sh; G for GitHub
+** S)crollmapper/bible_databases (add-translation.sh; G for GitHub
 ** before), both by language, and P)roject Gutenberg, by ebook number
 ** (add-gutenberg.sh). A new place is another line here and another
 ** script. Each importer adds, and removes, only its own texts; the short
@@ -171,7 +171,7 @@ static void add_menu(void)
                         printf("T)hiagobodruk/bible on GitHub: Bibles,\n"
                                "   by language (short names end in -TB)\n\n");
                 if (scrollmapper[0] != '\0')
-                        printf("S)crollmapper's bible_databases on GitHub:\n"
+                        printf("S)crollmapper/bible_databases on GitHub:\n"
                                "   Bible translations, by language\n\n");
                 if (gutenberg[0] != '\0')
                         printf("P)roject Gutenberg: a text, by its ebook\n"

@@ -12,14 +12,14 @@
 # readme.architecture.
 #
 # Sources (November 8, 2026): source= in a request says which importer:
-#   scrollmapper   add-translation.sh: scrollmapper's bible_databases (the
+#   scrollmapper   add-translation.sh: scrollmapper/bible_databases (the
 #                  default, as before)
 #   thiagobodruk   add-thiagobodruk.sh: thiagobodruk/bible (names -TB)
 #   gutenberg      add-gutenberg.sh: Project Gutenberg, the ebooks it knows,
 #                  by number (name=8294); its catalog gives each one's
 #                  short names too ("names": "WEB-PG")
 # Removing takes no source: the importer that added the translation, by its
-# folder's mark (gutenberg, thiagobodruk; scrollmapper's have none).
+# folder's mark (gutenberg, thiagobodruk; those from scrollmapper/bible_databases have none).
 #
 # Requests (PATH_INFO, QUERY_STRING; the answer is JSON; an error is HTTP
 # 400, or 403 when not allowed, or 409 when another add is under way, with
