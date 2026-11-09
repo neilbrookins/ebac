@@ -605,6 +605,8 @@ Choosing a translation already added downloads it again, as a fresh copy, and mo
 
 On the list of translations, type **r** and its number, such as `r6`: its folder and its line in `trans` are deleted, so it is no longer offered, and its `*` is gone. Adding and removing can be mixed in one line, done in the order typed: `r10 11 13` removes 10 and adds 11 and 13. If anything in the line is wrong (a number not in the list, or `r` for a translation that isn't added), nothing is done, and the list says what was wrong. Each place removes only its own translations: **T** those from thiagobodruk/bible, **S** those from scrollmapper/bible_databases, **P** those from Project Gutenberg. Only added translations can be removed, not the King James (`AV`) that comes with EBaC.
 
+Translations are added and removed for everyone using this copy of EBaC: another user's EBaC, or a voice assistant (the Home Assistant integration), may add or remove one while you are reading. EBaC reads `trans` again each time you press **C**, so the list always shows the translations as they are now. If the translation you are reading is removed, EBaC says so ("The translation KJ2 has been removed") and carries on with the first translation still in `trans`, rather than stopping.
+
 #### Disk space
 
 Adding needs at least 1 GB of free disk space where EBaC keeps its translations, and where it downloads them first (the temporary folder, `/tmp` unless `TMPDIR` says otherwise): with less on either, it says "not enough disk space" and adds nothing (removing still works). This keeps a script, or anyone speaking to a voice assistant, from filling the disk by adding one translation after another. Adding from Project Gutenberg checks the same.

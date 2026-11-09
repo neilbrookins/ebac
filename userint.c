@@ -2305,6 +2305,10 @@ int main(int argc, char **argv)
         cls();
         for(;;)
         {
+                /* the translation in use removed meanwhile (another EBaC,
+                   or voice)? Say so, and read from another */
+                if (translation_gone || !translation_exists())
+                        translation_removed();
                 switch (tolower(main_menu()))
                 {
 		case 'c':

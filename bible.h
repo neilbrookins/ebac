@@ -151,6 +151,10 @@ void tty_suspend P((void));
 void tty_resume P((void));
 #endif
 void change_translations P((void));
+int reread_trans P((void));
+int translation_exists P((void));
+void translation_removed P((void));
+extern int translation_gone;
 extern int default_translation_set;
 extern char ebac_release[];
 int first_chapter P((int b));            /* 0 or 1 (file.c) */

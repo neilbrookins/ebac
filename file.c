@@ -98,6 +98,10 @@ int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
 static void open_new_trans P((void));
 static void print_trans P((int i, int used));
 static int index_format_ok P((char *name));
+static void open_translation P((char *name));
+static void root_path P((char *path, char *name));
+static int read_trans P((FILE *f));
+static FILE *try_open P((char *string, char *mode));
 static int next_number P((FILE *file, long int *n));
 static long int getcvarraydat P((long int sequ_verse_number));
 static char *read_word P((FILE *file_ptr));
@@ -311,6 +315,8 @@ int ugetchar(void)
 {
         int c;
 
+        if (translation_gone)
+                return ('x');   /* (back to the main menu: see translation_gone) */
 #ifdef USE_NCURSES
         for (;;)
         {
@@ -352,13 +358,15 @@ void mfclose(FILE *fileptr, char *string)
 }
 
 /*
-Purpose: the function fopen is called many times in this application
-         and we always want to check for error status. This saves space
-         by not having to repeat the code many times.
+** Purpose: open a file, its name made fit for the system (see below); NULL
+**          if it can't be (for get_verse(), which then looks at whether the
+**          translation is still there). The name used, as opened, is kept
+**          in opened_name, for a message.
 */
-FILE *mfopen(char *string, char *mode)
+static char opened_name[80];
+
+static FILE *try_open(char *string, char *mode)
 {
-        FILE *fileptr;
 #       ifdef COCO
 /*
 ** CoCo file system doesn't let names begin with digits; so we prepend 'a'
@@ -416,9 +424,24 @@ FILE *mfopen(char *string, char *mode)
     string = NewName;
 #	endif
 
-        fileptr = fopen(string, mode);
+        strncpy(opened_name, string, sizeof(opened_name) - 1);
+        opened_name[sizeof(opened_name) - 1] = '\0';
+        return (fopen(string, mode));
+}
+
+/*
+** Purpose: the function fopen is called many times in this application
+**          and we always want to check for error status. This saves space
+**          by not having to repeat the code many times.
+*/
+FILE *mfopen(char *string, char *mode)
+{
+        FILE *fileptr;
+
+        fileptr = try_open(string, mode);
         if (fileptr == (FILE *) NULL)
         {
+                string = opened_name;   /* (as the system was given it) */
                 printf("Can't Open \"%s\" for ", string);
                 if(mode[0] == 'w')
                  printf("writing. Is the disk full?\n");
@@ -465,6 +488,47 @@ static void contsignal(int signo)
     set_raw_tty();
 }
 #endif
+
+/*
+** Purpose: read the list of translations, trans[], from 'trans' (open as
+**          f): each line a translation's folder name, then a description.
+**          Blank lines, and lines starting with '#' (comments, for example
+**          to note a folder that is not a translation), are skipped.
+**          Read at the start, and again each time C is pressed
+**          (reread_trans()): another EBaC, or voice, may have added or
+**          removed one meanwhile (November 9, 2026).
+** Returns: how many translations it lists.
+*/
+static int read_trans(FILE *f)
+{
+        int i = 0;
+
+        while ((fgets(trans[i], 80, f) != NULL) && (i + 2 < MAXTRANS))
+        {
+        	char *p = trans[i];
+
+        	/* a description too long for trans[i]: keep its start, end it
+        	   with a newline, and read over the rest of the line */
+        	if (find_char(trans[i], '\n') == NULL && !feof(f))
+        	{
+        		int c, k;
+
+        		while ((c = fgetc(f)) != '\n' && c != EOF)
+        			;
+        		k = 78;         /* (not in the middle of a character) */
+        		while (k > 0 && (trans[i][k] & 0xC0) == 0x80)
+        			k--;
+        		trans[i][k] = '\n';
+        		trans[i][k + 1] = '\0';
+        	}
+        	while (*p == ' ' || *p == '\t')
+        		++p;
+        	if (*p != '#' && *p != '\n' && *p != '\r' && *p != '\0')
+        		++i;    /* keep this line; otherwise read over it */
+        }
+        trans[i][0] = '\0';
+        return (i);
+}
 
 void initialize(void)
 {
@@ -589,36 +653,10 @@ FILE *trans_file;
                 initscreen();
 	initlogname();
 /*
-** Each line of trans is a translation's folder name, then a description.
-** Blank lines, and lines starting with '#' (comments, for example to note
-** a folder that is not a translation), are skipped.
+** The list of translations, from 'trans' (read_trans()).
 */
         trans_file = mfopen("trans", "r");
-        i = 0;
-        while ((fgets(trans[i], 80, trans_file) != NULL) && (i + 2 < MAXTRANS))
-        {
-        	char *p = trans[i];
-
-        	/* a description too long for trans[i]: keep its start, end it
-        	   with a newline, and read over the rest of the line */
-        	if (find_char(trans[i], '\n') == NULL && !feof(trans_file))
-        	{
-        		int c, k;
-
-        		while ((c = fgetc(trans_file)) != '\n' && c != EOF)
-        			;
-        		k = 78;         /* (not in the middle of a character) */
-        		while (k > 0 && (trans[i][k] & 0xC0) == 0x80)
-        			k--;
-        		trans[i][k] = '\n';
-        		trans[i][k + 1] = '\0';
-        	}
-        	while (*p == ' ' || *p == '\t')
-        		++p;
-        	if (*p != '#' && *p != '\n' && *p != '\r' && *p != '\0')
-        		++i;    /* keep this line; otherwise read over it */
-        }
-        trans[i][0] = '\0';
+        read_trans(trans_file);
         mfclose(trans_file, "trans");
         if (trans[0][0] == '\0')
         {
@@ -1070,6 +1108,7 @@ void change_translations(void)
 	char name[MAX_ETLA];    /* the translation chosen */
 	int make_it_default;    /* d typed first: start with it from now on */
 
+	reread_trans();         /* (as it is now: another EBaC may have changed it) */
 	while (trans[++i][0] != '\0')
 		;
 	count = i;
@@ -1311,6 +1350,18 @@ void change_translations(void)
         	ugetchar();
         	return;
         }
+        open_translation(name);
+	/* d and the number: it is the one EBaC starts with, from now on */
+	if (make_it_default)
+		default_translation_set = make_default(name, n) ? 1 : -1;
+}
+
+/*
+** Purpose: read from translation name from now on, its folder being the
+**          current one already: its index files instead of the old one's.
+*/
+static void open_translation(char *name)
+{
         strcpy(etla, name);
 
         mfclose(cvarray_file, "cvarray.dat");
@@ -1327,9 +1378,122 @@ void change_translations(void)
 */
 	a_new_translation = TRUE;
 	open_new_trans();
-	/* d and the number: it is the one EBaC starts with, from now on */
-	if (make_it_default)
-		default_translation_set = make_default(name, n) ? 1 : -1;
+}
+
+/*
+** Purpose: a file or folder's path in the EBaC folder (BIBLEROOT), from a
+**          translation's folder, where EBaC is: BIBLEROOT/name, or ../name
+**          where BIBLEROOT's full path isn't known.
+*/
+static void root_path(char *path, char *name)
+{
+#ifdef UNIXV
+	if (root_dir[0] != '\0')
+	{
+		sprintf(path, "%s%c%s", root_dir, SLASH, name);
+		return;
+	}
+#endif
+	sprintf(path, "..%c%s", SLASH, name);
+}
+
+/*
+** Purpose: read 'trans' again, for the C screen: another EBaC, or voice
+**          (the Home Assistant integration), may have added or removed a
+**          translation since this one read it (November 9, 2026, the
+**          designer's request). It is read whole each time, not only when
+**          its date has changed: it is a few lines, read in microseconds,
+**          and a date can't tell two changes in the same second apart.
+**          The importers write it beside itself and rename it into place
+**          (replace_trans()), so it is never read half written.
+** Returns: FALSE, the list as it was, if it can't be read.
+*/
+int reread_trans(void)
+{
+	char path[1024 + 8];
+	FILE *f;
+
+	root_path(path, "trans");
+	if ((f = fopen(path, "r")) == NULL)
+		return (FALSE);
+	read_trans(f);
+	fclose(f);
+	return (TRUE);
+}
+
+/*
+** Purpose: whether the translation in use is still there: another EBaC, or
+**          voice, may have removed it (its folder gone), while this one
+**          reads it. Only where BIBLEROOT's full path is known (from a
+**          removed folder, ../ leads nowhere); elsewhere, taken to be.
+*/
+int translation_exists(void)
+{
+#ifdef UNIXV
+	char path[1024 + MAX_ETLA + 16];
+	FILE *f;
+
+	if (root_dir[0] == '\0')
+		return (TRUE);
+	sprintf(path, "%s%c%s%cbooklist", root_dir, SLASH, etla, SLASH);
+	if ((f = fopen(path, "r")) == NULL)
+		return (FALSE);
+	fclose(f);
+#endif
+	return (TRUE);
+}
+
+/*
+** TRUE when a book of the translation in use couldn't be opened because the
+** translation has been removed (get_verse()): until the main menu, every
+** key is taken as x (ugetchar()), so each screen goes back the way it
+** always does (a search's temporary files deleted, in a RAMDISK build),
+** and the main menu then says so and changes translation
+** (translation_removed()), rather than EBaC stopping with an error.
+*/
+int translation_gone = FALSE;
+
+/*
+** Purpose: the translation in use has been removed, by another EBaC or by
+**          voice (November 9, 2026, the designer's request): say so, and
+**          read from the first translation 'trans' still lists that can be
+**          opened. Called at the main menu (main()).
+*/
+void translation_removed(void)
+{
+	char gone[MAX_ETLA], name[MAX_ETLA], path[1024 + MAX_ETLA + 2];
+	int i, k;
+
+	translation_gone = FALSE;
+	strcpy(gone, etla);
+	cls();
+	printf("\nThe translation %s has been removed, by another EBaC or by voice.\n", gone);
+	reread_trans();
+	for (i = 0; trans[i][0] != '\0'; i++)
+	{
+		for (k = 0; !isspace(UCHAR(trans[i][k])) && trans[i][k] != '\0' &&
+		     k < MAX_ETLA - 1; k++)
+			name[k] = trans[i][k];
+		name[k] = '\0';
+		if (strcmp(name, gone) == 0)
+			continue;       /* (still listed, but gone) */
+		root_path(path, name);
+		if (chdir(path) == 0 && index_format_ok(name))
+		{
+			open_translation(name);
+			printf("Now reading from %s.\n", name);
+			break;
+		}
+	}
+	if (trans[i][0] == '\0')
+	{
+		printf("No other translation 'trans' lists can be opened.\n");
+		exit_program(1);
+	}
+	printf("Press any key to carry on.\n");
+	fflush(stdout);
+	scr_mode("anykey");
+	ugetchar();
 }
 
 static long int getcvarraydat(long int sequ_verse_number)
@@ -1548,7 +1712,23 @@ struct bcv_array_type *get_verse(long int sequ_verse_number)
 ** printf("Booknum: %d name: %s\n", book_num, book[book_num].name);
 */
                 strcpy(filename, book[book_num].name);
-                file_ptr = mfopen(filename, READMODE);
+                if ((file_ptr = try_open(filename, READMODE)) == NULL)
+                {
+                        if (!translation_exists())
+                        {
+                                /* (removed while in use: an empty verse, and
+                                   back to the main menu, which says so) */
+                                translation_gone = TRUE;
+                                filename[0] = '\0';
+                                bn_previous = -1;
+                                svn_previous = -1;
+                                strcpy(bcv_arrays.book_array, book[book_num].name);
+                                strcpy(bcv_arrays.chapt_array, "0");
+                                strcpy(bcv_arrays.verse_array, "0");
+                                return (&bcv_arrays);
+                        }
+                        file_ptr = mfopen(filename, READMODE);  /* (says why) */
+                }
         }
 /*
 ** If we are already at the correct offset in the file we don't have to

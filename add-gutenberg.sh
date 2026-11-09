@@ -404,6 +404,23 @@ index_verses() {
               END { print ((b[n - 7] * 256 + b[n - 6]) * 256 + b[n - 5]) * 256 + b[n - 4] }'
 }
 
+# replace_trans FILE: 'trans' becomes FILE's lines, all at once: written
+# beside it, then renamed in its place, so that another EBaC reading it
+# meanwhile (another user's, or one pressing C) never reads it half written.
+# Its permissions are kept (copied first, cp -p). A 'trans' that is a
+# symbolic link is written through, in place, so the link stays one.
+replace_trans() {
+        if [ -L "$here/trans" ]; then
+                cat "$1" > "$here/trans"
+                return
+        fi
+        new="$here/trans.$$"
+        { [ ! -f "$here/trans" ] || cp -p "$here/trans" "$new" 2> /dev/null || :; } &&
+                cat "$1" > "$new" && mv -f "$new" "$here/trans" && return 0
+        rm -f "$new"
+        return 1
+}
+
 without_line() {
         [ -f "$here/trans" ] || return 0
         $AWK -v n="$1" '$1 != n' "$here/trans"
@@ -426,8 +443,8 @@ rename_old_names() {
                                 $1 == o { t = $0; sub(/^[^ \t]+[ \t]+/, "", t)
                                           printf "%-11s %s\n", n, t; next }
                                 { print }' "$here/trans" > "$here/trans.new" &&
-                                cat "$here/trans.new" > "$here/trans"
-                        rm -f "$here/trans.new"
+                                replace_trans "$here/trans.new"
+                        rm -f "$here/trans.new"   # (before the temporary folder is made)
                 fi
                 printf '%s: renamed %s (from Project Gutenberg).\n' "$old" "$new"
         done
@@ -444,7 +461,7 @@ remove() {
                 problem="it is the only translation in trans"
                 return 1
         fi
-        cat "$tmp/trans" > "$here/trans" || { problem="couldn't change trans"; return 1; }
+        replace_trans "$tmp/trans" || { problem="couldn't change trans"; return 1; }
         rm -rf "$here/$1" || { problem="couldn't delete the folder $1"; return 1; }
         printf '%s: removed.\n' "$1"
 }
@@ -1217,7 +1234,7 @@ add() {
                 else
                         { printf '%-11s %s\n' "$n" "$t"
                           without_line "$n"; } > "$tmp/trans"
-                fi && cat "$tmp/trans" > "$here/trans"
+                fi && replace_trans "$tmp/trans"
         done
         adding=""
         for n in $names; do

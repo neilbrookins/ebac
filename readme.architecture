@@ -1663,6 +1663,42 @@ in a search, a reference), tries the short name after the name:
 A translation added before this has no abbreviations file until it is
 added again. (Not on the CoCo: its books are fixed.)
 
+Translations changed by another EBaC (November 9, 2026; found by the
+designer: a translation removed by voice, through the Home Assistant
+integration, while someone else read it in the app). Each EBaC read
+'trans' once, at the start, so another EBaC's adding or removing (another
+user's, or voice's) went unseen: C listed a translation removed meanwhile
+and not one added. Worse, removing the translation an EBaC was reading
+stopped it, the next time it opened a book's file ("Can't Open "John" for
+reading"), as a book's file is opened only when a book is reached (the
+index files, kept open, can still be read once deleted).
+  - C reads 'trans' again each time (reread_trans() in file.c), whole,
+    rather than only when its date has changed: it is a few lines, read
+    in a microsecond or so, against a third of that for asking its date;
+    and a date can't tell apart two changes in the same second (two on the
+    old systems, a minute on OS-9), as adding and then removing by voice
+    can be. Reading it whole is the same everywhere, with nothing kept.
+  - The translation in use, removed: get_verse() opens a book's file with
+    try_open() (mfopen()'s opening, without its stopping), and if it can't
+    be opened and the translation's booklist can't be either
+    (translation_exists()), sets translation_gone and gives an empty verse.
+    Until the main menu, every key is then taken as x (ugetchar()), so each
+    screen goes back the way it always does: a RAMDISK build's search
+    files are deleted on the way, as when x is typed. The main menu (main()
+    in userint.c) then calls translation_removed(), which says so and reads
+    from the first translation 'trans' still lists that opens. The main
+    menu also asks, each time it is shown, whether the translation in use
+    is still there, so that usually this is said before anything fails.
+    (Only where BIBLEROOT's full path is known, as on UNIX: from a removed
+    folder, ../ leads nowhere. The vintage systems have no importers.)
+  - 'trans' is never read half written: the importers wrote it in place
+    (cat > trans), and another EBaC could read it meanwhile. replace_trans()
+    (importer.sh, add-gutenberg.sh) writes it beside itself and renames it
+    into place, as make_default() already did, keeping its permissions
+    (cp -p first); a 'trans' that is a symbolic link is written through, in
+    place, so the link stays one.
+tests/otherebac.py checks these, in both builds, as part of "make test".
+
 Book names typed in full (November 9, 2026; found by the designer in the
 KJVA-TB, which has Esther and a longer name beginning "Esther"). At the V
 prompt a space or Enter ends a book's name, so a book whose whole name
