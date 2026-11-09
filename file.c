@@ -1168,10 +1168,14 @@ void change_translations(void)
 			}
 			if (make_it_default)
 				printf("\nThe default: its number (x: back): ");
-			else if (s_cols - 1 >= 62)
-				printf("\nd and a number: choose it, and start with it from now on. ");
+			/* (both ways named, as the longer list's line does: a
+			   number alone, and d first; November 9, 2026, the
+			   designer: "d, number: choose, and start with it." left
+			   out the number alone) */
+			else if (s_cols - 1 >= 57)
+				printf("\nA number: choose it; d first to start with it (x: back): ");
 			else
-				printf("\nd, number: choose, and start with it. ");
+				printf("\nNumber: choose; d, number: default (x: back): ");
 			fflush(stdout);
 			scr_mode("trans");
 			redraw_on_resize = TRUE;
