@@ -606,6 +606,23 @@ add() {
         return 0
 }
 
+# replace_trans FILE: 'trans' becomes FILE's lines, all at once: written
+# beside it, then renamed in its place, so that another EBaC reading it
+# meanwhile (another user's, or one pressing C) never reads it half written.
+# Its permissions are kept (copied first, cp -p). A 'trans' that is a
+# symbolic link is written through, in place, so the link stays one.
+replace_trans() {
+        if [ -L "$here/trans" ]; then
+                cat "$1" > "$here/trans"
+                return
+        fi
+        new="$here/trans.$$"
+        { [ ! -f "$here/trans" ] || cp -p "$here/trans" "$new" 2> /dev/null || :; } &&
+                cat "$1" > "$new" && mv -f "$new" "$here/trans" && return 0
+        rm -f "$new"
+        return 1
+}
+
 # trans without the line of translation NAME
 without_line() {
         [ -f "$here/trans" ] || return 0
@@ -636,7 +653,7 @@ remove() {
                 problem="it is the only translation in trans"
                 return 1
         fi
-        cat "$tmp/trans" > "$here/trans" || { problem="couldn't change trans"; return 1; }
+        replace_trans "$tmp/trans" || { problem="couldn't change trans"; return 1; }
         rm -rf "$here/$name" || { problem="couldn't delete the folder $name"; return 1; }
         printf '%s: removed.\n' "$name"
         return 0
@@ -842,12 +859,12 @@ add_to() {
                 if ! is_listed "$name"; then
                         { cat "$here/trans" 2> /dev/null
                           printf '%-11s %s\n' "$name" "$title"; } > "$tmp/trans" &&
-                                cat "$tmp/trans" > "$here/trans"
+                                replace_trans "$tmp/trans"
                 fi
         else
                 { printf '%-11s %s\n' "$name" "$title"
                   without_line "$name"; } > "$tmp/trans" &&
-                        cat "$tmp/trans" > "$here/trans"   # (keeps its owner and mode)
+                        replace_trans "$tmp/trans"
         fi
         printf '%s: done. %s is ready: start EBaC and press C to choose it.\n' "$name" "$title"
         # Words without spaces between them (as Chinese, Japanese and Thai
