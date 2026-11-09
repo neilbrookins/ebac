@@ -1354,7 +1354,19 @@ int verse_to_book(long int sequ_verse_number)
         return(i - 1);
 }
 
-#define MAXWORD 80
+/*
+** A word, to read_word(), is what is between spaces: in a text written
+** without spaces between words, such as Japanese or Chinese, a sentence or
+** a whole verse, of three bytes a character in UTF-8. So word[] holds as
+** much as a verse can (November 8, 2026: at 80 bytes, Genesis 1:2 in a
+** Japanese translation was cut after 26 characters, and the first byte of
+** the 27th). The CoCo's texts are English, its memory small: 80 there.
+*/
+#ifdef COCO
+#       define MAXWORD 80
+#else
+#       define MAXWORD LONGESTVERSE
+#endif
 
 /*
 ** A verse number only counts at the start of a line, as every verse starts
@@ -1381,10 +1393,27 @@ static int verse_number(char *s, int len)
         return (digits > 0 && i == len);
 }
 
+#ifndef COCO
+/* Purpose: for a word cut short, its last byte at word[last]: where it
+            ends, so that it ends with a whole character, never with part
+            of one of several bytes in UTF-8 (which would show as another).
+            Returns the index of its new last byte. */
+static int whole_characters(char *word, int last)
+{
+        int lead = last, len;
+
+        while (lead > 0 && (UCHAR(word[lead]) & 0xC0) == 0x80)
+                lead--;         /* (a continuation byte: back to its lead) */
+        len = UCHAR(word[lead]) >= 0xF0 ? 4 : UCHAR(word[lead]) >= 0xE0 ? 3 :
+              UCHAR(word[lead]) >= 0xC0 ? 2 : 1;
+        return (lead + len - 1 > last ? lead - 1 : last);
+}
+#endif
+
 static char *read_word(FILE *file_ptr)
 {
 int i = 0; /* index */
-int c;
+int c, cut = FALSE;
 static char word[MAXWORD];
 
 #ifdef VMS
@@ -1425,7 +1454,13 @@ for(;;)
     }
     if (i < MAXWORD - 2)
         word[++i] = (char) c;
+    else
+        cut = TRUE;
 }
+#ifndef COCO
+if (cut)
+        i = whole_characters(word, i);
+#endif
 word[++i] = '\0';  /* Need to terminate the string */
 if (word[0] == 0x1a) /* We have reached EOF */
         fgetc(file_ptr); /* This makes feof(file_ptr) be TRUE */

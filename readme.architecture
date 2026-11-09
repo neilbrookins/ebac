@@ -1660,6 +1660,21 @@ in a search, a reference), tries the short name after the name:
 A translation added before this has no abbreviations file until it is
 added again. (Not on the CoCo: its books are fixed.)
 
+Texts without spaces (fixed November 8, 2026; found by the designer in
+Genesis 1:2 of the Japanese JNIV-TB). get_verse() in file.c builds a
+verse from the words read_word() reads, a word being what is between
+spaces, and read_word() kept 80 bytes of one. In Japanese or Chinese,
+without spaces between words, a "word" is a sentence or a whole verse, of
+three bytes a character: so a verse was cut after 26 characters, and the
+first byte of the 27th, which showed as another character (20,878 of
+the Japanese text's 31,099 verses). read_word() now keeps as much as a
+verse can hold (LONGESTVERSE), and a word still cut short ends with a
+whole character, never part of one (whole_characters()). The text on
+disk was always whole: no translation needs adding again. The index
+program has its own read_word(), for the concordance, which still keeps
+80 bytes of a word (a search for a whole Japanese sentence is not what
+the concordance is for). The CoCo keeps 80: its texts are English.
+
 Licenses: the collection is MIT-licensed, but says of its texts that they
 are their owners', all rights reserved; some (the NIV, the NLT) are under
 copyright. The license question says that, and links its README's
