@@ -1,5 +1,6 @@
 # The standalone image, ghcr.io/neilbrookins/ebac (see docker/README.md):
-# built from each change to main, tested, and published for PCs (amd64)
+# built from each change to main that passes EBaC's tests (tests.yml),
+# tested itself, and published for PCs (amd64)
 # and ARM computers such as the Raspberry Pi (arm64, and arm/v7 for the
 # 32-bit Raspberry Pi OS). Tagged "latest" and
 # "sha-" and the commit. (The Home Assistant app builds from the same
@@ -16,7 +17,13 @@ permissions:
   packages: write
 
 jobs:
+  # EBaC's own tests first (tests.yml): an image is published only from a
+  # change that passes them
+  tests:
+    uses: ./.github/workflows/tests.yml
+
   image:
+    needs: tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
