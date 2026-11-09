@@ -628,6 +628,22 @@ char *get_line(int mode)
         if (rtl)
                 rtl_show(line, place);  /* (the cursor at the right edge) */
         do{
+                if (translation_gone)
+                {
+                        /*
+                        ** The translation was removed while in use (found
+                        ** reading its first verses, for rtl_translation()
+                        ** above): a blank line, so back to the main menu,
+                        ** which says so. Not its keys: each is x then
+                        ** (ugetchar()), to go back on screens where x does,
+                        ** but here x is a letter, and the line filled with
+                        ** them until EBaC stopped (November 9, 2026).
+                        */
+                        if (!file_is_closed)
+                                mfclose(fp, LOGFILE);
+                        strcpy(line, "\r");
+                        return ((char *)line);
+                }
                 c = ugetchar();         /* get a single char from user */
                 if (rtl && rtl_key(c, line, &place))
                         continue;
@@ -840,6 +856,16 @@ char *get_line(int mode)
                                 putchar('\7');
                                 fflush(stdout);
                         }
+                        else if (c != '\r' &&
+                                 strlen(line) + n > (MAXSEARCHLEN - 2))
+                        {
+                                /* the line is full: a beep, and the key is
+                                   not taken (Enter, which ends it, always
+                                   fits). Before, EBaC stopped: "Out of room
+                                   in string!" (November 9, 2026). */
+                                putchar('\7');
+                                fflush(stdout);
+                        }
                         else
                         {
                                 if (c < 128)       /* (a digit, - or Enter for it) */
@@ -855,11 +881,6 @@ char *get_line(int mode)
                                 show_rest(line, place, 0);
                                 fflush(stdout);
                                 i = strlen(line);
-                                if (i + n > (MAXSEARCHLEN - 1))
-                                {
-                                    printf("\nOut of room in string!\n");
-                                    exit_program(1);
-                                }
                                 while(i >= place)
                                 {
                                     line[i + n] = line[i];

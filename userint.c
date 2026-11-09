@@ -623,6 +623,11 @@ get_name_again:
         book_str[0] = '\0';
         for(;;)
         {
+                /* the translation removed while in use: back to the main
+                   menu, as a blank line does (its keys are x, a letter
+                   here: see get_line() in process.c) */
+                if (translation_gone)
+                        return ((struct bcv_type *)NULL);
                 c = ugetchar();
                 if ((c > 0 && c < 128 && isalnum(c)) || (c >= 0xC2 && c <= 0xF4))
                 {
@@ -640,8 +645,12 @@ get_name_again:
                         typed[n] = '\0';
                         if (strlen(book_str) + n > (MAXWORDLEN - 1))
                         {
-                            printf("\nOut of room in string to store word!\n");
-                            exit_program(1);
+                            /* no room for more: a beep, and the key is not
+                               taken (before, EBaC stopped: "Out of room in
+                               string to store word!") */
+                            putchar('\7');
+                            fflush(stdout);
+                            continue;
                         }
                         strcat(book_str, typed);
                 }

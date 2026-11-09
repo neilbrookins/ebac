@@ -52,6 +52,12 @@ CHECKS = [
      ["1) AV  King James Version"], ["2) KJ2"], False),
     ("removed in use, at the main menu", ["c", "2", REMOVE_KJ2, "\x0c", " ", "e"],
      [REMOVED, "Now reading from AV."], [], False),
+    # (removed while the main menu is on the screen, then S: the search
+    # line, reading the first verses, finds it gone, and gives up at once;
+    # it took the x's that mean "back" as letters, until the line was full
+    # and EBaC stopped: "Out of room in string!")
+    ("removed in use, then S", ["c", "2", REMOVE_KJ2, "s", " ", "e"],
+     [REMOVED, "Now reading from AV."], ["xxxx", "Out of room"], False),
     ("removed in use, in a passage", ["c", "2", "v", "joh\r", "3\r", "16\r", REMOVE_KJ2, "f",
                                       " ", "v", "gen\r", "1\r", "1\r", "x", "e"],
      [REMOVED, "Now reading from AV."], [], True),

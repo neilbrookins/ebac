@@ -1699,6 +1699,20 @@ index files, kept open, can still be read once deleted).
     place, so the link stays one.
 tests/otherebac.py checks these, in both builds, as part of "make test".
 
+  - On a screen where x is typed, not "back" (found by the designer the
+    same day: Twenty removed by voice while the main menu was shown, then
+    S). The main menu asks before it is shown, so S went on; the search
+    line reads its first verses (rtl_translation(), whether the text runs
+    right to left), found the translation gone, and then read its keys,
+    every one x, as letters: 256 of them at once, and EBaC stopped, "Out
+    of room in string!". get_line() (process.c) now gives a blank line
+    when translation_gone is set, which goes back to the main menu as
+    one typed does; so does the book name prompt (bcv_menu() in
+    userint.c), though nothing there reads a verse. And a line too long
+    no longer stops EBaC anywhere: the key is refused with a beep (the
+    search line keeps room for Enter), as is a book name too long.
+    tests/otherebac.py: "removed in use, then S".
+
 Book names typed in full (November 9, 2026; found by the designer in the
 KJVA-TB, which has Esther and a longer name beginning "Esther"). At the V
 prompt a space or Enter ends a book's name, so a book whose whole name
