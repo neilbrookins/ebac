@@ -1638,6 +1638,28 @@ NLT-TB was then checked against its XML: the same, word for word (31,102,
 31,087 and 31,045 verses). Its "King James Version with Apocrypha" has no
 Apocrypha: the source's.
 
+Books by their short names (November 8, 2026; the designer's request).
+Each of thiagobodruk/bible's books has an id beside its name (<b id="gn"
+n="Genesis">), the collection's own short name for it: made from the
+Portuguese names (sl for Salmos, Psalms; ap for Apocalipse, Revelation;
+jo for João, John), the same set in 123 of its 142 files, and in Latin
+letters even in a Japanese or Korean translation, so typeable where the
+name may not be. The importer keeps them: add-thiagobodruk.sh puts each
+after its book's heading, after a tab ("### Genesis<tab>gn"), and
+importer.sh writes them into the folder's abbreviations file, one book a
+line, "gn<tab>Genesis" (the book as booklist has it); scrollmapper's have
+none. EBaC reads the file with booklist (read_abbreviations() in file.c),
+and match_it(), which every typed book name goes through (the V prompt, @
+in a search, a reference), tries the short name after the name:
+  - typed exactly, it is that book, even where the start of the name fits
+    several: "jo" is John (not Joshua, Job, Joel or Jonah: jos, job,
+    joe, jon still reach them), "ez" Ezekiel (ezr Ezra); the designer's
+    choice;
+  - where no name starts so, the start of a short name ("1s": 1sm);
+  - otherwise names match as before, so typing a name is unchanged.
+A translation added before this has no abbreviations file until it is
+added again. (Not on the CoCo: its books are fixed.)
+
 Licenses: the collection is MIT-licensed, but says of its texts that they
 are their owners', all rights reserved; some (the NIV, the NLT) are under
 copyright. The license question says that, and links its README's

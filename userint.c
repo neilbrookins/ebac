@@ -341,6 +341,39 @@ void print_book_matches(char *book_str)
                                shown == count ? " and " : ", ", book[i].name);
 }
 
+#ifndef COCO
+/*
+** Purpose: the short names' part of match_it() (see there), when the
+**          names have matched no book, or several (count): a short name
+**          typed exactly is that book; else, if no name matched, those
+**          whose short names start so. The new count (as match_it()'s, 1
+**          for one book, its index in *found).
+*/
+static int match_abbr(char *typed, int count, int *found)
+{
+        extern struct bva *book;
+        int i, starts = 0, at = 0, len = (int) strlen(typed);
+
+        for (i = 0; i < numbooks; i++)
+                if (book[i].abbr[0] != '\0' && strcmp(book[i].abbr, typed) == 0)
+                {
+                        *found = i;
+                        return (1);
+                }
+        if (count > 0)
+                return (count);         /* (the names' several, as before) */
+        for (i = 0; i < numbooks; i++)
+                if (book[i].abbr[0] != '\0' && strncmp(book[i].abbr, typed, len) == 0)
+                {
+                        starts++;
+                        at = i;
+                }
+        if (starts == 1)
+                *found = at;
+        return (starts);
+}
+#endif
+
 /* Purpose: Takes a partial, or complete, bookname and sees how many
             books begin with that string. Prints partial string to the
             screen, or if match is unique prints complete name.
@@ -362,6 +395,16 @@ void print_book_matches(char *book_str)
             typing works in a translation with "2Thessalonians" and one
             with "IIThessalonians".) Only that way round: "i" matches only
             an I, so in the AV "is" is still Isaiah alone.
+
+            A book's short name in the translation's source (its
+            abbreviations file: thiagobodruk/bible's "gn" for Genesis;
+            November 8, 2026, the designer's request) is matched too, after
+            its name: typed exactly, it chooses that book even where the
+            name's start fits several ("jo": John, not Joshua, Job, Joel or
+            Jonah; "jos" is still Joshua); where nothing starts so, the
+            start of a short name ("1s": 1sm, 1Samuel). So a book can be
+            typed by its short name anywhere a name is typed (the V prompt,
+            @ in a search, a reference), as it is typed.
 */
 int match_it(char *book_str,
              int update_screen)          /* boolean */
@@ -391,6 +434,10 @@ int match_it(char *book_str,
                                 savei = i;
                         }
                 }
+#ifndef COCO
+                if (count != 1)
+                        count = match_abbr(book_str, count, &savei);
+#endif
         }
         if (count == 0)
         {

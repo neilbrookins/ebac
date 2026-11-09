@@ -142,7 +142,10 @@ version_of() {
 }
 
 # fetch_text NAME FILE: its XML, downloaded and read into scrollmapper's
-# plain-text layout in FILE: "### Book" for each b (its n), then "[C:V]
+# plain-text layout in FILE: "### Book<tab>id" for each b (its n, and its
+# id, the collection's short name for the book: gn, ex, 1sm, made from the
+# Portuguese names in almost every translation, so typeable in any), then
+# "[C:V]
 # text" for each v, in the order the file has them. Read a tag at a time
 # (the whole file is one line): each record is what follows a "<", a tag
 # and then the text after it. XML's five named characters (&amp; and the
@@ -218,7 +221,9 @@ fetch_text() {
                 sub(/[ \t\r\n].*/, "", name)
                 sub(/.\/$/, substr(name, 1, 1), name)
                 if (name == "b") {
-                        print "### " attr(tag, "n")
+                        # (its name, and after a tab its short name in the
+                        # source, its id: "gn", kept in abbreviations)
+                        print "### " attr(tag, "n") "\t" attr(tag, "id")
                         chapter = ""
                 } else if (name == "c")
                         chapter = attr(tag, "n")

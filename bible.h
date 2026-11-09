@@ -83,6 +83,11 @@ struct bva
         long int verse;
         long int chapt;
         char name[MAXBOOKNAME];
+#ifndef COCO
+        /* its short name in the translation's source, in small letters
+           ("gn"), from its abbreviations file; "" if none (see match_it()) */
+        char abbr[MAXBOOKNAME];
+#endif
 };
 
 /* The number of times a word occurs in the bible. Set during word searching */

@@ -529,6 +529,8 @@ A translation from here has `-TB` (for Thiago Bodruk, whose collection it is) at
 
 About licenses: the collection says of its texts, "All the Bible versions are property of their respective owners. All rights reserved to the owners." Some are in the public domain, such as the King James Version; others, such as the NIV and the NLT, are still under copyright, and what you may do with them is for their owners to say. EBaC shows this and asks whether you agree, as for every translation, and keeps your answer in the translation's `license` file.
 
+Each book can also be typed by the collection's own short name for it, wherever a book name is typed (the **V** screen, `@` in a search, a reference): `gn` for Genesis, `jo` for John, `ez` for Ezekiel, `1sm` for 1 Samuel. They come from the Portuguese names (`sl` Psalms, `ap` Revelation, `tg` James), and are the same in almost every translation there, in Latin letters even where the book names are in Japanese or Korean. EBaC keeps them in the translation's folder, in a file called `abbreviations` (a translation added before November 8, 2026 gets it when added again).
+
 Two things the source does its own way: its "King James Version with Apocrypha" (`KJVA-TB`) has the 66 books only, without the Apocrypha; and its text has, in some 300 verses, the King James margin notes run into the verse (Exodus 6:2: "I am the LORD : : or, JEHOVAH"). EBaC keeps the text exactly as the source gives it.
 
 ```sh

@@ -807,6 +807,46 @@ int first_verse(long int ch)
         return (1);
 }
 
+#ifndef COCO
+/*
+** Purpose: each book's short name in the translation's source, from its
+**          abbreviations file if it has one (a text from thiagobodruk/bible:
+**          "gn<tab>Genesis", the book as booklist has it), in small letters,
+**          for match_it(): so "gn" can be typed for Genesis. The file is
+**          optional; a line naming no book is left out.
+*/
+static void read_abbreviations(void)
+{
+        FILE *f;
+        char line[2 * MAXBOOKNAME + 8], *tab, *end;
+        int i;
+
+        for (i = 0; i < numbooks; i++)
+                book[i].abbr[0] = '\0';
+        if ((f = fopen("abbreviations", "r")) == NULL)
+                return;
+        while (fgets(line, sizeof(line), f) != NULL)
+        {
+                if ((end = strchr(line, '\n')) != NULL)
+                        *end = '\0';
+                if ((end = strchr(line, '\r')) != NULL)
+                        *end = '\0';
+                if ((tab = strchr(line, '\t')) == NULL || tab == line)
+                        continue;
+                *tab++ = '\0';
+                for (i = 0; i < numbooks; i++)
+                        if (strcmp(book[i].name, tab) == 0)
+                        {
+                                strncpy(book[i].abbr, line, MAXBOOKNAME - 1);
+                                book[i].abbr[MAXBOOKNAME - 1] = '\0';
+                                u8_lower(book[i].abbr);
+                                break;
+                        }
+        }
+        fclose(f);
+}
+#endif
+
 static void open_new_trans(void)
 {
         int i;
@@ -871,6 +911,9 @@ static void open_new_trans(void)
                 book[i].name[strlen(book[i].name) - 1] = '\0';
         }
         mfclose(book_list, "booklist");
+#ifndef COCO
+        read_abbreviations();
+#endif
 
         cvarray_file = mfopen("cvarray.dat", READMODE);
         fseek(cvarray_file, 0L, 2);

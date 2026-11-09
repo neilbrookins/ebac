@@ -19,7 +19,11 @@
 #                      downloading it ("" if it can't be had)
 #   fetch_text NAME FILE  the text, into FILE, in scrollmapper's plain
 #                      text layout: "### Book" before each book, then a
-#                      verse a line, "[1:1] In the beginning..."
+#                      verse a line, "[1:1] In the beginning..."; a book's
+#                      heading may have its short name in the source after
+#                      a tab ("### Genesis<tab>gn"), kept in the folder's
+#                      abbreviations file, which EBaC lets a book be typed
+#                      by too (match_it() in userint.c)
 #   usage              how to run it
 # then runs importer_main "$@". The rest (the lists of languages and
 # translations, the license question, room on the disk, writing the books,
@@ -698,7 +702,10 @@ add_to() {
                 exit
         }
         substr($0, 1, 4) == "### " {
-                heading[++books] = spaces(substr($0, 5))
+                h = substr($0, 5)               # (a short name after a tab: not the name)
+                if (index(h, "\t"))
+                        h = substr(h, 1, index(h, "\t") - 1)
+                heading[++books] = spaces(h)
                 chapter = ""
                 next
         }
@@ -765,10 +772,20 @@ add_to() {
                 if (out != "")
                         close(out)
                 out = (b in file) ? folder "/" file[b] : ""
+                h = substr($0, 5)
+                code = ""
+                if (index(h, "\t")) {
+                        code = spaces(substr(h, index(h, "\t") + 1))
+                        h = substr(h, 1, index(h, "\t") - 1)
+                }
                 # its full name, as the text has it (for ebac-api: "Song
                 # of Solomon", which booklist has as SongofSolomon)
                 if (b in file)
-                        print plain(substr($0, 5)) > (folder "/booknames")
+                        print plain(h) > (folder "/booknames")
+                # and its short name in the source, if it has one, with the
+                # name EBaC knows the book by: "gn<tab>Genesis" (see the top)
+                if ((b in file) && code != "")
+                        print code "\t" file[b] > (folder "/abbreviations")
                 next
         }
         out == "" || spaces($0) == "" { next }
