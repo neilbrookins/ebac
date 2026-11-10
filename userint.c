@@ -827,7 +827,7 @@ static void dis_one_line(char *strg)
         from = i;
         j = 0;
         while (u8_is_letter(&strg[i]) ||
-                      (strg[i] == '\'') || /* allow "day's" to be highlighted */
+                      u8_is_apostrophe(&strg[i]) || /* "day's", "day’s" too */
                       (strg[i] == '-') ||   /* same with "father-in-law" */
                       (BYTE_IS(strg[i], 0xD6) && BYTE_IS(strg[i + 1], 0xBE)))
                                             /* and Hebrew words joined by maqaf */
@@ -843,7 +843,12 @@ static void dis_one_line(char *strg)
 
         wrd[j] = '\0';
         strcpy(lower_wrd, wrd);
-        u8_lower(lower_wrd);
+        u8_fold(lower_wrd);     /* (as the index's words) */
+        /* and, as the index does, nothing but letters at its end: a closing
+           quote, ’, straight after a word ("him’") is not part of it */
+        for (j = strlen(lower_wrd);
+             j > 0 && (lower_wrd[j - 1] == '\'' || lower_wrd[j - 1] == '-'); j--)
+                lower_wrd[j - 1] = '\0';
 /*
 ** We need to loop here to see if lower_wrd is the same as ANY of the multiple
 ** words used in the searching command.

@@ -946,7 +946,7 @@ static void search(void)
         len = strlen(q);
         q[len] = '\r';                  /* (as typed: Enter at the end) */
         q[len + 1] = '\0';
-        u8_lower(q);
+        u8_fold(q);             /* (as the index's words) */
         if ((list = process_line(q)) == NULL)
                 fail("");
         while (list[count] != 0)

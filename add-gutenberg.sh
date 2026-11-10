@@ -216,17 +216,12 @@ book	Ether	THE BOOK OF ETHER
 book	Moroni	THE BOOK OF MORONI
 '
 
-# Typographic punctuation as plain ASCII, and white space as single spaces
-# (as add-translation.sh does: EBaC's own text is ASCII punctuation).
+# White space as single spaces, with none at either end; every other
+# character as the ebook has it (curly quotes, dashes and the ellipsis too:
+# EBaC counts every apostrophe as ' where words are compared, u8_fold() in
+# utf8.c). As importer.sh's plain(), which this importer doesn't share.
 PLAIN='
 function plain(s) {
-        if (index(s, "\342\200")) {
-                gsub(/\342\200\230|\342\200\231/, "\047", s)     # curly single quotes
-                gsub(/\342\200\234|\342\200\235/, "\"", s)       # curly double quotes
-                gsub(/\342\200\224|\342\200\225/, "--", s)       # em dash, horizontal bar
-                gsub(/\342\200\223/, "-", s)                     # en dash
-                gsub(/\342\200\246/, "...", s)                   # ellipsis
-        }
         gsub(/\302\240/, " ", s)                                 # no-break space
         gsub(/[\t\r\v\f]/, " ", s)
         gsub(/  +/, " ", s)

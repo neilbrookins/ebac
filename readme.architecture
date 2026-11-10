@@ -1345,7 +1345,7 @@ choice, checked in a browser, is what is added.
 A script of its own. add-gutenberg.sh, beside add-translation.sh, not a
 part of it: the two sources differ in everything but the end (a folder
 of books, indexed, in trans), and each script stays simple for its own.
-Some of what they do is alike (downloading, typographic punctuation, the
+Some of what they do is alike (downloading, white space, the
 index, trans, the license and version files), written in each. Each adds
 and removes only its own: add-translation.sh doesn't remove a Gutenberg
 text, nor add-gutenberg.sh one from
@@ -1804,7 +1804,8 @@ lines, UTF-8, CRLF line ends):
     "3:16" isn't split.
   - No headnotes between chapters in this edition: the only text before
     a chapter's verse 1 is a book's heading and summary.
-  - Curly apostrophes and dashes become plain ASCII, as for A.
+  - Every character as the ebook has it, as for A (see "The source's
+    own characters").
 
 Chapter 0: the text before a book's chapter 1, row by row (changed
 November 2, 2026, the user's review: at first the front matter was 7
@@ -2167,3 +2168,31 @@ so neither can:
     digits on a phone's keyboard first become digits), and only a
     number the importer knows (KNOWN) builds a web address at all;
     removing is r and digits only.
+
+The source's own characters (November 9, 2026, the designer). The
+importers made curly quotes, dashes, the ellipsis and the pilcrow plain
+ASCII, so that a search for don't found don’t. But that changed the
+text: "keeping the letters the same here as they were in the original
+source, which includes the extra space in front of the quotation mark
+... not because it's correct, but because the original text had it".
+Only an apostrophe matters to a search: the index takes everything else
+that isn't a letter off a word's ends, quotes and dashes too, and keeps
+what is inside, so "God’s" is a word of its own. So now the importers
+keep every character (plain() in importer.sh, and its copy in
+add-gutenberg.sh, make only white space plain: EBaC finds words between
+ASCII spaces, and shows them a single space apart), and every kind of
+apostrophe counts as ' where words are compared: u8_fold() in utf8.c
+(u8_lower(), then ’ ‘ ʼ ` ´ ′ ＇ as '), for the index's words, a search
+line (in EBaC and ebac-api), and the words of a passage looked at for
+the ones searched for (dis_one_line(), which also joins a word across
+any of them, and, as the index, leaves out an apostrophe or hyphen at
+its end: "him’" is him). A translation added before keeps its plain
+ASCII until it is removed and added again.
+
+Paragraphs. A printed Bible's paragraph breaks are not in any of the
+three sources: the thiagobodruk/bible XML marks only books, chapters and
+verses; the text files of scrollmapper/bible_databases are a verse to a
+line, without pilcrows (KJV, KJVA, ASV and YLT looked at); nor do the Gutenberg texts EBaC knows have them. The
+quotation marks can't stand in for them: a quotation running over
+paragraphs opens each with a quote, but a quote also opens every new
+speech, and a narrative paragraph has none.

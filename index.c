@@ -243,7 +243,7 @@ static void remove_tail_punctuation(void)
 
 static void make_into_lowercase(void)
 {
-        u8_lower(word);
+        u8_fold(word);          /* (small letters, and every apostrophe ') */
 }
 
 /*

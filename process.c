@@ -905,8 +905,8 @@ char *get_line(int mode)
                 trim_log();
         }
 
-        /* Make line lowercase to match index data which is lowercase */
-        u8_lower(line);
+        /* As the index's words: lowercase, every apostrophe ' (u8_fold()) */
+        u8_fold(line);
         return((char *)line);
 }
 

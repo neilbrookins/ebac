@@ -52,23 +52,21 @@ fi
 
 # Functions for the awk programs, on the text's UTF-8 bytes (each written
 # in octal, as every awk reads them):
-#   plain(s)   typographic punctuation as plain ASCII, and white space as
-#              single spaces, with none at either end (spaces(s));
+#   plain(s)   white space as single spaces, with none at either end
+#              (spaces(s)); every other character as the source has it:
+#              curly quotes, dashes, the ellipsis, the pilcrow. (Until
+#              November 9, 2026 these became plain ASCII, so that a search
+#              for don't found don’t: now EBaC counts every apostrophe as '
+#              where words are compared, u8_fold() in utf8.c, and the text
+#              stays as it was; the designer: be faithful to the source.)
 #   spaces(s)  white space, as Unicode counts it, as single spaces, with
-#              none at either end; "" for a blank line.
+#              none at either end; "" for a blank line. (EBaC finds words
+#              between ASCII spaces, so other spaces must become one; and
+#              it shows words a single space apart, whatever was there.)
 # (Each replacement is tried only when a quick index() finds its first
 # bytes, as most lines have none of these: some awks are slow at gsub().)
 PLAIN='
 function plain(s) {
-        if (index(s, "\342\200")) {
-                gsub(/\342\200\230|\342\200\231/, "\047", s)     # curly single quotes
-                gsub(/\342\200\234|\342\200\235/, "\"", s)       # curly double quotes
-                gsub(/\342\200\224|\342\200\225/, "--", s)       # em dash, horizontal bar
-                gsub(/\342\200\223/, "-", s)                     # en dash
-                gsub(/\342\200\246/, "...", s)                   # ellipsis
-        }
-        if (index(s, "\302\266"))
-                gsub(/\302\266/, "", s)                          # pilcrow (paragraph mark)
         return spaces(s)
 }
 function spaces(s) {

@@ -10,5 +10,7 @@ int u8_cols P((char *s, int nbytes));
 int u8_fit P((char *s, int cols));
 int u8_prev P((char *s, int i));
 void u8_lower P((char *s));
+void u8_fold P((char *s));
+int u8_is_apostrophe P((char *s));
 int u8_is_rtl P((char *s));
 int u8_display_order P((char *s, int n, int *start, int *len, int max));

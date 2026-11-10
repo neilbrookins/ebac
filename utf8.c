@@ -336,6 +336,49 @@ void u8_lower(char *s)
         }
 }
 
+/* Purpose: is the character at s an apostrophe, of any kind: the plain ',
+            the curly ’ and ‘, the modifier letter ʼ, the grave ` and acute
+            ´, the prime ′, the fullwidth ＇? (Each counts as ' where words
+            are compared: u8_fold().) */
+int u8_is_apostrophe(char *s)
+{
+        long code = u8_code(s);
+
+        return (code == 0x27L || code == 0x60L || code == 0xB4L ||
+                code == 0x2BCL || code == 0x2018L || code == 0x2019L ||
+                code == 0x2032L || code == 0xFF07L);
+}
+
+/*
+** Purpose: s as words are compared, in place: its letters small
+**          (u8_lower()), and every kind of apostrophe as the plain one, '
+**          (the curly ’ and ‘, the modifier letter ʼ, the grave ` and
+**          acute ´, the prime ′, the fullwidth ＇). So a search typed
+**          with ' finds a word however the text writes it ("don't" finds
+**          don’t), and the text keeps its own (the importers leave it as
+**          the source has it, since November 9, 2026). Used for the
+**          index's words, a search line, and the words of a passage looked
+**          at for the ones searched for. (An apostrophe is the one mark
+**          that matters inside a word: the rest, quotes and dashes too, are
+**          taken off a word's ends.)
+*/
+void u8_fold(char *s)
+{
+        int i = 0, j = 0, n, k;
+
+        u8_lower(s);
+        while ((n = u8_len(&s[i])) > 0)
+        {
+                if (u8_is_apostrophe(&s[i]))
+                        s[j++] = '\'';
+                else
+                        for (k = 0; k < n; k++)
+                                s[j++] = s[i + k];
+                i += n;
+        }
+        s[j] = '\0';
+}
+
 /* Purpose: is the character at s written right to left (Hebrew, say)? */
 int u8_is_rtl(char *s)
 {
