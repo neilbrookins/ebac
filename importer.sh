@@ -812,16 +812,27 @@ add_to() {
                 # A row of hyphens standing alone after the words of a verse
                 # ("----------": the New Living Translation from
                 # thiagobodruk/bible, after John 7:52 and 8:11, and Mark
-                # 16:8) is where a note starts, as a printed Bible puts the
-                # row on a line of its own: a tab and "- ", as the Project
-                # Gutenberg importer writes a note, so EBaC shows it on a
-                # line of its own, with "---" in the margin, in place of
-                # the row; what follows it is the note (the designer,
-                # November 10, 2026).
-                while (match(t, /(^| )---+( |$)/) && RSTART > 1) {
-                        after = substr(t, RSTART + RLENGTH)
-                        t = substr(t, 1, RSTART - 1) "\t-" (after != "" ? " " after : "")
+                # 16:8) is not scripture, but where the publisher marks off
+                # what follows (a note, or nothing more): a printed Bible
+                # puts the row on a line of its own. So the row is made a
+                # note of its own, kept as it is (the designer, November 10,
+                # 2026: it is in the text, the publisher placed it, and a
+                # line with "---" in the margin alone did not catch the
+                # eye), and what follows it, if anything, another: a tab
+                # and "- " before each, as the Project Gutenberg importer
+                # writes a note. EBaC shows each on a line of its own, with
+                # "---" in the margin, and voice leaves both out.
+                rest = t
+                t = ""
+                while (match(rest, /(^| )---+( |$)/) && (t != "" || RSTART > 1)) {
+                        row = substr(rest, RSTART, RLENGTH)
+                        gsub(/ /, "", row)
+                        t = t substr(rest, 1, RSTART - 1) "\t- " row
+                        rest = substr(rest, RSTART + RLENGTH)
+                        if (rest != "")
+                                t = t "\t- "
                 }
+                t = t rest
                 if (t != "")
                         print "[" c ":" v "] " t > out
                 else

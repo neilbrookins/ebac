@@ -2251,9 +2251,17 @@ compared with YouVersion).
     "----------". A printed Bible has the row on a line of its own, and
     the note after it. So the importers (add_to() in importer.sh) make a
     row of three or more hyphens standing alone, after the words of a
-    verse, a note's start: a tab and "-", as add-gutenberg.sh writes a
-    note, which EBaC shows on a line of its own with "---" in the margin
-    (see Notes). The row itself is not kept: the "---" stands for it
-    (8:11's is a "---" line alone). Three in the New Living Translation:
-    John 7:52, 8:11, Mark 16:8. A translation added before has the row
-    in its verse until removed and added again.
+    verse, a note of its own, the row kept as it is, and what follows it
+    another: a tab and "-" before each, as add-gutenberg.sh writes a
+    note. EBaC shows each on a line of its own with "---" in the margin
+    (see Notes), and voice leaves both out:
+        ---     ----------
+        ---     [The most ancient Greek manuscripts do
+                not include John 7:53–8:11.]
+    At first the row was dropped, the "---" standing for it; the
+    designer (the same day) had it kept: it is in the text, where the
+    publisher placed it, and a "---" alone (8:11) did not catch the eye.
+    The commentary is a note too, not an ordinary line after it, so that
+    voice doesn't read it as scripture. Three in the New Living
+    Translation: John 7:52, 8:11, Mark 16:8. A translation added before
+    has the row in its verse until removed and added again.
