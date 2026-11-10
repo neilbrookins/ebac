@@ -662,7 +662,7 @@ add_to() {
         title=$2
         folder=$here/$name
         # (another importer's text is never written over: their short names
-        # end in their own suffix, -PG, -TB, so they shouldn't share one,
+        # end in their own suffix, -SM, -TB, -PG, so they shouldn't share one,
         # but if one ever does, it is left alone)
         others_text "$folder" && return 1
         enough_room || return 1

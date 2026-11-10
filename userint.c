@@ -172,7 +172,7 @@ static void add_menu(void)
                                "   by language (short names end in -TB)\n\n");
                 if (scrollmapper[0] != '\0')
                         printf("S)crollmapper/bible_databases on GitHub:\n"
-                               "   Bible translations, by language\n\n");
+                               "   Bibles, by language (short names end in -SM)\n\n");
                 if (gutenberg[0] != '\0')
                         printf("P)roject Gutenberg: a text, by its ebook\n"
                                "   number (its short name ends in -PG)\n\n");

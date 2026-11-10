@@ -45,7 +45,10 @@ int a_new_translation = FALSE;
 char trans[MAXTRANS][80]; /* room for 80 char description of translation */
 
 /* extended three letter acronym, such as NIV or NRSV */
-#define   MAX_ETLA 20
+/* (a short name's longest, with its NUL: 32 since November 10, 2026, when
+   scrollmapper/bible_databases names gained -SM, the longest then 19
+   characters, FreOltramare1874-SM; 20 before) */
+#define   MAX_ETLA 32
 char etla[MAX_ETLA];/*global variable with name of current translation in use*/
 long int numverses, numchapters, numbooks, sizeofwordsdat;
 long int num_found;  /* Number of matches in a word search */

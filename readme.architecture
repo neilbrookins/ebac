@@ -2205,3 +2205,28 @@ line, without pilcrows (KJV, KJVA, ASV and YLT looked at); nor do the Gutenberg 
 quotation marks can't stand in for them: a quotation running over
 paragraphs opens each with a quote, but a quote also opens every new
 speech, and a narrative paragraph has none.
+
+Every source's own ending (November 10, 2026; the designer's decision).
+Translations from thiagobodruk/bible ended in -TB, from Project
+Gutenberg in -PG, and from scrollmapper/bible_databases in nothing,
+which read as if those were EBaC's own. Now they end in -SM. So every
+translation added has, after a dash, two letters saying only where it
+came from; before the dash is its own short name (KJVA in KJVA-SM). The
+ending keeps the same translation from two places apart, as folders and
+under C (where it is shown, so choosing one is choosing its source too),
+and says which of A's three to go back to, to remove or update it.
+EBaC's own (AV) has none.
+  - add-translation.sh: all_translations() gives each name -SM (SUFFIX),
+    with its name in the source in a fourth column, as
+    add-thiagobodruk.sh does; source_name() finds it, for the text, its
+    README (license) and its page at CrossWire.
+  - Translations added before keep their names (the designer's decision:
+    not renamed by EBaC; he removes and adds them again). S lists each
+    under its old name too, "(old name)", when its folder is there,
+    without another importer's mark and not one of EBaC's own, so it
+    shows as added and r removes it.
+  - MAX_ETLA (file.c), a short name's room, is 32, not 20: the longest
+    with -SM, FreOltramare1874-SM, is 19 characters.
+  - The integration (0.8.6): scrollmapper's suffix is -SM in its
+    SOURCES, so a name said without it means it ("add translation LITV"
+    is LITV-SM), as for -TB and -PG.

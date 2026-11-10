@@ -5,10 +5,10 @@
 #   sh add-translation.sh             list the languages, then a language's
 #                                     translations, and ask which to add or
 #                                     remove
-#   sh add-translation.sh BSB LEB     add these (by short name)
-#   sh add-translation.sh --agree BSB  add it, agreeing to its license
+#   sh add-translation.sh BSB-SM LEB-SM  add these (by short name)
+#   sh add-translation.sh --agree BSB-SM  add it, agreeing to its license
 #                                     (for scripts: see below)
-#   sh add-translation.sh --remove BSB  remove this one
+#   sh add-translation.sh --remove BSB-SM  remove this one
 #   sh add-translation.sh --list      just list them
 #
 # For programs (ebac-admin, which adds and removes translations for the
@@ -39,7 +39,9 @@
 #      skipped);
 #   2. downloads it;
 #   3. splits it into a file per book, in a folder named after it (such as
-#      BSB), and writes the folder's booklist: the books, in order (and
+#      BSB-SM: its name in the source, and -SM, for scrollmapper, as
+#      those from thiagobodruk/bible end in -TB, and those from Project
+#      Gutenberg in -PG), and writes the folder's booklist: the books, in order (and
 #      booknames: their full names, as the text has them; and license:
 #      the license agreed to, and when);
 #   4. builds its concordance index (runs EBaC's index program in it), and
@@ -113,6 +115,7 @@ SOURCE=https://raw.githubusercontent.com/scrollmapper/bible_databases/master
 LIST_PATH=docs/main_readme/translation_list.md
 PROGRAM=add-translation
 OWN_MARK=""             # (those from scrollmapper/bible_databases have no mark of their own)
+SUFFIX=-SM
 
 here=$(cd "$(dirname "$0")" && pwd)
 if [ ! -f "$here/importer.sh" ]; then
@@ -125,7 +128,13 @@ fi
 # code (as en, es, grc), tab, title.
 all_translations() {
         fetch "$LIST_PATH" "$tmp/list.md" || return 1
-        $AWK "$PLAIN"'
+        # Each short name ends in -SM, as those from thiagobodruk/bible end
+        # in -TB, and those from Project Gutenberg in -PG: which source a
+        # translation came from
+        # (November 10, 2026, the designer: the same name, KJV, is in more
+        # than one source). The name in the source (KJV) is the fourth
+        # column, for fetching it.
+        $AWK -v suffix="$SUFFIX" "$PLAIN"'
         # - **SpaRV (es)**: SpaRV: La Santa Biblia Reina-Valera (1909)
         /^- \*\*[^ \t]+ \([A-Za-z0-9-]+\)\*\*: / {
                 name = substr($0, 5)
@@ -134,13 +143,30 @@ all_translations() {
                 code = tolower(substr(code, 1, index(code, ")") - 1))
                 title = substr($0, index($0, "**: ") + 4)
                 sub(/^[^ \t]+: /, "", title)        # the short name again
-                print name "\t" code "\t" plain(title)
+                print name suffix "\t" code "\t" plain(title) "\t" name
         }' "$tmp/list.md" > "$tmp/all"
         if [ ! -s "$tmp/all" ]; then
                 problem="found no translations in the list at $source"
                 return 1
         fi
+        # One added before names had -SM (WLC, not WLC-SM) is listed too,
+        # under its old name, so it shows as added and r removes it (it is
+        # then added again as WLC-SM): a folder of that name, without
+        # another importer's mark, not one of EBaC's own (a link).
+        $AWK -F '\t' '{ print $4 "\t" $2 "\t" $3 " (old name)\t" $4 }' \
+                "$tmp/all" > "$tmp/old"
+        while IFS='	' read -r old code title src; do
+                [ -f "$here/$old/booklist" ] && [ ! -L "$here/$old" ] &&
+                        ! others_text "$here/$old" &&
+                        printf '%s\t%s\t%s\t%s\n' "$old" "$code" "$title" "$src" >> "$tmp/all"
+        done < "$tmp/old"
+        problem=""              # (others_text() says whose, of one not listed)
         return 0
+}
+
+# The translation's name in the source (KJV), from its short name (KJV-SM).
+source_name() {
+        $AWK -F '\t' -v n="$1" '$1 == n { print $4; exit }' "$tmp/all"
 }
 
 # license_of NAME: the license of a translation, from its README.md in the
@@ -150,8 +176,9 @@ all_translations() {
 CROSSWIRE=https://crosswire.org/sword/modules/
 license_of() {
         code=$($AWK -F '\t' -v n="$1" '$1 == n { print $2; exit }' "$tmp/all")
+        src=$(source_name "$1")
         license_line=""
-        if fetch "sources/$code/$1/README.md" "$tmp/readme" 2> /dev/null; then
+        if fetch "sources/$code/$src/README.md" "$tmp/readme" 2> /dev/null; then
                 license_line=$($AWK "$PLAIN"'
                         /^\*\*License:?\*\*:?/ {
                                 sub(/^\*\*License:?\*\*:?/, "")
@@ -164,14 +191,14 @@ license_of() {
         case $license_line in
         ""|Null|null) license_line="not stated" ;;
         esac
-        details_line="${CROSSWIRE}ModInfo.jsp?modName=$1"
+        details_line="${CROSSWIRE}ModInfo.jsp?modName=$src"
 }
 
 # version_of NAME: the fingerprint of the translation's text in the source,
 # without downloading it: the ETag a web server gives it (the last, after
 # any redirects), or a folder's file's checksum. "" if it can't be had.
 version_of() {
-        path="formats/txt/$1.txt"
+        path="formats/txt/$(source_name "$1").txt"
         case $source in
         http://* | https://*)
                 url=${source%/}/$path
@@ -192,13 +219,13 @@ version_of() {
 # fetch_text NAME FILE: the text, as the source has it (already in the
 # layout importer.sh reads)
 fetch_text() {
-        fetch "formats/txt/$1.txt" "$2"
+        fetch "formats/txt/$(source_name "$1").txt" "$2"
 }
 
 usage() {
         echo "usage: sh add-translation.sh [--list] [--agree] [--source PLACE] [NAME ...] [--remove NAME ...]"
         echo "Downloads Bible translations and adds them to EBaC, or removes them."
-        echo "  NAME            short names of translations to add, such as BSB"
+        echo "  NAME            short names of translations to add, such as BSB-SM"
         echo "  --remove NAME   remove this translation (added before)"
         echo "  --agree         agree to the license of each translation added (when"
         echo "                  run with no one to answer, as from a script)"

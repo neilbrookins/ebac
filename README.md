@@ -495,16 +495,18 @@ See [`docs`](docs) for more examples.
 EBaC comes with the King James Version (`AV`). To add other translations, press **A** at EBaC's main menu. EBaC then asks **where to add from: one of three places**, each with its own collection and its own steps. Choose one:
 
 1. **T** (or **1**): [**thiagobodruk/bible**](#from-thiagobodrukbible-t), on GitHub. Some 140 Bibles in 85 languages, including the New International Version and the New Living Translation. Their short names end in `-TB`.
-2. **S** (or **2**): [**scrollmapper/bible_databases**](#from-scrollmapperbible_databases-s), on GitHub. 140 translations in 56 languages, from CrossWire, such as the American Standard Version, the Berean Standard Bible and the Douay-Rheims.
+2. **S** (or **2**): [**scrollmapper/bible_databases**](#from-scrollmapperbible_databases-s), on GitHub. 140 translations in 56 languages, from CrossWire, such as the American Standard Version, the Berean Standard Bible and the Douay-Rheims. Their short names end in `-SM`.
 3. **P** (or **3**): [**Project Gutenberg**](#from-project-gutenberg-p). Particular texts, by ebook number: the Book of Mormon, the World English Bible, the Qur'an in three translations, and others. Their short names end in `-PG`.
 
 **X** goes back to the main menu. (**S** was **G**, for GitHub, before there were two places there.)
+
+**Short names.** Every translation added has two letters at the end of its short name, after a dash, saying where it came from: `-TB` thiagobodruk/bible, `-SM` scrollmapper/bible_databases, `-PG` Project Gutenberg. The part before the dash is the translation's own short name (`KJVA` in `KJVA-SM`); the ending only keeps the same translation from two places apart, as folders and under **C**, and tells you which of the three to go back to, to remove or update it. EBaC's own (`AV`) has none. A translation added from scrollmapper/bible_databases before its names ended in `-SM` (app 2.16.0) keeps its old name (`WLC`): **S** lists it again under that name with "(old name)", where **r** removes it, and it can be added again as `WLC-SM`.
 
 A translation is removed from the same place it was added from. What works the same way in all three (licenses, removing, disk space, and which translation EBaC starts with) is under [For all three places](#for-all-three-places). A translation you already have as files can also be [added by hand](#adding-one-by-hand), with nothing downloaded.
 
 ### From thiagobodruk/bible (T)
 
-[thiagobodruk/bible](https://github.com/thiagobodruk/bible) on GitHub has some 140 Bibles in 85 languages, as XML files, many of them not in scrollmapper/bible_databases, such as the New International Version and the New Living Translation. A translation from here has `-TB` (for Thiago Bodruk, whose collection it is) at the end of its short name: `KJVA-TB`, `NIV-TB`, `NLT-TB`. So the same Bible from each place can be kept side by side and compared, such as the King James Version from scrollmapper/bible_databases (`KJVA`) and from here (`KJVA-TB`).
+[thiagobodruk/bible](https://github.com/thiagobodruk/bible) on GitHub has some 140 Bibles in 85 languages, as XML files, many of them not in scrollmapper/bible_databases, such as the New International Version and the New Living Translation. A translation from here has `-TB` (for Thiago Bodruk, whose collection it is) at the end of its short name: `KJVA-TB`, `NIV-TB`, `NLT-TB`. So the same Bible from each place can be kept side by side and compared, such as the King James Version from scrollmapper/bible_databases (`KJVA-SM`) and from here (`KJVA-TB`).
 
 To add one:
 
@@ -542,9 +544,9 @@ To add one:
 
 1. At the main menu, press **A**, then **S**.
 2. EBaC lists the languages there are translations in, each by its own name and its name in English, with the number of translations: `1) English (34)`, then, in order of their English names, such as `Español, Spanish (4)` and `Deutsch, German (12)`, with a `*` before those that have translations added. Type a language's number and press Enter.
-3. EBaC lists that language's translations, a screenful at a time, with a `*` before those already added. Type the numbers of those you want and press Enter (such as `6`, or several, such as `6 14 31`; short names such as `BSB` work too). Enter alone goes back to the languages, and Enter alone there, back to EBaC.
+3. EBaC lists that language's translations, a screenful at a time, with a `*` before those already added. Type the numbers of those you want and press Enter (such as `6`, or several, such as `6 14 31`; short names such as `BSB-SM` work too). Enter alone goes back to the languages, and Enter alone there, back to EBaC.
 4. For each one, EBaC shows its license (such as `Public Domain`, `GPL`, or `Copyrighted; Free non-commercial distribution`) and the address of its page at CrossWire, and asks whether you agree to it: `y` adds it, `n` skips it.
-5. EBaC downloads the text, splits it into a file per book in a folder of its own (such as `BSB`) with its `booklist`, builds its concordance index, checks that the index has every verse, and adds it at the top of `trans`. It takes a few seconds per translation. When it is done, read what it says and press any key: you are back at the main menu, reading from the new translation.
+5. EBaC downloads the text, splits it into a file per book in a folder of its own (such as `BSB-SM`) with its `booklist`, builds its concordance index, checks that the index has every verse, and adds it at the top of `trans`. It takes a few seconds per translation. When it is done, read what it says and press any key: you are back at the main menu, reading from the new translation.
 
 To remove one: **A**, **S**, then **r** and its number, such as `r6` (see [Removing a translation](#removing-a-translation)).
 
@@ -553,8 +555,8 @@ To remove one: **A**, **S**, then **r** and its number, such as `r6` (see [Remov
 ```sh
 cd ~/ebac
 sh add-translation.sh              # list the translations, and ask which to add or remove
-sh add-translation.sh BSB LEB      # add these
-sh add-translation.sh --remove BSB # remove this one
+sh add-translation.sh BSB-SM LEB-SM  # add these
+sh add-translation.sh --remove BSB-SM  # remove this one
 sh add-translation.sh --list       # just list them, by language
 sh add-translation.sh --agree BSB  # from a script: agree to its license
 ```
@@ -569,7 +571,7 @@ Some texts EBaC can read, such as the Book of Mormon, aren't in either collectio
 2. Note its ebook number: the **EBook-No.** on its page, or the number in its address (`gutenberg.org/ebooks/17` is 17, the Book of Mormon).
 3. At EBaC's main menu, press **A**, then **P**, type the number and press Enter.
 
-EBaC first reads that ebook's page on Gutenberg (`https://www.gutenberg.org/ebooks/17`, a few kilobytes), shows its title, when it was last updated and its copyright status, and asks whether you agree to its license. Only then, and only if there is room, does it download the plain text in UTF-8 (`https://www.gutenberg.org/ebooks/17.txt.utf-8`), split it into its books, index it, and add it at the top of `trans`, as **A** does; so a text you don't want is never downloaded. Its folder's `license` file keeps what you agreed to and the terms the text itself gives. (If the page can't be read, the text is downloaded first and its license read from it, as before.) The same version isn't downloaded twice: remove it first (**A**, **P**, then **r** and its number). (A text added before EBaC changed how it lays texts out, such as a Douay-Rheims added before its notes were marked, is added again over the old copy, in the new layout.) Each removes only its own texts: **P** those from Project Gutenberg, **S** and **T** those from GitHub. A text from Project Gutenberg has `-PG` at the end of its short name (the Book of Mormon is `BOM-PG`), so that the same Bible from both places, such as the Douay-Rheims (`DRC` from GitHub, `DRC-PG` from Project Gutenberg), can be kept side by side and compared; a text added before under its name without `-PG` is renamed so the next time **P** is used.
+EBaC first reads that ebook's page on Gutenberg (`https://www.gutenberg.org/ebooks/17`, a few kilobytes), shows its title, when it was last updated and its copyright status, and asks whether you agree to its license. Only then, and only if there is room, does it download the plain text in UTF-8 (`https://www.gutenberg.org/ebooks/17.txt.utf-8`), split it into its books, index it, and add it at the top of `trans`, as **A** does; so a text you don't want is never downloaded. Its folder's `license` file keeps what you agreed to and the terms the text itself gives. (If the page can't be read, the text is downloaded first and its license read from it, as before.) The same version isn't downloaded twice: remove it first (**A**, **P**, then **r** and its number). (A text added before EBaC changed how it lays texts out, such as a Douay-Rheims added before its notes were marked, is added again over the old copy, in the new layout.) Each removes only its own texts: **P** those from Project Gutenberg, **S** and **T** those from GitHub. A text from Project Gutenberg has `-PG` at the end of its short name (the Book of Mormon is `BOM-PG`), so that the same Bible from both places, such as the Douay-Rheims (`DRC-SM` from scrollmapper/bible_databases, `DRC-PG` from Project Gutenberg), can be kept side by side and compared; a text added before under its name without `-PG` is renamed so the next time **P** is used.
 
 Gutenberg's texts are laid out in many ways, so EBaC knows each one by its ebook number, and is taught them one at a time; a number it doesn't know yet is refused, saying so. It knows:
 
