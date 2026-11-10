@@ -809,6 +809,19 @@ add_to() {
                 v = substr($0, index($0, ":") + 1)
                 v = substr(v, 1, index(v, "]") - 1) + 0
                 t = plain(substr($0, index($0, "]") + 1))
+                # A row of hyphens standing alone after the words of a verse
+                # ("----------": the New Living Translation from
+                # thiagobodruk/bible, after John 7:52 and 8:11, and Mark
+                # 16:8) is where a note starts, as a printed Bible puts the
+                # row on a line of its own: a tab and "- ", as the Project
+                # Gutenberg importer writes a note, so EBaC shows it on a
+                # line of its own, with "---" in the margin, in place of
+                # the row; what follows it is the note (the designer,
+                # November 10, 2026).
+                while (match(t, /(^| )---+( |$)/) && RSTART > 1) {
+                        after = substr(t, RSTART + RLENGTH)
+                        t = substr(t, 1, RSTART - 1) "\t-" (after != "" ? " " after : "")
+                }
                 if (t != "")
                         print "[" c ":" v "] " t > out
                 else

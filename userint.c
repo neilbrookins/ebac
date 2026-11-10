@@ -828,7 +828,11 @@ static void dis_one_line(char *strg)
         j = 0;
         while (u8_is_letter(&strg[i]) ||
                       u8_is_apostrophe(&strg[i]) || /* "day's", "day’s" too */
-                      (strg[i] == '-') ||   /* same with "father-in-law" */
+                      (strg[i] == '-' && strg[i + 1] != '-' &&
+                       !(i > from && strg[i - 1] == '-')) ||
+                                            /* same with "father-in-law", but
+                                               not "yourself--no": two
+                                               words, as the index has them */
                       (BYTE_IS(strg[i], 0xD6) && BYTE_IS(strg[i + 1], 0xBE)))
                                             /* and Hebrew words joined by maqaf */
         {

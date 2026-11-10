@@ -194,6 +194,20 @@ for(;;)
     raw_length++;
     if (i < MAXWORD - 2)
         word[++i] = (char) c;
+    /* A dash between two words, with no space, "yourself—no" (the New
+       Living Translation, John 7:52) or "yourself--no", ends the first, as
+       a space would; the dash, at its end, is taken off as punctuation. So
+       both are words of their own, to be searched for (November 10, 2026,
+       the designer: "no" wasn't found). A dash is an em dash —, an en
+       dash –, a figure dash ‒, a horizontal bar ―, or two hyphens --; one
+       hyphen, as in "father-in-law", joins a word. */
+    if ((i >= 2 && UCHAR(word[i - 2]) == 0xE2 && UCHAR(word[i - 1]) == 0x80 &&
+         UCHAR(word[i]) >= 0x92 && UCHAR(word[i]) <= 0x95) ||
+        (i >= 1 && word[i] == '-' && word[i - 1] == '-'))
+    {
+        ended_line = FALSE;
+        break;
+    }
 }
 word[++i] = '\0';  /* Need to terminate the string */
 if (word[0] == 0x1a) /* We have reached EOF */

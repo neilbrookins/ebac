@@ -2230,3 +2230,30 @@ EBaC's own (AV) has none.
   - The integration (0.8.6): scrollmapper's suffix is -SM in its
     SOURCES, so a name said without it means it ("add translation LITV"
     is LITV-SM), as for -TB and -PG.
+
+Dashes between words, and a row of them (November 10, 2026; the
+designer, from the New Living Translation from thiagobodruk/bible,
+compared with YouVersion).
+  - "yourself—no prophet" (John 7:52): the index found words only
+    between spaces, so "yourself—no" was one word, and neither "no" nor
+    "yourself" there was found. Now a dash ends a word, as a space does
+    (read_word() in index.c): an em dash, en dash, figure dash,
+    horizontal bar, or two hyphens ("yourself--no", in older texts); the
+    dash is then punctuation at the word's end, taken off. One hyphen
+    still joins ("father-in-law"). Positions count the words so found,
+    so "yourself no", a phrase, is found too. A passage's highlighting
+    (dis_one_line()) stops a word at "--" too, as it already did at the
+    other dashes (not letters). Indexes are built again by the app when
+    index.c changes (index.version), so a translation needn't be added
+    again for this.
+  - "---------- [The most ancient Greek manuscripts do not include John
+    7:53–8:11.]" ended 7:52, as if part of it; and 8:11 ended
+    "----------". A printed Bible has the row on a line of its own, and
+    the note after it. So the importers (add_to() in importer.sh) make a
+    row of three or more hyphens standing alone, after the words of a
+    verse, a note's start: a tab and "-", as add-gutenberg.sh writes a
+    note, which EBaC shows on a line of its own with "---" in the margin
+    (see Notes). The row itself is not kept: the "---" stands for it
+    (8:11's is a "---" line alone). Three in the New Living Translation:
+    John 7:52, 8:11, Mark 16:8. A translation added before has the row
+    in its verse until removed and added again.
