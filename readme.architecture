@@ -1462,6 +1462,15 @@ verse's number isn't changed: a note is part of its verse, as before.
     the margin in its place, and count_lines() skips it too, so the two
     still agree. A part without the "-" (a heading, or Proverbs 12:12's
     second half, which is scripture) has a blank margin, as before.
+  - A chapter's heading or summary, its verse 0 ("The history of Cain
+    and Abel." before Genesis 4:1 in the Douay-Rheims), has "===" in
+    the margin (November 9, 2026; the designer's decision to mark it,
+    with "===" or "+++", not the notes' "---"): with a blank margin it
+    read as the end of the verse above it, the last of the chapter
+    before. "===" was Claude's suggestion of the two: "=" is how plain
+    text marks a heading, where "+" reads as something added. A book's
+    introduction (chapter 0) stays plain: each of its rows is a verse of
+    its own (display_verse()).
   - Any translation can mark its notes so; split_paragraphs() in
     add-gutenberg.sh does, for the Douay-Rheims (1,793 notes). A note
     is a paragraph of the source: two glosses in one paragraph ("The

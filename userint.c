@@ -1271,9 +1271,15 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
            left in a list, after the book (shown here); in a passage,
            where verse_line() puts it, on the right for a verse written
            right to left. Verse 0 or chapter 0, the text before verse 1 or
-           chapter 1 (see index.c), is plain text in a passage, without
-           the 0, which isn't in the source (in a list, its reference is
-           shown, as any verse's). */
+           chapter 1 (see index.c), is shown in a passage without the 0,
+           which isn't in the source (in a list, its reference is shown,
+           as any verse's). Verse 0, a chapter's heading or summary (in a
+           Project Gutenberg text: "The history of Cain and Abel."), has
+           "===" in the margin instead, as a note has "---": without it,
+           it read as the end of the verse above it (November 9, 2026,
+           the designer); "=", as plain text marks a heading, not "-",
+           which is the notes'. A book's introduction, chapter 0, stays
+           plain: each of its rows is a verse 0 of its own. */
         if (tag != -1)
         {
                 print_margin(label, 8, FALSE);
@@ -1282,9 +1288,10 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
         }
         else
         {
-                if (strcmp(bcv_arrays->chapt_array, "0") == 0 ||
-                    strcmp(bcv_arrays->verse_array, "0") == 0)
+                if (strcmp(bcv_arrays->chapt_array, "0") == 0)
                         label[0] = '\0';
+                else if (strcmp(bcv_arrays->verse_array, "0") == 0)
+                        strcpy(label, "===");
                 dv_label = label;
                 dv_right = mostly_rtl(bcv_arrays->data_array);
         }
