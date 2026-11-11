@@ -1,0 +1,74 @@
+# Tests a fix for tsl0922/ttyd#1534 (the terminal not fitted again after the
+# WebGL renderer loads), before it is offered to ttyd as a pull request: the
+# page built from ttyd's main, unchanged and then with ttyd-fit/*.patch,
+# each served by ttyd 1.7.7 (-I) and measured in headless Chrome.
+name: ttyd fit test
+
+on:
+  push:
+    branches: [ttyd-fit-test]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: tsl0922/ttyd
+          ref: main
+          path: ttyd
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: ttyd and the test's tools
+        run: |
+          curl -fsSL -o ttyd-bin https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+          chmod +x ttyd-bin
+          mkdir -p /tmp/t && cp ttyd-fit/ttydfit.mjs /tmp/t/
+          (cd /tmp/t && npm init -y > /dev/null && npm install --silent puppeteer-core@23)
+          echo "main: $(git -C ttyd log --oneline -1)"
+
+      - name: Build the page from main, as ttyd's CI does
+        working-directory: ttyd/html
+        run: |
+          corepack enable
+          corepack prepare yarn@stable --activate
+          yarn install
+          yarn run check
+          yarn run build
+
+      - name: Before the fix (expected to fail)
+        run: |
+          ./ttyd-bin -p 7681 -W -I ttyd/html/dist/inline.html bash > /tmp/ttyd-before.log 2>&1 &
+          sleep 2
+          if node /tmp/t/ttydfit.mjs http://localhost:7681/; then echo "::warning::main fitted already"; else echo "main does not fit: the bug, as expected"; fi
+          kill %1
+
+      - name: Apply the fix, check and build again
+        run: |
+          git -C ttyd -c user.name=t -c user.email=t@t am --3way "$PWD"/ttyd-fit/*.patch
+          cd ttyd/html
+          yarn run check
+          yarn run build
+          cd ..
+          git status --short
+          git diff --stat
+
+      - name: After the fix (must pass, with each renderer)
+        run: |
+          ./ttyd-bin -p 7681 -W -I ttyd/html/dist/inline.html bash > /tmp/ttyd-after.log 2>&1 &
+          sleep 2
+          node /tmp/t/ttydfit.mjs http://localhost:7681/
+          node /tmp/t/ttydfit.mjs http://localhost:7681/ webgl
+          node /tmp/t/ttydfit.mjs http://localhost:7681/ canvas
+          node /tmp/t/ttydfit.mjs http://localhost:7681/ dom
+          kill %1
+
+      - name: The page as built, for the pull request
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-h
+          path: |
+            ttyd/src/html.h

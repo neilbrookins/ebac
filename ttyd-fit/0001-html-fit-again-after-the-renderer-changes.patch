@@ -1,0 +1,44 @@
+From 3c44336aa581c65dab685ff2df8e5cb2502d675c Mon Sep 17 00:00:00 2001
+From: "Neil G. Brookins" <31250635+neilbrookins@users.noreply.github.com>
+Date: Wed, 11 Nov 2026 12:52:06 -0500
+Subject: [PATCH] html: fit again after the renderer changes
+
+ttyd fits the terminal once in open(), with xterm.js's DOM renderer.
+The rendererType preference (WebGL by default) arrives afterwards, and
+the new renderer measures character cells differently, but nothing fits
+again until a window resize: the terminal keeps the columns of the first
+fit (150 instead of 167 at 1200x900 in Chrome), and programs are told
+that size, so lines stop short of the right edge.
+
+Fit once more after the new renderer has drawn. A fit straight after
+loadAddon() is not enough: the renderer measures its cells when it
+draws.
+
+Fixes #1534
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ html/src/components/terminal/xterm/index.ts | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/html/src/components/terminal/xterm/index.ts b/html/src/components/terminal/xterm/index.ts
+index b332154..6de46a0 100644
+--- a/html/src/components/terminal/xterm/index.ts
++++ b/html/src/components/terminal/xterm/index.ts
+@@ -531,5 +531,13 @@ export class Xterm {
+             default:
+                 break;
+         }
++
++        // The new renderer may measure character cells differently from the one the
++        // terminal was fitted with, so fit again once it has drawn; otherwise the
++        // terminal keeps too few (or too many) columns until the window is resized.
++        const disposable = terminal.onRender(() => {
++            disposable.dispose();
++            this.fitAddon.fit();
++        });
+     }
+ }
+-- 
+2.43.0
+
