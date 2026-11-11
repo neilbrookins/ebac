@@ -955,10 +955,18 @@
             debug("fit again: " + why);
             window.dispatchEvent(new Event("resize"));  /* ttyd fits */
         }
-        if (t.onWriteParsed) {
+        /* (after the first output is drawn: the WebGL renderer measures its
+           cells as it draws, so a fit straight after the output, before
+           the drawing, still used the plain renderer's measure (tested in
+           headless Chrome); and once more a second later, in case) */
+        if (t.onWriteParsed && t.onRender) {
             var firstOutput = t.onWriteParsed(function () {
                 firstOutput.dispose();
-                setTimeout(function () { refit("the first output"); }, 0);
+                var firstDrawn = t.onRender(function () {
+                    firstDrawn.dispose();
+                    setTimeout(function () { refit("the first output drawn"); }, 0);
+                });
+                setTimeout(function () { refit("a second after the first output"); }, 1000);
             });
         }
         if (document.fonts && document.fonts.ready)
