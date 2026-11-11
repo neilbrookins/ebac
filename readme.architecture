@@ -2279,3 +2279,19 @@ terminal (TIOCGWINSZ) at every clear, which is when a page is laid out;
 SIGWINCH only wakes the keyboard reader, so a page is drawn again at
 once. (Reproduced with the signal blocked, as a lost one is: 80 columns
 kept in a window of 110 before; 110 after.)
+  - That was not all, nor the designer's case: with the fix above, the
+    Docker image still drew short of the right edge (November 11, 2026).
+    The terminal itself had too few columns, so EBaC was told the
+    smaller size, rightly. ttyd's page (1.7.7) fits the terminal once,
+    as it opens, with xterm.js's plain renderer; its settings come from
+    the server just after, and with them the WebGL renderer, whose cells
+    measure narrower; and it fits again only for a font setting or a
+    window resize. So the terminal kept about a tenth fewer columns than
+    the window holds (150 of 167 at 1200 by 900). gestures.js now has
+    ttyd fit again once the first output has been drawn (xterm.js's
+    onRender: WebGL measures as it draws, so a fit straight after the
+    output, before drawing, was still too few), and a second later.
+    tests/webfit.mjs checks it in headless Chrome against the image,
+    in .github/workflows/docker.yml: before, "0 of 3 window sizes
+    fitted from the start"; after, 3 of 3. (The workflow publishes only
+    from main, so it can be run on a branch to try a change.)
