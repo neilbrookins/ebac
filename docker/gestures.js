@@ -937,6 +937,32 @@
             mode = name;
             return true;
         });
+        /*
+        ** Fit again once the first output has been drawn, and when the
+        ** page's fonts are ready. ttyd fits the terminal once, as it opens,
+        ** with xterm.js's plain renderer; then its settings come from the
+        ** server, and with them the WebGL renderer, whose character cells
+        ** measure differently; but ttyd fits again only for a font
+        ** setting, or a resize. So the terminal kept the columns of the
+        ** first fit, fewer than the window holds, and EBaC was told so: a
+        ** fresh EBaC drew every line short of the right edge, until the
+        ** window was resized (November 11, 2026, the designer, in Chromium
+        ** with the Docker image). The settings come before any output, so
+        ** at the first output they are in place. ttyd's fit tells ttyd,
+        ** and so EBaC, of a change, and nothing if there is none.
+        */
+        function refit(why) {
+            debug("fit again: " + why);
+            window.dispatchEvent(new Event("resize"));  /* ttyd fits */
+        }
+        if (t.onWriteParsed) {
+            var firstOutput = t.onWriteParsed(function () {
+                firstOutput.dispose();
+                setTimeout(function () { refit("the first output"); }, 0);
+            });
+        }
+        if (document.fonts && document.fonts.ready)
+            document.fonts.ready.then(function () { refit("fonts ready"); });
         /* (in the troubleshooting box: the terminal's size, as EBaC and
            the importers are told it, each time it changes) */
         if (window.EBAC_DEBUG && t.onResize)
