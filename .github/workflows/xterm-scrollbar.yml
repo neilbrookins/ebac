@@ -24,9 +24,11 @@ jobs:
         run: |
           npm init -y > /dev/null
           npm install --silent x5@npm:@xterm/xterm@5.5.0 f5@npm:@xterm/addon-fit@0.10.0 \
-            x6@npm:@xterm/xterm@6.0.0 f6@npm:@xterm/addon-fit@0.11.0 puppeteer-core@23
-          for p in x5 f5 x6 f6; do echo "$p: $(node -p "require('./node_modules/$p/package.json').version")"; done
-          grep -n "showScrollbar" node_modules/x6/typings/xterm.d.ts | head -2
+            x6@npm:@xterm/xterm@6.0.0 f6@npm:@xterm/addon-fit@0.11.0 \
+            xb@npm:@xterm/xterm@beta fb@npm:@xterm/addon-fit@beta puppeteer-core@23
+          for p in x5 f5 x6 f6 xb fb; do echo "$p: $(node -p "require('./node_modules/$p/package.json').version")"; done
+          grep -c "showScrollbar" node_modules/x6/typings/xterm.d.ts node_modules/xb/typings/xterm.d.ts || true
+          git rm -rq --cached shots 2>/dev/null || true; rm -rf shots
       - name: Measure
         working-directory: xterm-scrollbar
         run: node scrollbar.mjs shots

@@ -1,5 +1,5 @@
 // scrollbar.mjs -- how many columns xterm.js 5.5 and 6.0 give a phone, and
-// what fills the strip at the right that the fit addon sets aside for a
+// (and the latest beta, ?v=b) what fills the strip at the right that the fit addon sets aside for a
 // scrollbar. Serves page.html and node_modules from this folder; emulates a
 // Pixel 9 (412x923 CSS pixels, scale 2.625, touch), with the browser's
 // scrollbars as they are in headless Chrome and as overlays (as on Android).
@@ -23,6 +23,8 @@ const cases = [
     ["xterm.js 5.5", "5", {}],
     ["xterm.js 6.0", "6", {}],
     ["6.0, scrollbar hidden", "6", { scrollbar: { showScrollbar: false } }],
+    ["beta, as is", "b", {}],
+    ["beta, scrollbar hidden", "b", { scrollbar: { showScrollbar: false } }],
 ];
 const modes = [
     ["browser scrollbars as headless Chrome draws them", []],
