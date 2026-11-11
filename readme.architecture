@@ -2327,7 +2327,23 @@ verses found.
     verse's parts, after tabs), which tells count_part() which part is
     the first; count_part()'s own calls, for the wrapped lines after
     the first, are never first.
-  - Not done (yet): AKJV puts ¶ at the end of the verse before a
-    paragraph (2,965 of its 3,082), and some texts have it within a
-    verse (StatResGNT 27, TpiKJPB 114, KJVPCE 14), where a paragraph
-    starts mid-verse; both are shown as the source has them.
+  - The same day, the other two places a text puts ¶ (the designer: as
+    close as possible to what the translation's makers intended):
+    at the end of a verse, before the verse that starts a paragraph
+    (AKJV: 2,965 of its 3,082), a blank line after it; and within a
+    verse (KJVPCE 14, an epistle's closing line, "Amen. ¶ Written to the
+    Romans from Corinthus ..."; TpiKJPB 114, psalms' titles;
+    StatResGNT 28), the rest of the verse on a new line, after a blank
+    one, as a paragraph of its own. part_end() finds where a verse's
+    part ends, at a tab (a note) or, in a passage, before a ¶ within
+    it; count_parts() counts, and dis_verse() draws, by it, and
+    ends_paragraph() says whether a blank line follows. These blank
+    lines are a verse's own lines (drawn by verse_line(), counted with
+    its text), so a tall verse's parts, shown a screenful at a time,
+    count them too; the blank line before a verse is with its heading's
+    (count_part(), display_verse()). The ¶ itself is shown where the
+    text has it. Paged at a phone's 50 by 20 through Genesis and Romans
+    15 to 1 Corinthians in AKJV and KJVPCE, every page started with its
+    heading: no page ran over.
+  - Voice: Assist shows the ¶ as the text has it; the integration's
+    voice leaves it out of what is said (0.8.8), not to be read aloud.

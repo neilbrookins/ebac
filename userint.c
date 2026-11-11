@@ -101,6 +101,9 @@ static int count_lines P((int tag, char *bookname, char *strg, int indent,
 static int count_parts P((int tag, char *bookname, char *strg, int indent,
                           int top_of_screen, int first));
 static int starts_paragraph P((char *strg));
+static int is_pilcrow P((char *p));
+static int ends_paragraph P((char *strg));
+static char *part_end P((char *strg, int paragraphs, int *kind));
 static void dis_one_line P((char *strg));
 static int mostly_rtl P((char *s));
 static int mostly_hebrew P((char *s));
@@ -738,6 +741,9 @@ static int line_fit(char *strg, int width)
 ** speaks (plain_text() in api.c).
 */
 
+#define PART_NOTE       1       /* (a part after a tab: see part_end()) */
+#define PART_PARAGRAPH  2       /* (a paragraph within a verse) */
+
 /* Purpose: the start of the part after a tab: past the spaces around it,
             and past the "-" of a note, if it is one (*note TRUE) */
 static char *next_part(char *tab, int *note)
@@ -761,23 +767,40 @@ static int count_lines(int tag, char *bookname, char *strg, int indent, int top_
         return (count_parts(tag, bookname, strg, indent, top_of_screen, TRUE));
 }
 
-/* the lines the parts of a verse take, from strg: its first part, if first */
+/* the lines the parts of a verse take, from strg: its first part, if first
+   (in a passage, the blank lines of paragraphs within it, or after it, too:
+   see part_end()) */
 static int count_parts(int tag, char *bookname, char *strg, int indent,
                        int top_of_screen, int first)
 {
-        char *tab, *end, kept;
-        int n, note;
+        char *whole = strg, *end, *cut, kept;
+        int n = 0, kind, note, paragraphs = (tag == -1);
 
-        if ((tab = strchr(strg, '\t')) == NULL)
-                return (count_part(tag, bookname, strg, indent, top_of_screen, first));
-        for (end = tab; end > strg && end[-1] == ' '; end--)
-                ;       /* (the spaces around a tab aren't shown) */
-        kept = *end;
-        *end = '\0';
-        n = count_part(tag, bookname, strg, indent, top_of_screen, first);
-        *end = kept;
-        strg = next_part(tab, &note);
-        return (n + count_parts(tag, bookname, strg, indent, FALSE, FALSE));
+        for (;;)
+        {
+                if ((end = part_end(strg, paragraphs, &kind)) == NULL)
+                {
+                        n += count_part(tag, bookname, strg, indent, top_of_screen, first);
+                        break;
+                }
+                for (cut = end; cut > strg && cut[-1] == ' '; cut--)
+                        ;       /* (the spaces before a break aren't shown) */
+                kept = *cut;
+                *cut = '\0';
+                n += count_part(tag, bookname, strg, indent, top_of_screen, first);
+                *cut = kept;
+                top_of_screen = first = FALSE;
+                if (kind == PART_NOTE)
+                        strg = next_part(end, &note);
+                else
+                {
+                        strg = end;     /* (the ¶ shown, at the line's start) */
+                        n++;            /* (the blank line before it) */
+                }
+        }
+        if (paragraphs && ends_paragraph(whole))
+                n++;                    /* (the blank line after it) */
+        return (n);
 }
 
 /*
@@ -793,7 +816,66 @@ static int starts_paragraph(char *strg)
 {
         while (*strg == ' ')
                 strg++;
-        return (UCHAR(strg[0]) == 0xC2 && UCHAR(strg[1]) == 0xB6);  /* ¶ */
+        return (is_pilcrow(strg));
+}
+
+/* Purpose: whether a pilcrow, ¶, is at p */
+static int is_pilcrow(char *p)
+{
+        return (UCHAR(p[0]) == 0xC2 && UCHAR(p[1]) == 0xB6);
+}
+
+/*
+** Purpose: whether a verse ends a paragraph: its text ends with ¶, as the
+**          American King James Version's do, before the verse that starts
+**          the next (scrollmapper/bible_databases, AKJV: 2,965). In a
+**          passage, a blank line is shown after it (see part_end()).
+*/
+static int ends_paragraph(char *strg)
+{
+        int n = (int) strlen(strg);
+
+        while (n > 0 && strg[n - 1] == ' ')
+                n--;
+        return (n >= 2 && is_pilcrow(&strg[n - 2]));
+}
+
+/*
+** Purpose: where the part of a verse from strg ends, to be shown on lines of
+**          its own: at a tab, *kind PART_NOTE (a note, a heading, a closing
+**          line: see next_part()); or, in a passage (paragraphs), before a
+**          ¶ within the text, *kind PART_PARAGRAPH: the rest of the verse
+**          starts a paragraph of its own, on a new line after a blank one,
+**          with its ¶ (KJVPCE: an epistle's closing line, "Amen. ¶ Written
+**          to the Romans from Corinthus ..."; TpiKJPB: a psalm's title;
+**          StatResGNT). A ¶ at the start of the text (a blank line before
+**          the verse: starts_paragraph()) or at its end (a blank line after
+**          it: ends_paragraph()) is not a break. NULL: no more breaks.
+**          count_parts() counts, and dis_verse() draws, each part, and the
+**          blank lines with them, by this, so what a passage is laid out to
+**          fit is what it shows (the designer, November 11, 2026).
+*/
+static char *part_end(char *strg, int paragraphs, int *kind)
+{
+        char *tab = strchr(strg, '\t'), *p, *q;
+
+        *kind = PART_NOTE;
+        if (!paragraphs)
+                return (tab);
+        for (p = strg; *p == ' ' || is_pilcrow(p); p += (*p == ' ' ? 1 : 2))
+                ;               /* (past a ¶ at the start) */
+        for (; *p != '\0' && (tab == NULL || p < tab); p++)
+                if (is_pilcrow(p))
+                {
+                        for (q = p + 2; *q == ' '; q++)
+                                ;
+                        if (*q != '\0' && *q != '\t')
+                        {
+                                *kind = PART_PARAGRAPH;
+                                return (p);
+                        }
+                }
+        return (tab);
 }
 
 /* the lines one part of a verse takes (its book's heading too, if it is
@@ -951,6 +1033,9 @@ static void print_visual(char *s, char *hi)
 ** have it. (In a list it stays on the left, under the pick letters.)
 */
 static int dv_skip = 0, dv_left = -1, dv_body_only = FALSE, dv_note = FALSE;
+/* (in a passage, not a list: paragraphs within a verse, or after it, shown
+   apart, with a blank line: see part_end()) */
+static int dv_paragraphs = FALSE;
 static char *dv_label = NULL;
 static int dv_right = FALSE;
 
@@ -1149,28 +1234,37 @@ static void count_letters(char *s, int *rtl, int *hebrew, int *ltr)
             a line of its own (an empty one, a blank line; see count_lines()) */
 static void dis_verse(char *strg, int indent, int firstTime)
 {
-        char *tab, *end, kept = '\0';
+        static char blank[1] = "";
+        char *whole = strg, *end, *cut = NULL, kept = '\0';
+        int kind;
 
         for (;;)
         {
-                end = NULL;
-                if ((tab = strchr(strg, '\t')) != NULL)
+                if ((end = part_end(strg, dv_paragraphs, &kind)) != NULL)
                 {
-                        for (end = tab; end > strg && end[-1] == ' '; end--)
+                        for (cut = end; cut > strg && cut[-1] == ' '; cut--)
                                 ;       /* (the spaces around it aren't shown) */
-                        kept = *end;
-                        *end = '\0';
+                        kept = *cut;
+                        *cut = '\0';
                 }
                 if (strg[0] == '\0' && !firstTime)
                         verse_line(strg, indent, FALSE);        /* (blank) */
                 else
                         dis_part(strg, indent, firstTime);
-                if (tab == NULL)
-                        return;
-                *end = kept;
-                strg = next_part(tab, &dv_note);
+                if (end == NULL)
+                        break;
+                *cut = kept;
                 firstTime = FALSE;
+                if (kind == PART_NOTE)
+                        strg = next_part(end, &dv_note);
+                else
+                {
+                        verse_line(blank, indent, FALSE);  /* (a paragraph) */
+                        strg = end;
+                }
         }
+        if (dv_paragraphs && ends_paragraph(whole))
+                verse_line(blank, indent, FALSE);  /* (a paragraph next) */
 }
 
 /* Purpose: performs word wrapping by inserting a '\0' at appropriate location
@@ -1332,6 +1426,7 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
                 dv_label = label;
                 dv_right = mostly_rtl(bcv_arrays->data_array);
         }
+        dv_paragraphs = (tag == -1);
         dis_verse(bcv_arrays->data_array, verIndent, TRUE);
         strcpy(previous_book, bcv_arrays->book_array);
 }
