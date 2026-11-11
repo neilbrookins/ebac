@@ -98,6 +98,9 @@ static int get_number P((void));
 static struct bcv_type *bcv_menu P((void));
 static int count_lines P((int tag, char *bookname, char *strg, int indent,
                        int top_of_screen));
+static int count_parts P((int tag, char *bookname, char *strg, int indent,
+                          int top_of_screen, int first));
+static int starts_paragraph P((char *strg));
 static void dis_one_line P((char *strg));
 static int mostly_rtl P((char *s));
 static int mostly_hebrew P((char *s));
@@ -108,7 +111,7 @@ static void print_margin P((char *label, int cols, int right));
 static void dis_verse P((char *strg, int indent, int firstTime));
 static void dis_part P((char *strg, int indent, int firstTime));
 static int count_part P((int tag, char *bookname, char *strg, int indent,
-                        int top_of_screen));
+                        int top_of_screen, int first));
 static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
                           int verIndent, int top_of_screen));
 static int show_tall_verse P((struct bcv_array_type *bcv_arrays, int shown, int *used));
@@ -750,40 +753,68 @@ static char *next_part(char *tab, int *note)
         return (p);
 }
 
-/* figure out how many lines on the screen it will take to print this verse */
+/* figure out how many lines on the screen it will take to print this verse
+   (in a passage, its book's heading or a paragraph's blank line too, if
+   one is shown before it: see display_verse()) */
 static int count_lines(int tag, char *bookname, char *strg, int indent, int top_of_screen)
+{
+        return (count_parts(tag, bookname, strg, indent, top_of_screen, TRUE));
+}
+
+/* the lines the parts of a verse take, from strg: its first part, if first */
+static int count_parts(int tag, char *bookname, char *strg, int indent,
+                       int top_of_screen, int first)
 {
         char *tab, *end, kept;
         int n, note;
 
         if ((tab = strchr(strg, '\t')) == NULL)
-                return (count_part(tag, bookname, strg, indent, top_of_screen));
+                return (count_part(tag, bookname, strg, indent, top_of_screen, first));
         for (end = tab; end > strg && end[-1] == ' '; end--)
                 ;       /* (the spaces around a tab aren't shown) */
         kept = *end;
         *end = '\0';
-        n = count_part(tag, bookname, strg, indent, top_of_screen);
+        n = count_part(tag, bookname, strg, indent, top_of_screen, first);
         *end = kept;
         strg = next_part(tab, &note);
-        return (n + count_lines(tag, bookname, strg, indent, FALSE));
+        return (n + count_parts(tag, bookname, strg, indent, FALSE, FALSE));
+}
+
+/*
+** Purpose: whether a verse starts a paragraph: its text starts with a
+**          pilcrow, ¶, as a printed King James Version's paragraphs do
+**          (scrollmapper/bible_databases: KJVPCE, KorHKJV, TpiKJPB,
+**          SpaRV1865, StatResGNT). In a passage, a blank line is shown
+**          before it, as on the printed page (the designer, November 11,
+**          2026); not at the top of a screen, nor below a book's heading,
+**          nor in a list of verses found.
+*/
+static int starts_paragraph(char *strg)
+{
+        while (*strg == ' ')
+                strg++;
+        return (UCHAR(strg[0]) == 0xC2 && UCHAR(strg[1]) == 0xB6);  /* ¶ */
 }
 
 /* the lines one part of a verse takes (its book's heading too, if it is
-   shown before it) */
-static int count_part(int tag, char *bookname, char *strg, int indent, int top_of_screen)
+   shown before it; or, its first part, if first, the blank line before a
+   paragraph: see starts_paragraph()) */
+static int count_part(int tag, char *bookname, char *strg, int indent,
+                      int top_of_screen, int first)
 {
         static char previous_book[MAXBOOKNAME] = { '\0' };
         int a_lines = 0, i, fit, indentWidth = WIDTH - indent;
 
-        if (tag == -1)
+        if (tag == -1 && bookname[0] != '\0')
         {
-           if (bookname[0] != '\0' &&
-              (top_of_screen || strcmp(bookname, previous_book)))
+           if (top_of_screen || strcmp(bookname, previous_book))
            {
               if (top_of_screen == FALSE)
                 a_lines++;
               a_lines++;
            }
+           else if (first && starts_paragraph(strg))
+              a_lines++;        /* (the blank line before a paragraph) */
         }
         strcpy(previous_book, bookname);
         fit = line_fit(strg, indentWidth);
@@ -792,9 +823,9 @@ static int count_part(int tag, char *bookname, char *strg, int indent, int top_o
  for (i = fit; i > 0; i--)
   if (strg[i] == ' ')
    return(count_part(tag, bookname, &strg[i + 1],  /* recursive! */
-                      indent, FALSE) + 1 + a_lines);
+                      indent, FALSE, FALSE) + 1 + a_lines);
  return(count_part(tag, bookname, &strg[fit], /* here too! */
-                    indent, FALSE) + 1 + a_lines);
+                    indent, FALSE, FALSE) + 1 + a_lines);
 }
 
 /* Purpose: Display one line of text to the screen. Highlight, via reverse
@@ -1270,6 +1301,8 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
               underend();
               printf(" (%s)\n", etla);
            }
+           else if (!top_of_screen && starts_paragraph(bcv_arrays->data_array))
+              printf("\n");    /* (a paragraph: counted in count_part()) */
         }
         /* the reference, in the margin of the verse's first line: on the
            left in a list, after the book (shown here); in a passage,

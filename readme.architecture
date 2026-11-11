@@ -2306,3 +2306,28 @@ notes here say add-scrollmapper.sh too, though it was named otherwise
 then. The Docker image and the app link the importers into the data
 folder (ebac-setup), so ebac-setup removes a link left there under the
 old name.
+
+Paragraphs, from the pilcrow (November 11, 2026; the designer's
+decision). Six texts of scrollmapper/bible_databases mark a printed
+Bible's paragraphs with a pilcrow, ¶, at the start of the verse that
+begins one (KJVPCE, the King James Version, Pure Cambridge Edition:
+2,970; also KorHKJV, TpiKJPB, SpaRV1865, StatResGNT), and the importers
+keep it (see "The source's own characters"). In a passage, a verse that
+starts with ¶ has a blank line before it, as on the printed page:
+starts_paragraph() (userint.c), drawn in display_verse() where a book's
+heading and the blank line before it are. Not at the top of a screen
+(the book's heading is there), nor below a heading, nor in a list of
+verses found.
+  - What fits on a screen is worked out by count_lines(), everywhere a
+    passage is laid out (a page, '.', going back, a tall verse's parts):
+    so the blank line is counted there, in count_part(), beside the
+    heading's lines, and a verse that fitted before may go to the next
+    screen. Only a verse's first part, at its start, can begin a
+    paragraph: count_lines() is now a wrapper of count_parts() (the
+    verse's parts, after tabs), which tells count_part() which part is
+    the first; count_part()'s own calls, for the wrapped lines after
+    the first, are never first.
+  - Not done (yet): AKJV puts ¶ at the end of the verse before a
+    paragraph (2,965 of its 3,082), and some texts have it within a
+    verse (StatResGNT 27, TpiKJPB 114, KJVPCE 14), where a paragraph
+    starts mid-verse; both are shown as the source has them.
