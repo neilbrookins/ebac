@@ -11,6 +11,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -66,9 +68,12 @@ jobs:
           node /tmp/t/ttydfit.mjs http://localhost:7681/ dom
           kill %1
 
-      - name: The page as built, for the pull request
-        uses: actions/upload-artifact@v4
-        with:
-          name: html-h
-          path: |
-            ttyd/src/html.h
+      - name: The page as built, kept on this branch, for the pull request
+        run: |
+          cp ttyd/src/html.h ttyd-fit/html.h
+          git -C ttyd diff --stat HEAD~1 -- html/src
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ttyd-fit/html.h
+          git commit -q -m "ttyd-fit: src/html.h as built with the fix [skip ci]"
+          git push -q origin HEAD:ttyd-fit-test
