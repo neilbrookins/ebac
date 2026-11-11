@@ -36,10 +36,12 @@ jobs:
         working-directory: ttyd/html
         run: |
           corepack enable
-          corepack prepare yarn@stable --activate
-          yarn install
+          yarn --version
+          yarn install --immutable
           yarn run check
           yarn run build
+          cd ..
+          if git diff --quiet -- src/html.h; then echo "REPRODUCED: main's src/html.h, byte for byte"; else echo "NOT REPRODUCED: $(git diff --stat -- src/html.h | tail -1)"; fi
 
       - name: Before the fix (expected to fail)
         run: |
