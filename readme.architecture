@@ -2265,3 +2265,17 @@ compared with YouVersion).
     voice doesn't read it as scripture. Three in the New Living
     Translation: John 7:52, 8:11, Mark 16:8. A translation added before
     has the row in its verse until removed and added again.
+
+The window's size, asked at every page (November 10, 2026; found by the
+designer in Chromium, in the Docker container). A fresh EBaC laid out
+Genesis 1 narrower than its window, with room left at the right of every
+line; narrowing the window then drew it wider. The terminal's size was
+asked only at the start (getsize(), through setupterm()) and after
+SIGWINCH (winch(), then scr_clear()); but the web terminal, ttyd, sizes
+the terminal again just as it connects, and a resize then can come
+before winch() is set to catch it: lost, and EBaC laid out every page at
+its starting size until the next resize. Now scr_clear() asks the
+terminal (TIOCGWINSZ) at every clear, which is when a page is laid out;
+SIGWINCH only wakes the keyboard reader, so a page is drawn again at
+once. (Reproduced with the signal blocked, as a lost one is: 80 columns
+kept in a window of 110 before; 110 after.)

@@ -74,7 +74,6 @@ char	*ND;		/* cuf1: non-destructive space */
 void exit_program(int errnum);    /* in file.c */
 
 static char *termtype;  /* name of terminal entry */
-static volatile sig_atomic_t resized = 0; /* set when the window changes */
 
 /*
 ** A pipe the resize signal writes a byte to, so that a program waiting
@@ -256,15 +255,14 @@ static void pair(char **T,               /* where to store the first pointer */
 }
 
 #ifdef SIGWINCH
-/* The window was resized. Note it; the new size is read at the next screen
-** clear, which is when the program lays out a new page. Also wake anyone
-** waiting for a key, through the pipe, so the page can be redrawn now. */
+/* The window was resized: wake anyone waiting for a key, through the pipe,
+** so the page can be redrawn now (the new size is read at the next screen
+** clear, which is when the program lays out a new page). */
 static void winch(int signo)
 {
 	int saved_errno = errno;
 
 	(void) signo;
-	resized = 1;
 	if (resize_pipe[1] >= 0 && write(resize_pipe[1], "r", 1) < 0)
 	{
 		/* pipe full: a wake-up is already waiting */
@@ -320,21 +318,26 @@ void scr_mode(char *name)
 	}
 }
 
-/* Clear the screen, using the new window size if it has changed. */
+/*
+** Clear the screen, using the window's size as it is now. It is asked of
+** the terminal at every clear, not only after SIGWINCH: a resize just as
+** EBaC starts (the web terminal, ttyd, fits itself to the page as it
+** connects) can come before winch() is set to catch it, and was lost;
+** EBaC then laid out every page at its starting size, narrower than the
+** window, until the next resize (November 10, 2026, the designer, in
+** Chromium: "a narrowing of the window makes the application draw
+** wider"). Asking costs one system call per page.
+*/
 void scr_clear(void)
 {
 #ifdef TIOCGWINSZ
 	struct winsize size;
 
-	if (resized)
+	if (ioctl(1, TIOCGWINSZ, &size) == 0 &&
+	    size.ws_row >= 10 && size.ws_col >= 32)
 	{
-		resized = 0;
-		if (ioctl(1, TIOCGWINSZ, &size) == 0 &&
-		    size.ws_row >= 10 && size.ws_col >= 32)
-		{
-			s_lines = size.ws_row;
-			s_cols = size.ws_col;
-		}
+		s_lines = size.ws_row;
+		s_cols = size.ws_col;
 	}
 #endif
 	tputs(CL, 1, fputchar);
