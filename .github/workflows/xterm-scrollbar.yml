@@ -1,0 +1,39 @@
+# How many columns xterm.js 5.5 (as ttyd 1.7.7 uses) and 6.0 give a phone,
+# and what fills the strip the fit addon sets aside for a scrollbar, in an
+# emulated Pixel 9 with overlay scrollbars as on Android. Screenshots are
+# kept on this branch, in xterm-scrollbar/shots.
+name: xterm scrollbar test
+
+on:
+  push:
+    branches: [ttyd-mobile-test]
+    paths-ignore: ["xterm-scrollbar/shots/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: xterm.js 5.5 and 6.0, with their fit addons
+        working-directory: xterm-scrollbar
+        run: |
+          npm init -y > /dev/null
+          npm install --silent x5@npm:@xterm/xterm@5.5.0 f5@npm:@xterm/addon-fit@0.10.0 \
+            x6@npm:@xterm/xterm@6.0.0 f6@npm:@xterm/addon-fit@0.11.0 puppeteer-core@23
+          for p in x5 f5 x6 f6; do echo "$p: $(node -p "require('./node_modules/$p/package.json').version")"; done
+          grep -n "showScrollbar" node_modules/x6/typings/xterm.d.ts | head -2
+      - name: Measure
+        working-directory: xterm-scrollbar
+        run: node scrollbar.mjs shots
+      - name: Keep the screenshots on this branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f xterm-scrollbar/shots
+          git commit -q -m "xterm scrollbar test: screenshots [skip ci]"
+          git push -q origin HEAD:ttyd-mobile-test

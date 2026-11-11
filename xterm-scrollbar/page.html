@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- A terminal laid out as ttyd lays it out (a container filling the page,
+     the terminal with 5px padding), with xterm.js 5.5 or 6.0 chosen by the
+     query: ?v=5 or ?v=6, and &opts={...} for the terminal's options. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #2b2b2b; }
+  #c { width: 100%; height: 100%; margin: 0 auto; padding: 0; }
+  #c .terminal { padding: 5px; height: calc(100% - 10px); }
+</style>
+<div id="c"></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const v = q.get("v") || "5";
+  const opts = JSON.parse(q.get("opts") || "{}");
+  const add = (tag, attrs) => new Promise(r => {
+    const e = document.createElement(tag);
+    Object.assign(e, attrs); e.onload = r; document.head.appendChild(e);
+  });
+  (async () => {
+    await add("link", { rel: "stylesheet", href: `/node_modules/x${v}/css/xterm.css` });
+    await add("script", { src: `/node_modules/x${v}/lib/xterm.js` });
+    await add("script", { src: `/node_modules/f${v}/lib/addon-fit.js` });
+    const term = new Terminal({ fontFamily: "Consolas,Liberation Mono,Menlo,Courier,monospace", fontSize: 13, ...opts });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById("c"));
+    fit.fit();
+    for (let i = 1; i <= 200; i++) term.writeln(`line ${i}`);
+    await new Promise(r => term.write("", r));
+    fit.fit();
+    // a full row, to see where text ends
+    term.write("#".repeat(term.cols));
+    await new Promise(r => setTimeout(r, 300));
+    window.term = term; window.fitAddon = fit; window.ready = true;
+  })();
+</script>
