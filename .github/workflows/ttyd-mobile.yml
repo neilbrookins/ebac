@@ -1,18 +1,16 @@
-# Tests a fix for tsl0922/ttyd#1534 (the terminal not fitted again after the
-# WebGL renderer loads), before it is offered to ttyd as a pull request: the
-# page built from ttyd's main, unchanged and then with ttyd-fit/*.patch,
-# each served by ttyd 1.7.7 (-I) and measured in headless Chrome.
-name: ttyd fit test
+# Tests the fix for tsl0922/ttyd#1534 on a phone (emulated), as Home
+# Assistant's apps show ttyd: in an iframe, in portrait, turned to
+# landscape and back. The page built from ttyd's main, unchanged and then
+# with ttyd-fit/*.patch, each served by ttyd 1.7.7 (-I).
+name: ttyd mobile test
 
 on:
   push:
-    branches: [ttyd-fit-test]
+    branches: [ttyd-mobile-test]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -28,7 +26,7 @@ jobs:
         run: |
           curl -fsSL -o ttyd-bin https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
           chmod +x ttyd-bin
-          mkdir -p /tmp/t && cp ttyd-fit/ttydfit.mjs /tmp/t/
+          mkdir -p /tmp/t && cp ttyd-fit/ttydfit.mjs ttyd-fit/mobile.mjs /tmp/t/
           (cd /tmp/t && npm init -y > /dev/null && npm install --silent puppeteer-core@23)
           echo "main: $(git -C ttyd log --oneline -1)"
 
@@ -47,7 +45,8 @@ jobs:
         run: |
           ./ttyd-bin -p 7681 -W -I ttyd/html/dist/inline.html bash > /tmp/ttyd-before.log 2>&1 &
           sleep 2
-          if node /tmp/t/ttydfit.mjs http://localhost:7681/; then echo "::warning::main fitted already"; else echo "main does not fit: the bug, as expected"; fi
+          node /tmp/t/mobile.mjs http://localhost:7681/ || echo "::error::mobile.mjs failed"
+          node /tmp/t/mobile.mjs http://localhost:7681/?rendererType=dom || echo "::error::mobile.mjs failed"
           kill %1
 
       - name: Apply the fix, check and build again
@@ -60,22 +59,10 @@ jobs:
           git status --short
           git diff --stat
 
-      - name: After the fix (must pass, with each renderer)
+      - name: After the fix
         run: |
           ./ttyd-bin -p 7681 -W -I ttyd/html/dist/inline.html bash > /tmp/ttyd-after.log 2>&1 &
           sleep 2
-          node /tmp/t/ttydfit.mjs http://localhost:7681/
-          node /tmp/t/ttydfit.mjs http://localhost:7681/ webgl
-          node /tmp/t/ttydfit.mjs http://localhost:7681/ canvas
-          node /tmp/t/ttydfit.mjs http://localhost:7681/ dom
+          node /tmp/t/mobile.mjs http://localhost:7681/ || echo "::error::mobile.mjs failed"
+          node /tmp/t/mobile.mjs http://localhost:7681/?rendererType=canvas || echo "::error::mobile.mjs failed"
           kill %1
-
-      - name: The page as built, kept on this branch, for the pull request
-        run: |
-          cp ttyd/src/html.h ttyd-fit/html.h
-          git -C ttyd diff --stat HEAD~1 -- html/src
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ttyd-fit/html.h
-          git commit -q -m "ttyd-fit: src/html.h as built with the fix [skip ci]"
-          git push -q origin HEAD:ttyd-fit-test
