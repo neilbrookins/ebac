@@ -97,9 +97,10 @@ static void remove_char P((char *strg));
 static int get_number P((void));
 static struct bcv_type *bcv_menu P((void));
 static int count_lines P((int tag, char *bookname, char *strg, int indent,
-                       int top_of_screen));
+                       int new_chapter, int top_of_screen));
 static int count_parts P((int tag, char *bookname, char *strg, int indent,
-                          int top_of_screen, int first));
+                          int top_of_screen, int blank_before));
+static int starts_chapter P((struct bcv_array_type *v));
 static int starts_paragraph P((char *strg));
 static int is_pilcrow P((char *p));
 static int ends_paragraph P((char *strg));
@@ -114,7 +115,7 @@ static void print_margin P((char *label, int cols, int right));
 static void dis_verse P((char *strg, int indent, int firstTime));
 static void dis_part P((char *strg, int indent, int firstTime));
 static int count_part P((int tag, char *bookname, char *strg, int indent,
-                        int top_of_screen, int first));
+                        int top_of_screen, int blank_before));
 static void display_verse P((int tag, struct bcv_array_type *bcv_arrays,
                           int verIndent, int top_of_screen));
 static int show_tall_verse P((struct bcv_array_type *bcv_arrays, int shown, int *used));
@@ -762,16 +763,18 @@ static char *next_part(char *tab, int *note)
 /* figure out how many lines on the screen it will take to print this verse
    (in a passage, its book's heading or a paragraph's blank line too, if
    one is shown before it: see display_verse()) */
-static int count_lines(int tag, char *bookname, char *strg, int indent, int top_of_screen)
+static int count_lines(int tag, char *bookname, char *strg, int indent,
+                       int new_chapter, int top_of_screen)
 {
-        return (count_parts(tag, bookname, strg, indent, top_of_screen, TRUE));
+        return (count_parts(tag, bookname, strg, indent, top_of_screen,
+                            new_chapter || starts_paragraph(strg)));
 }
 
-/* the lines the parts of a verse take, from strg: its first part, if first
-   (in a passage, the blank lines of paragraphs within it, or after it, too:
-   see part_end()) */
+/* the lines the parts of a verse take, from strg (in a passage, the blank
+   line before it, if blank_before, and those of paragraphs within it, or
+   after it: see part_end()) */
 static int count_parts(int tag, char *bookname, char *strg, int indent,
-                       int top_of_screen, int first)
+                       int top_of_screen, int blank_before)
 {
         char *whole = strg, *end, *cut, kept;
         int n = 0, kind, note, paragraphs = (tag == -1);
@@ -780,16 +783,17 @@ static int count_parts(int tag, char *bookname, char *strg, int indent,
         {
                 if ((end = part_end(strg, paragraphs, &kind)) == NULL)
                 {
-                        n += count_part(tag, bookname, strg, indent, top_of_screen, first);
+                        n += count_part(tag, bookname, strg, indent, top_of_screen,
+                                        blank_before);
                         break;
                 }
                 for (cut = end; cut > strg && cut[-1] == ' '; cut--)
                         ;       /* (the spaces before a break aren't shown) */
                 kept = *cut;
                 *cut = '\0';
-                n += count_part(tag, bookname, strg, indent, top_of_screen, first);
+                n += count_part(tag, bookname, strg, indent, top_of_screen, blank_before);
                 *cut = kept;
-                top_of_screen = first = FALSE;
+                top_of_screen = blank_before = FALSE;
                 if (kind == PART_NOTE)
                         strg = next_part(end, &note);
                 else
@@ -801,6 +805,38 @@ static int count_parts(int tag, char *bookname, char *strg, int indent,
         if (paragraphs && ends_paragraph(whole))
                 n++;                    /* (the blank line after it) */
         return (n);
+}
+
+/*
+** Purpose: whether a verse starts a chapter, other than its book's first
+**          (below the book's heading): its verse 1, or, if the chapter has
+**          a verse 0 (a summary before verse 1, as the Douay-Rheims from
+**          Project Gutenberg has), that. In a passage, a blank line is
+**          shown before it, so each chapter stands apart (the designer,
+**          November 11, 2026); not at the top of a screen, nor in a list of
+**          verses found. (A book with a chapter 0, front matter, has one
+**          before its chapter 1 too: no heading is between them.)
+*/
+static int starts_chapter(struct bcv_array_type *v)
+{
+#ifndef COCO
+        extern struct bva *book;
+#else
+        extern struct bva book[];
+#endif
+        int b, c = atoi(v->chapt_array), n = atoi(v->verse_array);
+
+        for (b = 0; b < (int) numbooks && strcmp(book[b].name, v->book_array); b++)
+                ;
+        if (b == (int) numbooks || c <= first_chapter(b))
+                return (FALSE);         /* (its book's first: the heading;
+                                           or no verse at all, chapter 0
+                                           of a book without one, as
+                                           get_verse() gives when the
+                                           translation was removed) */
+        if (n == 0)
+                return (TRUE);
+        return (n == 1 && first_verse(book[b].chapt + c - first_chapter(b)) == 1);
 }
 
 /*
@@ -879,10 +915,10 @@ static char *part_end(char *strg, int paragraphs, int *kind)
 }
 
 /* the lines one part of a verse takes (its book's heading too, if it is
-   shown before it; or, its first part, if first, the blank line before a
-   paragraph: see starts_paragraph()) */
+   shown before it; or else, if blank_before, the blank line before a
+   chapter or a paragraph: see starts_chapter(), starts_paragraph()) */
 static int count_part(int tag, char *bookname, char *strg, int indent,
-                      int top_of_screen, int first)
+                      int top_of_screen, int blank_before)
 {
         static char previous_book[MAXBOOKNAME] = { '\0' };
         int a_lines = 0, i, fit, indentWidth = WIDTH - indent;
@@ -895,8 +931,8 @@ static int count_part(int tag, char *bookname, char *strg, int indent,
                 a_lines++;
               a_lines++;
            }
-           else if (first && starts_paragraph(strg))
-              a_lines++;        /* (the blank line before a paragraph) */
+           else if (blank_before)
+              a_lines++;        /* (a chapter's, or a paragraph's) */
         }
         strcpy(previous_book, bookname);
         fit = line_fit(strg, indentWidth);
@@ -1395,8 +1431,10 @@ static void display_verse(int tag, struct bcv_array_type *bcv_arrays, int verInd
               underend();
               printf(" (%s)\n", etla);
            }
-           else if (!top_of_screen && starts_paragraph(bcv_arrays->data_array))
-              printf("\n");    /* (a paragraph: counted in count_part()) */
+           else if (!top_of_screen && (starts_chapter(bcv_arrays) ||
+                                       starts_paragraph(bcv_arrays->data_array)))
+              printf("\n");    /* (a chapter or a paragraph: counted in
+                                   count_part()) */
         }
         /* the reference, in the margin of the verse's first line: on the
            left in a list, after the book (shown here); in a passage,
@@ -1462,12 +1500,12 @@ static int lines_below(long int first, long int last)
 
         /* count_lines() compares each verse's book with the one before */
         bcv_arrays = get_verse(first > 1 ? first - 1 : first);
-        count_lines(-1, bcv_arrays->book_array, "", 8, FALSE);
+        count_lines(-1, bcv_arrays->book_array, "", 8, FALSE, FALSE);
         for (v = first; v <= last; v++)
         {
                 bcv_arrays = get_verse(v);
                 lines += count_lines(-1, bcv_arrays->book_array,
-                                     bcv_arrays->data_array, 8, FALSE);
+                                     bcv_arrays->data_array, 8, starts_chapter(bcv_arrays), FALSE);
         }
         return (lines);
 }
@@ -1500,8 +1538,9 @@ static int show_tall_verse(struct bcv_array_type *bcv_arrays, int shown, int *us
 {
         int total, text_lines, avail = s_lines - 1, part;
 
-        total = count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array, 8, TRUE);
-        text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE);
+        total = count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array, 8,
+                            starts_chapter(bcv_arrays), TRUE);
+        text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE, FALSE);
         if (shown == 0)
         {
                 part = avail - (total - text_lines);    /* (its heading first) */
@@ -1533,7 +1572,7 @@ static int is_tall(long int v)
                 return (FALSE);
         bcv_arrays = get_verse(v);
         return (count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array,
-                            8, TRUE) > s_lines - 1);
+                            8, starts_chapter(bcv_arrays), TRUE) > s_lines - 1);
 }
 
 /*
@@ -1548,8 +1587,9 @@ static int tall_part_before(long int v, int skip)
         struct bcv_array_type *bcv_arrays = get_verse(v);
         int total, text_lines, avail = s_lines - 1, start = 0, part;
 
-        total = count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array, 8, TRUE);
-        text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE);
+        total = count_lines(-1, bcv_arrays->book_array, bcv_arrays->data_array, 8,
+                            starts_chapter(bcv_arrays), TRUE);
+        text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE, FALSE);
         part = avail - (total - text_lines);
         if (part < 1)
                 part = 1;
@@ -1585,7 +1625,7 @@ static int lines_from(long int first, long int last)
         {
                 bcv_arrays = get_verse(v);
                 lines += count_lines(-1, bcv_arrays->book_array,
-                                     bcv_arrays->data_array, 8, v == first);
+                                     bcv_arrays->data_array, 8, starts_chapter(bcv_arrays), v == first);
         }
         return (lines);
 }
@@ -1674,7 +1714,7 @@ static void view_in_context(long int cur_verse)
                                 cur_verse = top + 1;
                                 /* (count_lines() compares each verse's book
                                    with the one before: this one's) */
-                                count_lines(-1, bcv_arrays->book_array, "", 8, FALSE);
+                                count_lines(-1, bcv_arrays->book_array, "", 8, FALSE, FALSE);
                         }
                 }
                 if (!head_shown)
@@ -1685,7 +1725,7 @@ static void view_in_context(long int cur_verse)
                                 break;          /* the end: no more */
                             bcv_arrays = get_verse(cur_verse);
                             n = count_lines(-1, bcv_arrays->book_array,
-                               bcv_arrays->data_array, 8, top_of_screen);
+                               bcv_arrays->data_array, 8, starts_chapter(bcv_arrays), top_of_screen);
                             if (num_lines - n < 1)
                             {
                                 /* A verse taller than the screen below the
@@ -1693,7 +1733,7 @@ static void view_in_context(long int cur_verse)
                                    least two lines of it), and the rest on
                                    the next screens, so that a screen isn't
                                    left near empty before it */
-                                text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE);
+                                text_lines = count_lines(-1, "", bcv_arrays->data_array, 8, FALSE, FALSE);
                                 part = (num_lines - 1) - (n - text_lines);
                                 if (!top_of_screen && part >= 2 && is_tall(cur_verse))
                                 {
@@ -1990,7 +2030,7 @@ static void view_match_list(long int *verse_list)
                         break;
                     bcv_arrays = get_verse(cur_verse);
                     n = count_lines(tag, bcv_arrays->book_array,
-                             bcv_arrays->data_array, MAXINDENT, top_of_screen);
+                             bcv_arrays->data_array, MAXINDENT, FALSE, top_of_screen);
                     if (top_of_screen && n > num_lines - 1 && num_lines > 1)
                     {
                         /* taller than the screen (a long introduction): as
@@ -2071,7 +2111,7 @@ static void view_match_list(long int *verse_list)
 #endif
                      bcv_arrays = get_verse(cur_verse);
                      num_lines -= count_lines(tag, bcv_arrays->book_array,
-                               bcv_arrays->data_array, MAXINDENT, FALSE);
+                               bcv_arrays->data_array, MAXINDENT, FALSE, FALSE);
                      if (num_lines < 1)
                      {
                         /* an entry taller than the screen, just before

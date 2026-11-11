@@ -2347,3 +2347,27 @@ verses found.
     heading: no page ran over.
   - Voice: Assist shows the ¶ as the text has it; the integration's
     voice leaves it out of what is said (0.8.8), not to be read aloud.
+
+Chapters apart (November 11, 2026; the designer's decision). In a
+passage, a chapter's first verse has a blank line before it, as a
+paragraph's does: its verse 1, except in its book's first chapter, below
+the book's heading (or, in a book with a chapter 0, front matter, its
+chapter 0's). If the chapter has a verse 0 (the Douay-Rheims from
+Project Gutenberg: a summary, marked "===", before verse 1), the blank
+line is before that, not between it and its verse 1. starts_chapter()
+(userint.c) says so, from the book's first chapter and the chapter's
+first verse (first_chapter(), first_verse()). It is the same blank line
+as a paragraph's, one even when a verse 1 also starts with ¶ (116 in
+AKJV): count_lines() is told, by each caller laying out a passage,
+whether the verse starts a chapter, and gives count_part() "a blank line
+before it" for either; display_verse() draws it for either. Not at the
+top of a screen, nor in a list of verses found (those callers say
+FALSE). No chapter's last verse ends with ¶ in the texts that do (AKJV,
+KJVPCE), so no chapter gets two blank lines. Checked by paging on, 120
+to 150 screens at a time, at 50 by 20 and 80 by 24: Genesis in KJVPCE
+and in the Douay-Rheims (verse 0s), Psalms and Obadiah to Zechariah in
+AKJV, Ruth into 1 Samuel in the AV, and 1 Nephi in the Book of Mormon
+(chapter 0s). Every chapter start had its blank line, but at a screen's
+top or below its book's heading; every screen started with its heading
+(but those going on with a verse taller than the screen, as designed);
+no verse was missed. A search's list shows none.
