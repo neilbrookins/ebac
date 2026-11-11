@@ -19,7 +19,7 @@
 # searched or listed here: what is added is their own choice. The address
 # of its plain text isn't typed: it is made from the number, as Gutenberg
 # gives it, https://www.gutenberg.org/ebooks/17.txt.utf-8 (see PLAIN_TEXT).
-# Then, as add-translation.sh does for those from scrollmapper/bible_databases, this:
+# Then, as add-scrollmapper.sh does for those from scrollmapper/bible_databases, this:
 #
 #   1. refuses it, by its fingerprint (asked for without downloading it),
 #      if it is the same version as the copy added before (remove that
@@ -55,12 +55,12 @@
 # text, without the 0s, which aren't in the text. (See put_intro().)
 #
 # This script adds and removes only its own texts (those whose folder has
-# a file named gutenberg); add-translation.sh, those from
+# a file named gutenberg); add-scrollmapper.sh, those from
 # scrollmapper/bible_databases.
 #
 # EBaC runs this itself for P)roject Gutenberg under A)dd on its main menu, as "sh
 # add-gutenberg.sh --from-ebac PROGRAM NAME", and is started again when it
-# is done, as for add-translation.sh.
+# is done, as for add-scrollmapper.sh.
 
 LC_ALL=C
 export LC_ALL
@@ -263,7 +263,7 @@ interrupted() {
 }
 
 # Tell EBaC's web page in the Home Assistant app that a line is being
-# typed (see add-translation.sh).
+# typed (see add-scrollmapper.sh).
 typing_mode() {
         [ -n "${EBAC_GESTURES:-}" ] && printf '\033]7766;%s\007' "${1:-input}"
         return 0
@@ -422,7 +422,7 @@ without_line() {
 }
 
 # Short names end in -PG (November 2026), so that a text from Project
-# Gutenberg and one from GitHub (add-translation.sh's) can both be kept,
+# Gutenberg and one from GitHub (add-scrollmapper.sh's) can both be kept,
 # side by side: DRC-PG and DRC. A text added before, under its name
 # without -PG (BOM), is renamed: its folder, and its line in trans, in its
 # place there (so EBaC starts with the same one).
@@ -1213,7 +1213,7 @@ add() {
                 } > "$folder/gutenberg" || { problem="couldn't write $n/gutenberg"; return 1; }
         done
         # (into trans, at the top, in the order of names: so the last first;
-        # with --at-end, at the end, in their order, as add-translation.sh
+        # with --at-end, at the end, in their order, as add-scrollmapper.sh
         # does for voice: EBaC's default stays the first)
         if [ "$at_end" = yes ]; then
                 order=$names
@@ -1488,7 +1488,7 @@ add_number() {
 }
 
 # ---- For programs (the EBaC integration's voice, through ebac-admin), as
-# add-translation.sh's: what can be added, a text's license, whether it is
+# add-scrollmapper.sh's: what can be added, a text's license, whether it is
 # added. Only the texts in KNOWN: each needs its layout, added by hand.
 
 # known_texts: a line per text in KNOWN: number, names, format, title,
@@ -1505,7 +1505,7 @@ all_ours() {
         return 0
 }
 
-# --catalog: as add-translation.sh's: "language", code, English name, own
+# --catalog: as add-scrollmapper.sh's: "language", code, English name, own
 # name, how many; then "translation", its ebook number (what --license,
 # --check and adding take), language, title, 1 if added, and its short
 # names (the texts' own, which the integration matches too: DRC-PG).

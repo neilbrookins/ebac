@@ -497,7 +497,7 @@
         if (mode === "anykey")
             return " ";
         if (mode === "addlist") {
-            /* the importer's lists (add-translation.sh): the same on both */
+            /* the importer's lists (add-scrollmapper.sh): the same on both */
             if (Math.abs(dx) > Math.abs(dy))
                 return "\r";                    /* Enter: the number typed */
             /* (CTRL-U first: the terminal erases a number half typed, so

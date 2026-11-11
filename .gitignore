@@ -17,6 +17,6 @@
 /version.stamp.new
 __pycache__/
 
-# the names of languages, kept by add-translation.sh
+# the names of languages, kept by add-scrollmapper.sh
 languages.cache
 /ebac-api

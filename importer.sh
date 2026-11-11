@@ -1,10 +1,10 @@
 # importer.sh -- what EBaC's importers of Bible translations from GitHub
-#                share: add-translation.sh (scrollmapper/bible_databases)
+#                share: add-scrollmapper.sh (scrollmapper/bible_databases)
 #                and add-thiagobodruk.sh (thiagobodruk/bible). Read by
 #                them ("." in sh), not run itself.
 #
 # An importer sets, before reading this:
-#   PROGRAM      its name, for messages ("add-translation")
+#   PROGRAM      its name, for messages ("add-scrollmapper")
 #   SOURCE       where its translations are by default (a web address)
 #   OWN_MARK     the file its texts' folders have, saying they are its own
 #                ("" for none: scrollmapper/bible_databases, the first)

@@ -3,7 +3,7 @@
 Translations added or removed by another EBaC, or by voice, while this one
 runs (November 9, 2026).
 
-The importers (add-translation.sh, add-thiagobodruk.sh, add-gutenberg.sh)
+The importers (add-scrollmapper.sh, add-thiagobodruk.sh, add-gutenberg.sh)
 add and remove translations for everyone: another user's EBaC, or the Home
 Assistant integration's voice, can do it while this EBaC is running. This
 checks, in both builds (NORAMDISK and RAMDISK), that:

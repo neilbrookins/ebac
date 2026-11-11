@@ -1136,7 +1136,7 @@ void change_translations(void)
 		** (a shorter heading in a narrow window, so it stays on one line;
 		** with the page, when there are more, so that the first page
 		** doesn't look like the whole list: a phone's keyboard can leave
-		** room for fewer, as add-translation.sh's lists do)
+		** room for fewer, as add-scrollmapper.sh's lists do)
 		*/
 		if (pages > 1)
 		{

@@ -34,7 +34,7 @@ static char program_path[512] = "";
 /*
 ** The importers of translations, shell scripts in BIBLEROOT, each "" if it
 ** isn't there: thiagobodruk/bible's (add-thiagobodruk.sh), the one for
-** scrollmapper/bible_databases (add-translation.sh), and Project Gutenberg's
+** scrollmapper/bible_databases (add-scrollmapper.sh), and Project Gutenberg's
 ** (add-gutenberg.sh). The main menu offers A)dd a translation when any is
 ** there, and A)dd offers each (see add_menu()).
 */
@@ -147,7 +147,7 @@ static int screen_key P((void));
 ** Each place has an importer of its own, a shell script, run only when it
 ** is chosen here, each known by its letter: T)hiagobodruk/bible (add-
 ** thiagobodruk.sh, its XML Bibles, the first since November 8),
-** S)crollmapper/bible_databases (add-translation.sh; G for GitHub
+** S)crollmapper/bible_databases (add-scrollmapper.sh; G for GitHub
 ** before), both by language, and P)roject Gutenberg, by ebook number
 ** (add-gutenberg.sh). A new place is another line here and another
 ** script. Each importer adds, and removes, only its own texts; the short
@@ -2323,7 +2323,7 @@ int main(int argc, char **argv)
                 start_trans = argv[1];  /* "bible BSB": start with BSB */
 #ifdef UNIXV
         find_importer(thiagobodruk, sizeof(thiagobodruk), "add-thiagobodruk.sh");
-        find_importer(scrollmapper, sizeof(scrollmapper), "add-translation.sh");
+        find_importer(scrollmapper, sizeof(scrollmapper), "add-scrollmapper.sh");
         find_importer(gutenberg, sizeof(gutenberg), "add-gutenberg.sh");
 #endif
         initialize();

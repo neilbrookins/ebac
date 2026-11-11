@@ -1,15 +1,15 @@
 #!/bin/sh
-# add-translation.sh -- download a Bible translation and add it to EBaC
+# add-scrollmapper.sh -- download a Bible translation and add it to EBaC
 #                        (or remove one added before).
 #
-#   sh add-translation.sh             list the languages, then a language's
+#   sh add-scrollmapper.sh             list the languages, then a language's
 #                                     translations, and ask which to add or
 #                                     remove
-#   sh add-translation.sh BSB-SM LEB-SM  add these (by short name)
-#   sh add-translation.sh --agree BSB-SM  add it, agreeing to its license
+#   sh add-scrollmapper.sh BSB-SM LEB-SM  add these (by short name)
+#   sh add-scrollmapper.sh --agree BSB-SM  add it, agreeing to its license
 #                                     (for scripts: see below)
-#   sh add-translation.sh --remove BSB-SM  remove this one
-#   sh add-translation.sh --list      just list them
+#   sh add-scrollmapper.sh --remove BSB-SM  remove this one
+#   sh add-scrollmapper.sh --list      just list them
 #
 # For programs (ebac-admin, which adds and removes translations for the
 # EBaC integration's voice commands), plain lines separated by tabs:
@@ -92,7 +92,7 @@
 # NAMES_SOURCE and language_names()).
 #
 # EBaC runs this itself when A)dd a translation is chosen from its main menu,
-# as "sh add-translation.sh --from-ebac PROGRAM NAME": PROGRAM is how to
+# as "sh add-scrollmapper.sh --from-ebac PROGRAM NAME": PROGRAM is how to
 # start EBaC again, and NAME the translation it was showing. EBaC is
 # replaced by this program, and this one is replaced by a new EBaC when it
 # is done, which starts with the translation just added (or else NAME). So
@@ -113,13 +113,13 @@ set -f                  # no file-name patterns: a typed * stays a *
 
 SOURCE=https://raw.githubusercontent.com/scrollmapper/bible_databases/master
 LIST_PATH=docs/main_readme/translation_list.md
-PROGRAM=add-translation
+PROGRAM=add-scrollmapper
 OWN_MARK=""             # (those from scrollmapper/bible_databases have no mark of their own)
 SUFFIX=-SM
 
 here=$(cd "$(dirname "$0")" && pwd)
 if [ ! -f "$here/importer.sh" ]; then
-        echo "add-translation: importer.sh is missing (it belongs beside this program)." >&2
+        echo "add-scrollmapper: importer.sh is missing (it belongs beside this program)." >&2
         exit 1
 fi
 . "$here/importer.sh"
@@ -223,7 +223,7 @@ fetch_text() {
 }
 
 usage() {
-        echo "usage: sh add-translation.sh [--list] [--agree] [--source PLACE] [NAME ...] [--remove NAME ...]"
+        echo "usage: sh add-scrollmapper.sh [--list] [--agree] [--source PLACE] [NAME ...] [--remove NAME ...]"
         echo "Downloads Bible translations and adds them to EBaC, or removes them."
         echo "  NAME            short names of translations to add, such as BSB-SM"
         echo "  --remove NAME   remove this translation (added before)"

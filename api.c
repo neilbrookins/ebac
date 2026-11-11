@@ -998,7 +998,7 @@ static void info(void)
 
 /*
 ** The license of translation t, as kept in its folder when it was added
-** (add-translation.sh: "License:", "Details:", "Agreed:" lines);
+** (add-scrollmapper.sh: "License:", "Details:", "Agreed:" lines);
 ** "recorded": false if there is none (added before EBaC 2.4.1, or one of
 ** EBaC's own).
 */

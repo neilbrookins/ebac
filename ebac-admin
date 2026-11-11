@@ -12,7 +12,7 @@
 # readme.architecture.
 #
 # Sources (November 8, 2026): source= in a request says which importer:
-#   scrollmapper   add-translation.sh: scrollmapper/bible_databases (the
+#   scrollmapper   add-scrollmapper.sh: scrollmapper/bible_databases (the
 #                  default, as before)
 #   thiagobodruk   add-thiagobodruk.sh: thiagobodruk/bible (names -TB)
 #   gutenberg      add-gutenberg.sh: Project Gutenberg, the ebooks it knows,
@@ -127,7 +127,7 @@ bool() { if "$@"; then echo true; else echo false; fi; }
 # the importer of source= (see Sources, above)
 source=$(param source)
 case $source in
-"" | scrollmapper) importer=$root/add-translation.sh ;;
+"" | scrollmapper) importer=$root/add-scrollmapper.sh ;;
 thiagobodruk) importer=$root/add-thiagobodruk.sh ;;
 gutenberg) importer=$root/add-gutenberg.sh ;;
 *) fail "400 Bad Request" "no such source: $source (scrollmapper, thiagobodruk, gutenberg)" ;;
@@ -141,7 +141,7 @@ importer_of() {
         elif [ -f "$root/$1/thiagobodruk" ]; then
                 echo "$root/add-thiagobodruk.sh"
         else
-                echo "$root/add-translation.sh"
+                echo "$root/add-scrollmapper.sh"
         fi
 }
 
@@ -251,7 +251,7 @@ status)
                    ! kill -0 "$(cat "$jobs/$name.pid")" 2> /dev/null; then
                         state=failed    # (stopped without saying: as when the app restarted)
                 fi
-                # the reason: add-translation.sh's last line ("NAME: not
+                # the reason: add-scrollmapper.sh's last line ("NAME: not
                 # added: ...", or what it was doing)
                 [ "$state" = done ] || message=$(grep -v '^[[:space:]]*$' "$jobs/$name.log" 2> /dev/null | tail -n 1)
                 [ "$state" = running ] && [ ! -f "$jobs/$name.pid" ] && state=failed

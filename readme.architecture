@@ -793,7 +793,7 @@ parser takes the words, in lower case, as:
 A book's full name, for /books and for what is spoken, comes from the
 translation folder's booknames file: one name a line, in the order of
 booklist, as the text's own headings have them ("Song of Solomon",
-where booklist has SongofSolomon). add-translation.sh writes it; AV's is
+where booklist has SongofSolomon). add-scrollmapper.sh writes it; AV's is
 in the repository. With no booknames, a space is put after a leading
 digit ("1 John").
 
@@ -964,7 +964,7 @@ language's), and kept until changed, so several are added by name alone.
     gutenberg) and runs that importer; removing takes none: the importer
     whose mark the folder has (gutenberg, thiagobodruk; none for
     scrollmapper/bible_databases), so each removes only its own.
-  - add-gutenberg.sh gained the programs' modes add-translation.sh has:
+  - add-gutenberg.sh gained the programs' modes add-scrollmapper.sh has:
     --catalog (its KNOWN ebooks, with a title and language each, by
     number, and their short names), --license NUMBER, --check NUMBER,
     --at-end and --agreed-how. Only the ebooks it has a layout for can be
@@ -1035,12 +1035,12 @@ integration's checkbox; until then ebac-api only reads, as now.
 
 How: ebac-api itself still only reads. A second CGI program beside it,
 ebac-admin (a shell script, in the ebac repository), does the writing,
-with add-translation.sh, and only as the web server's setup allows:
+with add-scrollmapper.sh, and only as the web server's setup allows:
 EBAC_ALLOW_ADD=yes, and EBAC_ALLOW_REMOVE=yes too for removing (the app
 sets them from its options). Its requests: permissions, catalog (every
-language and translation, and which are added: add-translation.sh
+language and translation, and which are added: add-scrollmapper.sh
 --catalog), license (to read out), check (added, and the same version?),
-add (started in the background: add-translation.sh --agree --agreed-how
+add (started in the background: add-scrollmapper.sh --agree --agreed-how
 "by voice, from Kitchen" --at-end NAME), status (running, done, failed
 and why), remove. One add at a time: another while one runs is refused
 (HTTP 409). ebac-api has two requests more for reading: info (release,
@@ -1200,7 +1200,7 @@ real CoCo; the conversion to K&R C is checked by "make coco".
 The translation importer
 ------------------------
 
-add-translation.sh no longer limits a translation to 32,767 verses, and
+add-scrollmapper.sh no longer limits a translation to 32,767 verses, and
 offers the translations with the Apocrypha (KJVA, the Douay-Rheims
 Bible and the Catholic Public Domain Version) with the rest.
 
@@ -1342,12 +1342,12 @@ in chapter and verse. They are added by hand, one at a time:
 So, unlike A, nothing is listed or searched in EBaC: the person's own
 choice, checked in a browser, is what is added.
 
-A script of its own. add-gutenberg.sh, beside add-translation.sh, not a
+A script of its own. add-gutenberg.sh, beside add-scrollmapper.sh, not a
 part of it: the two sources differ in everything but the end (a folder
 of books, indexed, in trans), and each script stays simple for its own.
 Some of what they do is alike (downloading, white space, the
 index, trans, the license and version files), written in each. Each adds
-and removes only its own: add-translation.sh doesn't remove a Gutenberg
+and removes only its own: add-scrollmapper.sh doesn't remove a Gutenberg
 text, nor add-gutenberg.sh one from
 scrollmapper/bible_databases.
 
@@ -1589,7 +1589,7 @@ license read from it. --page PATH reads a saved page instead, for tests.
 Where to add from (November 5, 2026; the designer's request). The main
 menu has one choice for adding, A)dd; it no longer has P. A)dd asks where
 from (add_menu() in userint.c, still EBaC's own screen): G)itHub (or 1),
-scrollmapper/bible_databases, runs add-translation.sh; P)roject
+scrollmapper/bible_databases, runs add-scrollmapper.sh; P)roject
 Gutenberg (or 2), by ebook number, runs add-gutenberg.sh; X goes back.
 (Since November 8: T, S and P; see "A third place".)
 Another place, later, is another line there and another importer. The
@@ -1604,7 +1604,7 @@ already added keep their names, and a name with parentheses needs quoting
 on a command line). One added before under its name without -PG (BOM)
 is renamed the next time add-gutenberg.sh runs: its folder and its line
 in trans, in its place. Each importer adds and removes only its own
-texts, and add-translation.sh never writes into a folder with a
+texts, and add-scrollmapper.sh never writes into a folder with a
 gutenberg file, whatever its name.
 
 A third place: thiagobodruk/bible (November 8, 2026; the designer's
@@ -1613,7 +1613,7 @@ languages as XML (and JSON), many not in scrollmapper/bible_databases (the
 NIV, the NLT). A)dd lists it first:
 
   T)hiagobodruk/bible (or 1)   add-thiagobodruk.sh, its translations
-  S)crollmapper (or 2)         add-translation.sh (G before: with two
+  S)crollmapper (or 2)         add-scrollmapper.sh (G before: with two
                                places on GitHub, each is named for its own)
   P)roject Gutenberg (or 3)    add-gutenberg.sh
 
@@ -1627,7 +1627,7 @@ everything but their source: the lists of languages and translations, the
 license question, room on the disk, writing the books (book names, plain
 punctuation, the plan that checks each chapter starts at verse 1), the
 index and its check, 'trans', versions, removing, and the arguments.
-importer.sh holds that, moved from add-translation.sh as it was (its
+importer.sh holds that, moved from add-scrollmapper.sh as it was (its
 texts, re-added, came out byte for byte the same). Each importer sets
 PROGRAM, SOURCE and OWN_MARK, and defines all_translations, license_of,
 version_of, fetch_text and usage; then runs importer_main. fetch_text
@@ -2102,7 +2102,7 @@ For texts from Project Gutenberg (design review of October 29, 2026):
     address of its plain text is made from the number
     (ebooks/N.txt.utf-8); nothing is listed or searched in EBaC.
   - A script of its own, add-gutenberg.sh, separate from
-    add-translation.sh; each adds and removes only its own.
+    add-scrollmapper.sh; each adds and removes only its own.
   - One text and one format at a time, from a list built in (ebook
     number, short name, books' names, format): the Book of Mormon (17,
     BOM) first; others when looked at; anything else refused.
@@ -2155,7 +2155,7 @@ Guarding the disk (November 2, 2026; the designer's request). A script
 or a voice assistant used with ill intent could fill the disk two ways,
 so neither can:
 
-  - Adding a text (add-translation.sh, add-gutenberg.sh; so the A and P
+  - Adding a text (add-scrollmapper.sh, add-gutenberg.sh; so the A and P
     menus and adding by voice, which runs them) stops while less than
     1 GB (MIN_FREE_MB, 1024) is free on the disk the translations are
     kept on, or on the one the text is first downloaded to (the
@@ -2216,7 +2216,7 @@ ending keeps the same translation from two places apart, as folders and
 under C (where it is shown, so choosing one is choosing its source too),
 and says which of A's three to go back to, to remove or update it.
 EBaC's own (AV) has none.
-  - add-translation.sh: all_translations() gives each name -SM (SUFFIX),
+  - add-scrollmapper.sh: all_translations() gives each name -SM (SUFFIX),
     with its name in the source in a fourth column, as
     add-thiagobodruk.sh does; source_name() finds it, for the text, its
     README (license) and its page at CrossWire.
@@ -2295,3 +2295,14 @@ kept in a window of 110 before; 110 after.)
     in .github/workflows/docker.yml: before, "0 of 3 window sizes
     fitted from the start"; after, 3 of 3. (The workflow publishes only
     from main, so it can be run on a branch to try a change.)
+
+Each importer named for its source (November 11, 2026; the designer's
+decision). The importer for scrollmapper/bible_databases was
+add-translation.sh, from when it was the only one; the next two were
+named for theirs, add-thiagobodruk.sh and add-gutenberg.sh, so the first
+read as if it added any translation. It is now add-scrollmapper.sh
+(PROGRAM add-scrollmapper), and every mention of it with it. Earlier
+notes here say add-scrollmapper.sh too, though it was named otherwise
+then. The Docker image and the app link the importers into the data
+folder (ebac-setup), so ebac-setup removes a link left there under the
+old name.

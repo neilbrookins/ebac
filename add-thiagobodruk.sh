@@ -26,7 +26,7 @@
 # a b (book: its name, as the translation has it, in n), its c (chapters)
 # and their v (verses), numbered; the whole file on one line. Each is read
 # into the plain-text layout of scrollmapper/bible_databases ("### Genesis", then "[1:1]
-# In the beginning ..."), and from there is added as add-translation.sh
+# In the beginning ..."), and from there is added as add-scrollmapper.sh
 # adds those from scrollmapper/bible_databases: the same lists, license question, books, index and
 # 'trans' (importer.sh, which both read). So the same text comes out the
 # same from either source; to check, the King James Version from each can
@@ -48,12 +48,12 @@
 # for scrollmapper/bible_databases.
 #
 # Versions: the XML file's ETag (or, from a folder, its checksum), kept in
-# the translation's folder as add-translation.sh keeps it: the same version
+# the translation's folder as add-scrollmapper.sh keeps it: the same version
 # again is refused.
 #
 # EBaC runs this itself for T)hiagobodruk/bible under A)dd on its main menu,
 # as "sh add-thiagobodruk.sh --from-ebac PROGRAM NAME", and is started again
-# when it is done, as for add-translation.sh.
+# when it is done, as for add-scrollmapper.sh.
 
 LC_ALL=C
 export LC_ALL
@@ -256,7 +256,7 @@ usage() {
         echo "                  run with no one to answer, as from a script)"
         echo "  --list          only list the translations"
         echo "  --catalog, --license NAME, --check NAME, --at-end, --agreed-how TEXT:"
-        echo "                  for programs (as add-translation.sh's)"
+        echo "                  for programs (as add-scrollmapper.sh's)"
         echo "  --source PLACE  where the translations are: a web address, or a folder"
         echo "                  with a copy of thiagobodruk/bible (default: $SOURCE)"
         echo "  --names-source PLACE  where the names of languages are (Unicode's CLDR)"
