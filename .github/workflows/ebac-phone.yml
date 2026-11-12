@@ -1,0 +1,27 @@
+# EBaC's web page (the Docker image built from main) on an emulated phone:
+# its columns, and how many would fit with nothing set aside for a scrollbar.
+name: EBaC phone test
+
+on:
+  push:
+    branches: [ttyd-mobile-test]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: src
+      - name: Build the image from main
+        working-directory: src
+        run: docker build -q -f docker/Dockerfile -t ebac:test --build-arg EBAC_COMMIT="$(git log -1 --format='%h, %cs')" . > /dev/null
+      - name: EBaC on a phone
+        run: |
+          docker run -d --name ebac -p 7681:7681 ebac:test
+          for i in $(seq 30); do curl -fs http://localhost:7681/ -o /dev/null && break; sleep 1; done
+          mkdir -p /tmp/p && cp ebac-phone/ebacphone.mjs /tmp/p/
+          (cd /tmp/p && npm init -y > /dev/null && npm install --silent puppeteer-core@23)
+          node /tmp/p/ebacphone.mjs http://localhost:7681/

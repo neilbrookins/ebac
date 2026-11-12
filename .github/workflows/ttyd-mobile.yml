@@ -5,8 +5,7 @@
 name: ttyd mobile test
 
 on:
-  push:
-    branches: [ttyd-mobile-test]
+  workflow_dispatch:
 
 jobs:
   test:
