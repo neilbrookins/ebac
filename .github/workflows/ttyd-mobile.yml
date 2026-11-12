@@ -1,0 +1,68 @@
+# Tests the fix for tsl0922/ttyd#1534 on a phone (emulated), as Home
+# Assistant's apps show ttyd: in an iframe, in portrait, turned to
+# landscape and back. The page built from ttyd's main, unchanged and then
+# with ttyd-fit/*.patch, each served by ttyd 1.7.7 (-I).
+name: ttyd mobile test
+
+on:
+  push:
+    branches: [ttyd-mobile-test]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: tsl0922/ttyd
+          ref: main
+          path: ttyd
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: ttyd and the test's tools
+        run: |
+          curl -fsSL -o ttyd-bin https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+          chmod +x ttyd-bin
+          mkdir -p /tmp/t && cp ttyd-fit/ttydfit.mjs ttyd-fit/mobile.mjs /tmp/t/
+          (cd /tmp/t && npm init -y > /dev/null && npm install --silent puppeteer-core@23)
+          echo "main: $(git -C ttyd log --oneline -1)"
+
+      - name: Build the page from main, as ttyd's CI does
+        working-directory: ttyd/html
+        run: |
+          corepack enable
+          yarn --version
+          yarn install --immutable
+          yarn run check
+          yarn run build
+          cd ..
+          if git diff --quiet -- src/html.h; then echo "REPRODUCED: main's src/html.h, byte for byte"; else echo "NOT REPRODUCED: $(git diff --stat -- src/html.h | tail -1)"; fi
+
+      - name: Before the fix (expected to fail)
+        run: |
+          ./ttyd-bin -p 7681 -W -I ttyd/html/dist/inline.html bash > /tmp/ttyd-before.log 2>&1 &
+          sleep 2
+          node /tmp/t/mobile.mjs http://localhost:7681/ || echo "::error::mobile.mjs failed"
+          node /tmp/t/mobile.mjs http://localhost:7681/?rendererType=dom || echo "::error::mobile.mjs failed"
+          kill %1
+
+      - name: Apply the fix, check and build again
+        run: |
+          git -C ttyd -c user.name=t -c user.email=t@t am --3way "$PWD"/ttyd-fit/*.patch
+          cd ttyd/html
+          yarn run check
+          yarn run build
+          cd ..
+          git status --short
+          git diff --stat
+
+      - name: After the fix
+        run: |
+          ./ttyd-bin -p 7681 -W -I ttyd/html/dist/inline.html bash > /tmp/ttyd-after.log 2>&1 &
+          sleep 2
+          node /tmp/t/mobile.mjs http://localhost:7681/ || echo "::error::mobile.mjs failed"
+          node /tmp/t/mobile.mjs http://localhost:7681/?rendererType=canvas || echo "::error::mobile.mjs failed"
+          kill %1

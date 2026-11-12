@@ -50,6 +50,9 @@ async function step(name) {
         const el = getComputedStyle(t.element);
         const pad = parseInt(el.paddingLeft) + parseInt(el.paddingRight);
         const bar = t.options.scrollback === 0 ? 0 : (core.viewport?.scrollBarWidth || 0);
+        window.__m = { cell, parent: parseFloat(parent.width), pad, bar,
+            without: Math.floor((parseFloat(parent.width) - pad) / cell),
+            blank: Math.round(parseFloat(parent.width) - pad - t.cols * cell) };
         return cell ? Math.max(2, Math.floor((parseInt(parent.width) - pad - bar) / cell)) : null;
     });
     // the shell's idea of the size
@@ -68,6 +71,9 @@ async function step(name) {
     console.log(`${name.padEnd(28)} iframe ${width}px: terminal ${cols} cols` +
         (fits !== null && fits !== cols ? `, fits ${fits} (NOT FITTED)` : " (fitted)") +
         `; the shell is told ${stty} (rows cols)`);
+    const m = await f.evaluate(() => window.__m);
+    console.log(`${"".padEnd(28)} cell ${m.cell.toFixed(2)}px, container ${m.parent}px, padding ${m.pad}px,` +
+        ` set aside for a scrollbar ${m.bar}px; ${m.without} cols with nothing set aside; ${m.blank}px blank at the right`);
 }
 
 await step("portrait, as loaded");

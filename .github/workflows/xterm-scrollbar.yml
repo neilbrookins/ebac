@@ -5,9 +5,7 @@
 name: xterm scrollbar test
 
 on:
-  push:
-    branches: [ttyd-mobile-test]
-    paths-ignore: ["xterm-scrollbar/shots/**"]
+  workflow_dispatch:
 
 jobs:
   test:
