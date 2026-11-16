@@ -14,38 +14,45 @@ the indices which are text files.
 
 #include "both.h"
 #include "utf8.h"
+#include "index.h"
+#include <setjmp.h>
 #ifdef OSK
 #       define malloc _lmalloc
 #endif
 
-FILE *book_list, *book_file, *cvarray_file, *bvarray_file, *chapter_file,
-     *words_file, *references_file, *position_file, *plainpos_file,
-     *format_file;
-char book_name[80];
+/*
+** (Everything here is static, and set afresh by make_index(), so that EBaC
+** itself can build an index, as its importer does, with index.c linked in
+** (-DINDEX_LIBRARY, without main()), as well as the index program.)
+*/
+static FILE *book_list, *book_file, *cvarray_file, *bvarray_file,
+     *chapter_file, *words_file, *references_file, *position_file,
+     *plainpos_file, *format_file;
+static char book_name[80];
 #define MAXWORD 80
-char word[MAXWORD];                     /* current word being processed */
-char raw_word[MAXWORD];                 /* the same, as it was in the book */
-int raw_length;                         /* its length as it was in the book,
+static char word[MAXWORD];                     /* current word being processed */
+static char raw_word[MAXWORD];                 /* the same, as it was in the book */
+static int raw_length;                         /* its length as it was in the book,
                                            before punctuation was removed */
-int ended_line = FALSE;                 /* the last word ended its line */
-int line_start;                         /* whether it starts a line: a verse
+static int ended_line = FALSE;                 /* the last word ended its line */
+static int line_start;                         /* whether it starts a line: a verse
                                            number only counts there, so that
                                            a reference in the text ("Psa.
                                            2:7") isn't taken for one */
-long int sequence = 0;                  /* sequential verse number */
-long int chapter = 0;
+static long int sequence = 0;                  /* sequential verse number */
+static long int chapter = 0;
 /*
 ** Positions in the verse (see readme.architecture): the full position
 ** counts every word, the plain one only words not in [brackets] or
 ** {braces} (0 for a word in them). The last word of a verse has its full
 ** position flagged LAST, and the last word not in brackets its plain one.
 */
-long int full_position = 0;            /* the word's full position */
-long int plain_count = 0;              /* words not in brackets so far */
-long int plain_position = 0;           /* the word's plain position */
-int in_brackets = FALSE;                /* within [ ... ] or { ... } */
-struct list *last_word = NULL;          /* the verse's last word so far */
-struct list *last_plain = NULL;         /* and last not in brackets */
+static long int full_position = 0;            /* the word's full position */
+static long int plain_count = 0;              /* words not in brackets so far */
+static long int plain_position = 0;           /* the word's plain position */
+static int in_brackets = FALSE;                /* within [ ... ] or { ... } */
+static struct list *last_word = NULL;          /* the verse's last word so far */
+static struct list *last_plain = NULL;         /* and last not in brackets */
 struct tree
 {
         char *item;                     /* one word */
@@ -63,11 +70,15 @@ struct list
         struct list *next;              /* points to next element of list */
 };
 
-struct tree *node = NULL;
+static struct tree *node = NULL;
 
-long int offset; /* number of bytes offset from the beginning
+static long int offset; /* number of bytes offset from the beginning
                    of a book that a particular verse begins at. */
-int disable_newverse = 0;/*0,1,or2 mean: enabled, about to enable, disabled */
+static int notes_state = 0;  /* (disable_newverse in file.c): 0, 1, or 2 mean: enabled, about to enable, disabled */
+
+/* a failure (a file that can't be opened, memory run out) ends make_index() */
+static jmp_buf index_failed;
+static void fail(void);
 
 /* functions in this file */
 static void fputl(long int offset, FILE *fileptr);
@@ -112,7 +123,7 @@ static void mfclose(FILE *fileptr, char *string)
         if(fclose(fileptr) == EOF)
         {
                 printf("Can't close file: %s\n", string);
-                exit(1);
+                fail();
         }
 }
 
@@ -133,7 +144,7 @@ static FILE *mfopen(char *string, char *mode)
                  printf("writing.\n");
                 if(mode[0] == 'r')
                  printf("reading. Are you in the correct working directory?\n");
-                exit(1);
+                fail();
         }
         return(fileptr);
 }
@@ -159,7 +170,7 @@ do{
    numbers, or bracket the words, of the rest of the book. */
 if (line_start)
 {
-    disable_newverse = 0;
+    notes_state = 0;
     in_brackets = FALSE;
 }
 
@@ -219,9 +230,9 @@ i = -1;
 while (word[++i])
 {
         if (word[i] == '{')
-                disable_newverse = 2;
+                notes_state = 2;
         if (word[i] == '}')
-                disable_newverse = 1;
+                notes_state = 1;
 }
 strcpy(raw_word, word);
 remove_head_punctuation();
@@ -284,7 +295,7 @@ struct list *newnumber;
                 {
                         printf ("malloc failed! size: %lu\n",
 				(unsigned long) sizeof (struct tree));
-                        exit(1);
+                        fail();
                 }
                 node = newnode;
 
@@ -292,7 +303,7 @@ struct list *newnumber;
                 if (newitem == NULL)
                 {
                         printf ("malloc failed! (a word)\n");
-                        exit(1);
+                        fail();
                 }
                 strcpy(newitem, word);
                 node->item = newitem;
@@ -303,7 +314,7 @@ struct list *newnumber;
                 if (newnumber == NULL)
                 {
                         printf ("malloc failed! (a verse)\n");
-                        exit(1);
+                        fail();
                 }
                 newnumber->number = sequence;
                 newnumber->full = full_position;
@@ -328,7 +339,7 @@ struct list *newnumber;
             if (newnumber == NULL)
             {
                     printf ("malloc failed! (a verse)\n");
-                    exit(1);
+                    fail();
             }
             node->verse_tail->next = newnumber;
             node->verse_tail = newnumber;
@@ -358,11 +369,11 @@ static int new_verse(void)
         int i;
         char c;
 
-        if (disable_newverse == 2)
+        if (notes_state == 2)
                 return(FALSE);
-        if (disable_newverse == 1)
+        if (notes_state == 1)
         {
-                disable_newverse = 0;
+                notes_state = 0;
                 return(FALSE);
         }
         for(i = 0; i < (int) strlen(word); i++)
@@ -410,7 +421,8 @@ static int new_chapter(void)
                 }
         }
         printf("Fatal logic error!\n");
-        exit(1);
+        fail();
+        return (FALSE);
 }
 
 static void inorder_traversal(struct tree *node)
@@ -562,28 +574,83 @@ static void note_brackets(void)
 ** a text that has them, so that every other index is as it was.
 */
 #define MAXZEROS 4000
-long int zero_verses[MAXZEROS], zero_chapters[MAXZEROS];
-int num_zero_verses = 0, num_zero_chapters = 0;
+static long int zero_verses[MAXZEROS], zero_chapters[MAXZEROS];
+static int num_zero_verses = 0, num_zero_chapters = 0;
 
-int main(int argc, char **argv)
+/*
+** Purpose: build the index of the translation in the current folder (its
+**          booklist and books), as the files *.dat. For the index program,
+**          and for EBaC itself (its importer: see readme.architecture).
+**          quiet: without "Reading from book: ..." for each book.
+** Returns: 0, or -1 if it failed (and said why), any file it was writing
+**          closed and the memory it used freed.
+*/
+static void free_tree(struct tree *t)
 {
-long int this_c, this_v, last_c = -1, last_v = -1, books_read = 0;
+        struct list *l, *next;
+
+        while (t != NULL)
+        {
+                struct tree *right = t->right;
+
+                free_tree(t->left);
+                for (l = t->verse_head; l != NULL; l = next)
+                {
+                        next = l->next;
+                        free(l);
+                }
+                free(t->item);
+                free(t);
+                t = right;
+        }
+}
+
+static void close_all(void)
+{
+        FILE **f[10];
+        int k;
+
+        f[0] = &book_list; f[1] = &book_file; f[2] = &cvarray_file;
+        f[3] = &bvarray_file; f[4] = &chapter_file; f[5] = &words_file;
+        f[6] = &references_file; f[7] = &position_file; f[8] = &plainpos_file;
+        f[9] = &format_file;
+        for (k = 0; k < 10; k++)
+                if (*f[k] != NULL)
+                {
+                        fclose(*f[k]);
+                        *f[k] = NULL;
+                }
+}
+
+static void fail(void)
+{
+        longjmp(index_failed, 1);
+}
+
+int make_index(int quiet)
+{
+long int this_c, this_v, last_c = -1, last_v = -1;
+volatile long int books_read = 0;     /* (volatile: kept across setjmp()) */
 int starts;
-#ifdef COCO
-	pflinit(); /* needed to link libraries to print _long_ integers */
-#endif
-#ifdef OSK
-	_mallocmin(262144);
-#endif
-/* "index -y" skips the question; the makefile uses it */
-if (argc < 2 || strcmp(argv[1], "-y") != 0)
+
+/* (all afresh: this may be the second index in one run of EBaC) */
+book_list = book_file = cvarray_file = bvarray_file = chapter_file = NULL;
+words_file = references_file = position_file = plainpos_file = NULL;
+format_file = NULL;
+ended_line = FALSE;
+sequence = chapter = 0;
+full_position = plain_count = plain_position = 0;
+in_brackets = FALSE;
+last_word = last_plain = NULL;
+node = NULL;
+notes_state = 0;
+num_zero_verses = num_zero_chapters = 0;
+if (setjmp(index_failed) != 0)
 {
-    printf("Are you sure you want to re-generate the Bible index?\n");
-    printf("This will overwite the index files, *.dat, in your current\n");
-    printf("working directory.\n\n");
-    printf("Press \"y\" to continue, or \"n\" to abort\n");
-    if (getchar() != (int) 'y')
-            exit(0);
+        close_all();
+        free_tree(node);
+        node = NULL;
+        return (-1);
 }
 chapter_file = mfopen("chapter.dat", WRITEMODE);/* all *.dat files are binary */
 cvarray_file = mfopen("cvarray.dat", WRITEMODE);
@@ -597,7 +664,8 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
   fputl(sequence, bvarray_file);
   fputl(chapter, bvarray_file);
   last_c = last_v = -1;                 /* (a new book) */
-  printf("Reading from book: %s\n", book_name);
+  if (!quiet)
+        printf("Reading from book: %s\n", book_name);
   for(;;){
         read_word(book_file);
         if (feof(book_file))
@@ -644,16 +712,16 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
         }
   }
   end_verse();                          /* the book's last verse ends */
-  mfclose(book_file, book_name);
+  mfclose(book_file, book_name); book_file = NULL;
   books_read++;
 }
 fputl(sequence, bvarray_file); /* Added, so that we see where the end of */
 fputl(chapter, bvarray_file);  /* Revelation is. */
 fputl(++sequence, chapter_file);
-mfclose(book_list, "booklist");
-mfclose(bvarray_file, "bvarray.dat");
-mfclose(cvarray_file, "cvarray.dat");
-mfclose(chapter_file, "chapter.dat");
+mfclose(book_list, "booklist"); book_list = NULL;
+mfclose(bvarray_file, "bvarray.dat"); bvarray_file = NULL;
+mfclose(cvarray_file, "cvarray.dat"); cvarray_file = NULL;
+mfclose(chapter_file, "chapter.dat"); chapter_file = NULL;
 
 if (num_zero_verses > 0 || num_zero_chapters > 0)
 {
@@ -664,7 +732,7 @@ if (num_zero_verses > 0 || num_zero_chapters > 0)
                 fprintf(format_file, "c %ld\n", zero_chapters[k]);
         for (k = 0; k < num_zero_verses; k++)
                 fprintf(format_file, "v %ld\n", zero_verses[k]);
-        mfclose(format_file, "zero.dat");
+        mfclose(format_file, "zero.dat"); format_file = NULL;
 }
 else
         remove("zero.dat");     /* (an index made before, of other text) */
@@ -676,17 +744,43 @@ plainpos_file = mfopen("plainpos.dat", WRITEMODE);
 
 inorder_traversal(node);
 
-mfclose(words_file, "words.dat");
-mfclose(references_file, "references.dat");
-mfclose(position_file, "position.dat");
-mfclose(plainpos_file, "plainpos.dat");
+mfclose(words_file, "words.dat"); words_file = NULL;
+mfclose(references_file, "references.dat"); references_file = NULL;
+mfclose(position_file, "position.dat"); position_file = NULL;
+mfclose(plainpos_file, "plainpos.dat"); plainpos_file = NULL;
 
 /* which format the index files are in, for EBaC to check */
 format_file = mfopen("format.dat", WRITEMODE);
 fprintf(format_file, "%s\n", INDEX_FORMAT);
-mfclose(format_file, "format.dat");
+mfclose(format_file, "format.dat"); format_file = NULL;
 #ifdef OSK
 	system("attr *.dat -pr"); /* permit public read access */
 #endif
+free_tree(node);
+node = NULL;
+return (0);
+} /* End of make_index() */
+
+#ifndef INDEX_LIBRARY
+int main(int argc, char **argv)
+{
+#ifdef COCO
+	pflinit(); /* needed to link libraries to print _long_ integers */
+#endif
+#ifdef OSK
+	_mallocmin(262144);
+#endif
+/* "index -y" skips the question; the makefile uses it */
+if (argc < 2 || strcmp(argv[1], "-y") != 0)
+{
+    printf("Are you sure you want to re-generate the Bible index?\n");
+    printf("This will overwite the index files, *.dat, in your current\n");
+    printf("working directory.\n\n");
+    printf("Press \"y\" to continue, or \"n\" to abort\n");
+    if (getchar() != (int) 'y')
+            exit(0);
+}
+return (make_index(FALSE) == 0 ? 0 : 1);
 } /* End of main() */
+#endif /* INDEX_LIBRARY */
 

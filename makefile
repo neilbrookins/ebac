@@ -14,7 +14,7 @@ CC=gcc
 #  macOS:                            included with the Xcode tools
 #  Solaris 11:                       sudo pkg install library/ncurses
 CFLAGS= -O2 -Wall -Wextra -DNORAMDISK -DUNIXV
-RFILES= bible.o file.o userint.o process.o curses.o utf8.o
+RFILES= bible.o file.o userint.o process.o curses.o utf8.o import.o net.o indexlib.o
 LIBS= $(NCURSES_LIBS)
 
 # Where ncurses is. pkg-config knows, where it is installed. Without it,
@@ -101,6 +101,14 @@ indexes: index
 bible: $(RFILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OD)bible $(RFILES) $(LIBS)
 
+# The importer of translations, in C (import.c; "bible --import"), with
+# its downloading (net.c) and the index built in the same program
+# (indexlib.c: index.c without its main()): see readme.architecture.
+IMPORTSRC= import.c net.c indexlib.c
+indexlib.o: indexlib.c index.c index.h both.h utf8.h
+import.o: import.c import.h net.h index.h both.h
+net.o: net.c net.h both.h
+
 # this program needs over 7.5 meg RAM to run.
 # ebac-api: EBaC for other programs (a CGI program; see api.c): the same
 # source as bible, with its own main() and the reference parser.
@@ -115,7 +123,7 @@ ebac-api: $(APISRC) bible.h both.h screen.h utf8.h refparse.h version.stamp
 # ttyd's web page (xterm.js), in the Docker image and the Home Assistant
 # app, as in a web browser (web/README.md); a terminal of any other kind,
 # or of a kind not known in advance, needs bible, with ncurses.
-XTERMSRC= bible.c file.c userint.c process.c curses.c utf8.c
+XTERMSRC= bible.c file.c userint.c process.c curses.c utf8.c $(IMPORTSRC)
 bible-xterm: $(XTERMSRC) bible.h both.h screen.h utf8.h version.stamp
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DXTERM_BUILTIN $(VERSION_FLAGS) $(LDFLAGS) -o bible-xterm $(XTERMSRC)
 
@@ -153,7 +161,7 @@ verses: verses.c
 # Needs Python 3. For memory checking as well, run:
 #   make test TESTSAN="-fsanitize=address,undefined"
 TESTCFLAGS= -O1 -g -Wall -Wextra -DUNIXV $(TESTSAN)
-TESTSRC= bible.c file.c userint.c process.c curses.c utf8.c
+TESTSRC= bible.c file.c userint.c process.c curses.c utf8.c $(IMPORTSRC)
 # The test also checks that every folder is mentioned in 'trans'.
 test: $(TESTSRC) bible.h both.h screen.h utf8.h tests/sidebyside.py tests/booknames.py tests/otherebac.py indexes ebac-api
 	sh translations.sh check --strict

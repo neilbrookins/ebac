@@ -5,6 +5,9 @@
 */
 #include "bible.h"
 #include "screen.h"
+#ifdef UNIXV
+#       include "import.h"     /* bible --import: the importer in C */
+#endif
 
 #ifdef UNIXV
 #       include <sys/utsname.h>  /* uname(), for the Information screen */
@@ -2622,6 +2625,12 @@ int main(int argc, char **argv)
         long int cur_verse;
         struct bcv_type *point_bcv;
         set_program_path(argc > 0 ? argv[0] : NULL);
+#ifdef UNIXV
+        /* "bible --import SOURCE ...": the importer of translations, in C
+           (import.c; being ported from the shell importers) */
+        if (argc > 1 && strcmp(argv[1], "--import") == 0)
+                return (import_main(argc - 1, argv + 1));
+#endif
         if (argc > 1)
                 start_trans = argv[1];  /* "bible BSB": start with BSB */
 #ifdef UNIXV

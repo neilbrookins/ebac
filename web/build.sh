@@ -33,7 +33,7 @@ COMMIT=$(git log -1 --format='%h, %cs' 2>/dev/null || sed -n '/Format/!s/^commit
 
 emcc -O2 -Wall -Wextra -DUNIXV -DNORAMDISK -DXTERM_BUILTIN \
     -DEBAC_COMMIT="\"$COMMIT\"" -DEBAC_PACKAGE='"web browser"' \
-    bible.c file.c userint.c process.c curses.c utf8.c \
+    bible.c file.c userint.c process.c curses.c utf8.c import.c net.c indexlib.c \
     -sASYNCIFY -sFORCE_FILESYSTEM -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web \
     -sEXIT_RUNTIME=1 \
     -sEXPORTED_RUNTIME_METHODS=ENV,FS,addRunDependency,removeRunDependency \
