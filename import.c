@@ -31,6 +31,8 @@
 #include "net.h"
 #include "index.h"
 #include "import.h"
+#include "bible.h"
+#include "screen.h"
 #ifdef UNIXV
 #       include <unistd.h>
 #       include <sys/stat.h>
@@ -1659,6 +1661,1038 @@ static int screen_cols(void)
         return (cols);
 }
 
+/* ------------------------------------------------------------------------
+** The terminal: in EBaC (A on the main menu), EBaC's own (its keys, its
+** screen's size, its gestures); from a command line, stdin and stdout
+*/
+static int in_ebac = FALSE;     /* run by EBaC, at its terminal */
+
+static int at_terminal(void)
+{
+        return (in_ebac || isatty(0));
+}
+
+/* the screen's size (screen_size()): EBaC's, or the terminal's, else
+   $LINES and $COLUMNS, else 24 by 80; at least 8 by 20 */
+static int rows = 24, cols = 80;
+
+static void screen_size(void)
+{
+        if (in_ebac)
+        {
+                rows = s_lines;
+                cols = s_cols;
+        }
+        else
+        {
+                rows = 0;
+                cols = screen_cols();
+#if defined(UNIXV) && defined(TIOCGWINSZ)
+                {
+                        struct winsize size;
+                        int fd = open("/dev/tty", O_RDONLY);
+
+                        if (fd >= 0)
+                        {
+                                if (ioctl(fd, TIOCGWINSZ, &size) == 0)
+                                        rows = size.ws_row;
+                                close(fd);
+                        }
+                }
+#endif
+                if (rows <= 0 && getenv("LINES") != NULL && all_digits(getenv("LINES")))
+                        rows = atoi(getenv("LINES"));
+                if (rows <= 0)
+                        rows = 24;
+        }
+        if (rows < 8)
+                rows = 8;
+        if (cols < 20)
+                cols = 20;
+}
+
+static void clear_screen(void)
+{
+        if (in_ebac)
+        {
+                cls();          /* (and EBaC's size of the screen, now) */
+                fflush(stdout);
+        }
+}
+
+/* the screen the importer shows, for the web page's gestures */
+static void typing_mode(const char *mode)
+{
+        if (in_ebac)
+                scr_mode((char *) mode);
+}
+
+/* What has been typed so far, kept across a redraw (see read_answer()) */
+static char typed[1024];
+
+/*
+** read_answer: a line typed, into answer. Returns 0; 1 at the end of
+** input; 2, with nothing read yet, if the window changes size meanwhile, so
+** that the caller can draw the screen again for the new size (as when a
+** phone's keyboard comes up or goes down); with through_resize, it reads
+** on instead (the license question). What was typed before a redraw is
+** shown again, so what is on the screen is what Enter sends. Backspace
+** takes back a character (a whole one, in UTF-8), CTRL-U the line; CTRL-D,
+** on an empty line, is the end of input; other control keys are left out.
+** (importer.sh's read_line.) Not at a terminal: a whole line.
+*/
+static int read_answer(char *answer, int size, int through_resize)
+{
+        int c, n;
+
+        answer[0] = '\0';
+        if (!in_ebac)
+        {
+                if (fgets(answer, size, stdin) == NULL)
+                {
+                        answer[0] = '\0';
+                        return (1);
+                }
+                n = (int) strlen(answer);
+                if (n > 0 && answer[n - 1] == '\n')
+                        answer[--n] = '\0';
+                return (0);
+        }
+        printf("%s", typed);    /* (shown again, after a redraw) */
+        fflush(stdout);
+        for (;;)
+        {
+                redraw_on_resize = !through_resize;
+                c = ugetchar();
+                redraw_on_resize = FALSE;
+                if (c == KEY_REDRAW && !through_resize)
+                        return (2);
+                if (c == '\r' || c == '\n')
+                {
+                        printf("\n");
+                        sprintf(answer, "%.*s", size - 1, typed);
+                        typed[0] = '\0';
+                        return (0);
+                }
+                n = (int) strlen(typed);
+                if (c == 0x7F || c == '\b')
+                {
+                        if (n > 0)
+                        {
+                                while (n > 0 && (UCHAR(typed[n - 1]) & 0xC0) == 0x80)
+                                        n--;
+                                typed[n > 0 ? n - 1 : 0] = '\0';
+                                printf("\b \b");
+                        }
+                }
+                else if (c == 0x15)             /* CTRL-U */
+                {
+                        while (typed[0] != '\0')
+                        {
+                                n = (int) strlen(typed);
+                                while (n > 0 && (UCHAR(typed[n - 1]) & 0xC0) == 0x80)
+                                        n--;
+                                typed[n > 0 ? n - 1 : 0] = '\0';
+                                printf("\b \b");
+                        }
+                }
+                else if (c == 0x04)             /* CTRL-D */
+                {
+                        if (n == 0)
+                                return (1);
+                }
+                else if (c < 32 || c > 255)
+                        ;                       /* (another control key) */
+                else if (n < (int) sizeof(typed) - 1)
+                {
+                        typed[n] = (char) c;
+                        typed[n + 1] = '\0';
+                        putchar(c);
+                }
+                fflush(stdout);
+        }
+}
+
+/* Before going back to EBaC: a key, so what was written can be read */
+static void press_any_key(void)
+{
+        printf("\nPress any key to go back to EBaC. ");
+        typing_mode("anykey");
+        fflush(stdout);
+        if (in_ebac)
+                ugetchar();
+        else
+        {
+                char line[256];
+
+                if (fgets(line, sizeof(line), stdin) == NULL)
+                        line[0] = '\0';
+        }
+        printf("\n");
+}
+
+/* ------------------------------------------------------------------------
+** The names of languages (importer.sh's language_names and languages)
+*/
+#define NAMES_SOURCE "https://raw.githubusercontent.com/unicode-org/cldr-json/main/cldr-json/cldr-localenames-full/main"
+#define CACHE_FORMAT "# languages.cache: code, English name, own name, code named (EBaC 2.4.1)"
+static const char *names_source = NAMES_SOURCE;
+
+/*
+** The English names of the codes Unicode has none for, as IANA's registry
+** of language codes (BCP 47) gives them: the shell importer downloaded the
+** registry, which a web page may not (it doesn't allow other sites), so
+** the few the sources use are kept here. A code in neither is shown as it
+** is, as before.
+*/
+static const char *iana_names[][2] = {
+        { "hbo", "Ancient Hebrew" },
+        { "tsg", "Tausug" },
+        { NULL, NULL }
+};
+
+typedef struct
+{
+        char *code, *english, *own, *whose;
+} Names;
+
+static Names *cache = NULL;
+static int ncache = 0;
+
+static Names *cached(const char *code)
+{
+        int i;
+
+        for (i = 0; i < ncache; i++)
+                if (strcmp(cache[i].code, code) == 0)
+                        return (&cache[i]);
+        return (NULL);
+}
+
+/* split a line at its tabs, into up to n fields (as awk's $1 ...) */
+static int fields(char *line, char **f, int n)
+{
+        int k = 0;
+
+        f[k++] = line;
+        while (k < n && (line = strchr(line, '\t')) != NULL)
+        {
+                *line++ = '\0';
+                f[k++] = line;
+        }
+        while (k < n)
+                f[k++] = "";
+        return (k);
+}
+
+static void read_cache(const char *path)
+{
+        char line[LINE], *f[4];
+        FILE *fp;
+        int i;
+
+        for (i = 0; i < ncache; i++)
+        {
+                free(cache[i].code); free(cache[i].english);
+                free(cache[i].own); free(cache[i].whose);
+        }
+        ncache = 0;
+        if ((fp = fopen(path, "r")) == NULL)
+                return;
+        while (read_line(fp, line, sizeof(line)))
+        {
+                if (line[0] == '#')
+                        continue;
+                fields(line, f, 4);
+                cache = (Names *) realloc(cache, sizeof(Names) * (size_t) (ncache + 1));
+                cache[ncache].code = strdup(f[0]);
+                cache[ncache].english = strdup(f[1]);
+                cache[ncache].own = strdup(f[2]);
+                cache[ncache].whose = strdup(f[3]);
+                ncache++;
+        }
+        fclose(fp);
+}
+
+/* the "key": "value" lines of a languages.json, as two lists (awk's
+   key() and value()) */
+typedef struct
+{
+        char **key, **value;
+        int n;
+} Pairs;
+
+static void read_pairs(const char *path, Pairs *p)
+{
+        char line[LINE], *q, *k, *v;
+        FILE *fp;
+        size_t n;
+
+        p->key = p->value = NULL;
+        p->n = 0;
+        if ((fp = fopen(path, "r")) == NULL)
+                return;
+        while (read_line(fp, line, sizeof(line)))
+        {
+                /* /^[ \t]*"[^"]*": "/ */
+                for (q = line; *q == ' ' || *q == '\t'; q++)
+                        ;
+                if (*q != '"')
+                        continue;
+                k = q + 1;
+                if ((q = strchr(k, '"')) == NULL || strncmp(q, "\": \"", 4) != 0)
+                        continue;
+                *q = '\0';
+                v = q + 4;
+                /* sub(/",?[ \t\r]*$/, "") */
+                n = strlen(v);
+                while (n > 0 && (v[n - 1] == ' ' || v[n - 1] == '\t' || v[n - 1] == '\r'))
+                        n--;
+                if (n > 0 && v[n - 1] == ',')
+                        n--;
+                if (n > 0 && v[n - 1] == '"')
+                {
+                        v[n - 1] = '\0';
+                        /* (and awk's tolower of the key) */
+                        for (q = k; *q; q++)
+                                *q = (char) tolower(UCHAR(*q));
+                        p->key = (char **) realloc(p->key, sizeof(char *) * (size_t) (p->n + 1));
+                        p->value = (char **) realloc(p->value, sizeof(char *) * (size_t) (p->n + 1));
+                        p->key[p->n] = strdup(k);
+                        p->value[p->n] = strdup(v);
+                        p->n++;
+                }
+        }
+        fclose(fp);
+}
+
+/* (awk's array: the last value for a key) */
+static const char *pair(Pairs *p, const char *key)
+{
+        int i;
+
+        for (i = p->n - 1; i >= 0; i--)
+                if (strcmp(p->key[i], key) == 0)
+                        return (p->value[i]);
+        return (NULL);
+}
+
+static void free_pairs(Pairs *p)
+{
+        int i;
+
+        for (i = 0; i < p->n; i++)
+        {
+                free(p->key[i]);
+                free(p->value[i]);
+        }
+        free(p->key);
+        free(p->value);
+        p->key = p->value = NULL;
+        p->n = 0;
+}
+
+static void language_names(void)
+{
+        char path[1200], line[LINE], en_path[1200], own_path[1200];
+        FILE *fp;
+        struct stat st;
+        int i, j, any = FALSE;
+        Pairs english, own;
+
+        sprintf(path, "%s/languages.cache", here);
+        /* a month old: the names again */
+        if (stat(path, &st) == 0 && (time(NULL) - st.st_mtime) / 86400 > 30)
+                unlink(path);
+        /* (its first line says what it is) */
+        if ((fp = fopen(path, "r")) != NULL)
+        {
+                if (!read_line(fp, line, sizeof(line)))
+                        line[0] = '\0';
+                fclose(fp);
+                if (strcmp(line, CACHE_FORMAT) != 0)
+                        unlink(path);
+        }
+        if (!exists(path) && (fp = fopen(path, "w")) != NULL)
+        {
+                fprintf(fp, "%s\n", CACHE_FORMAT);
+                fclose(fp);
+        }
+        read_cache(path);
+        for (i = 0; i < nall && !any; i++)
+                if (cached(all[i].code) == NULL)
+                        any = TRUE;
+        if (any)
+        {
+                printf("Getting the names of the languages (from Unicode)...\n");
+                fflush(stdout);
+                sprintf(en_path, "%s/en.json", tmp);
+                if (fetch_from(names_source, "en/languages.json", en_path) != 0)
+                        return;
+                read_pairs(en_path, &english);
+                sprintf(own_path, "%s/own.json", tmp);
+                for (i = 0; i < nall; i++)
+                {
+                        const char *code = all[i].code;
+                        char full[256], base[256], names_for[256], file[512], *dash, *seg;
+                        char lower_full[256], lower_for[256];
+                        const char *e = "", *o = "";
+                        int shorter = FALSE;
+
+                        /* (each code once, and not one kept already) */
+                        for (j = 0; j < i; j++)
+                                if (strcmp(all[j].code, code) == 0)
+                                        break;
+                        if (j < i || cached(code) != NULL)
+                                continue;
+                        /* Unicode's name for it: zh-hant is zh-Hant */
+                        {
+                                char work[256];
+
+                                sprintf(work, "%.250s", code);
+                                full[0] = '\0';
+                                for (seg = strtok(work, "-"), j = 0; seg != NULL; seg = strtok(NULL, "-"), j++)
+                                {
+                                        size_t n = strlen(seg), k;
+
+                                        if (j > 0)
+                                                strcat(full, "-");
+                                        if (j > 0 && n == 4)
+                                        {
+                                                char t[8];
+
+                                                sprintf(t, "%c%s", toupper(UCHAR(seg[0])), seg + 1);
+                                                strcat(full, t);
+                                        }
+                                        else if (j > 0 && n == 2)
+                                        {
+                                                for (k = 0; k < n; k++)
+                                                        seg[k] = (char) toupper(UCHAR(seg[k]));
+                                                strcat(full, seg);
+                                        }
+                                        else
+                                                strcat(full, seg);
+                                }
+                        }
+                        sprintf(base, "%.250s", code);
+                        if ((dash = strchr(base, '-')) != NULL)
+                                *dash = '\0';
+                        strcpy(names_for, full);
+                        sprintf(file, "%s/languages.json", full);
+                        if (fetch_from(names_source, file, own_path) != 0)
+                        {
+                                fclose(fopen(own_path, "w"));
+                                if (strcmp(base, full) != 0)
+                                {
+                                        sprintf(file, "%s/languages.json", base);
+                                        if (fetch_from(names_source, file, own_path) == 0)
+                                                strcpy(names_for, base);
+                                        else
+                                                fclose(fopen(own_path, "w"));
+                                }
+                        }
+                        read_pairs(own_path, &own);
+                        for (j = 0; full[j]; j++)
+                                lower_full[j] = (char) tolower(UCHAR(full[j]));
+                        lower_full[j] = '\0';
+                        for (j = 0; names_for[j]; j++)
+                                lower_for[j] = (char) tolower(UCHAR(names_for[j]));
+                        lower_for[j] = '\0';
+                        if (pair(&english, lower_full) != NULL)
+                                e = pair(&english, lower_full);
+                        else if (pair(&english, base) != NULL)
+                        {
+                                e = pair(&english, base);
+                                shorter = TRUE;
+                        }
+                        if (strcmp(lower_for, lower_full) == 0 && pair(&own, lower_full) != NULL)
+                                o = pair(&own, lower_full);
+                        else if (pair(&own, base) != NULL)
+                        {
+                                o = pair(&own, base);
+                                if (strcmp(lower_full, base) != 0)
+                                        shorter = TRUE;
+                        }
+                        if ((fp = fopen(path, "a")) != NULL)
+                        {
+                                fprintf(fp, "%s\t%s\t%s\t%s\n", code, e, o, shorter ? base : code);
+                                fclose(fp);
+                        }
+                        free_pairs(&own);
+                }
+                free_pairs(&english);
+                read_cache(path);
+        }
+        /* codes Unicode has no English name for: IANA's (kept here); as
+           the shell importer, only when some code was new */
+        if (any)
+        {
+                int changed = FALSE;
+
+                for (i = 0; i < ncache; i++)
+                {
+                        char base[256], *dash;
+
+                        if (cache[i].english[0] != '\0')
+                                continue;
+                        sprintf(base, "%.250s", cache[i].code);
+                        if ((dash = strchr(base, '-')) != NULL)
+                                *dash = '\0';
+                        for (j = 0; iana_names[j][0] != NULL; j++)
+                                if (strcmp(iana_names[j][0], cache[i].code) == 0)
+                                        break;
+                        if (iana_names[j][0] == NULL)
+                                for (j = 0; iana_names[j][0] != NULL; j++)
+                                        if (strcmp(iana_names[j][0], base) == 0)
+                                                break;
+                        if (iana_names[j][0] != NULL)
+                        {
+                                free(cache[i].english);
+                                free(cache[i].whose);
+                                cache[i].english = strdup(iana_names[j][1]);
+                                cache[i].whose = strdup(iana_names[j][0]);
+                                changed = TRUE;
+                        }
+                }
+                if (changed && (fp = fopen(path, "w")) != NULL)
+                {
+                        fprintf(fp, "%s\n", CACHE_FORMAT);
+                        for (i = 0; i < ncache; i++)
+                                fprintf(fp, "%s\t%s\t%s\t%s\n", cache[i].code, cache[i].english,
+                                        cache[i].own, cache[i].whose);
+                        fclose(fp);
+                }
+        }
+}
+
+/* s with its first letter a capital (title_first()), in place: ASCII,
+   Latin with accents, Greek, Cyrillic and Armenian */
+static void title_first(char *s)
+{
+        unsigned c = UCHAR(s[0]), v = UCHAR(s[1]), code;
+
+        if (c >= 'a' && c <= 'z')
+        {
+                s[0] = (char) toupper(c);
+                return;
+        }
+        if (v < 0x80 || v > 0xBF)
+                return;
+        if (c == 0xC3 && v >= 160 && v <= 190 && v != 183)
+                s[1] = (char) (v - 32);
+        else if (c == 0xC4 || c == 0xC5)
+        {
+                code = (c == 0xC4 ? 256 : 320) + v - 128;
+                if (((code >= 256 && code <= 311) || (code >= 330 && code <= 375)) && code % 2 == 1)
+                        code--;
+                else if (((code >= 313 && code <= 328) || (code >= 377 && code <= 382)) && code % 2 == 0)
+                        code--;
+                else
+                        return;
+                if (code < 320)
+                {
+                        s[0] = (char) 0xC4;
+                        s[1] = (char) (code - 256 + 128);
+                }
+                else
+                {
+                        s[0] = (char) 0xC5;
+                        s[1] = (char) (code - 320 + 128);
+                }
+        }
+        else if (c == 0xCE && v >= 177 && v <= 191)
+                s[1] = (char) (v - 32);
+        else if (c == 0xCF && v >= 128 && v <= 137 && v != 130)
+        {
+                s[0] = (char) 0xCE;
+                s[1] = (char) (v + 32);
+        }
+        else if (c == 0xD0 && v >= 176 && v <= 191)
+                s[1] = (char) (v - 32);
+        else if (c == 0xD1 && v >= 128 && v <= 143)
+        {
+                s[0] = (char) 0xD0;
+                s[1] = (char) (v + 32);
+        }
+        else if (c == 0xD1 && v >= 144 && v <= 159)
+        {
+                s[0] = (char) 0xD0;
+                s[1] = (char) (v - 16);
+        }
+        else if (c == 0xD5 || c == 0xD6)
+        {
+                code = (c == 0xD5 ? 1344 : 1408) + v - 128;
+                if (code < 1377 || code > 1414)
+                        return;
+                code -= 48;
+                if (code < 1344)
+                {
+                        s[0] = (char) 0xD4;
+                        s[1] = (char) (code - 1280 + 128);
+                }
+                else
+                {
+                        s[0] = (char) 0xD5;
+                        s[1] = (char) (code - 1344 + 128);
+                }
+        }
+}
+
+/* whether s is in a script written without spaces between words */
+static int no_spaces(const char *s)
+{
+        const unsigned char *p = (const unsigned char *) s;
+
+        for (; *p; p++)
+        {
+                if (*p == 0343 && p[1] != 0 &&
+                    ((p[1] >= 0201 && p[1] <= 0203) || (p[1] >= 0220 && p[1] <= 0277)))
+                        return (TRUE);
+                if (*p >= 0344 && *p <= 0351 && p[1] >= 0200 && p[1] <= 0277)
+                        return (TRUE);
+                if (*p == 0340 && p[1] >= 0270 && p[1] <= 0273)
+                        return (TRUE);
+                if (*p == 0341 && ((p[1] >= 0200 && p[1] <= 0202) || p[1] == 0236 || p[1] == 0237))
+                        return (TRUE);
+        }
+        return (FALSE);
+}
+
+/* The languages, in the order shown (English first, then by their names in
+   English): $tmp/langs's lines */
+typedef struct
+{
+        char *code, *shown, *order;
+        int count, some, nosp;
+} Lang;
+
+static Lang *langs = NULL;
+static int nlangs = 0;
+
+static int lang_order(const void *a, const void *b)
+{
+        const Lang *x = (const Lang *) a, *y = (const Lang *) b;
+        int c = strcmp(x->order, y->order);
+        char lx[4096], ly[4096];
+
+        if (c != 0)
+                return (c);
+        /* (sort's last resort: the whole line) */
+        sprintf(lx, "%.1000s\t%.1000s\t%.1000s\t%d\t%d\t%d", x->order, x->code, x->shown, x->count, x->some, x->nosp);
+        sprintf(ly, "%.1000s\t%.1000s\t%.1000s\t%d\t%d\t%d", y->order, y->code, y->shown, y->count, y->some, y->nosp);
+        return (strcmp(lx, ly));
+}
+
+static void languages(void)
+{
+        int i, j;
+
+        language_names();
+        nlangs = 0;
+        for (i = 0; i < nall; i++)
+        {
+                for (j = 0; j < nlangs; j++)
+                        if (strcmp(langs[j].code, all[i].code) == 0)
+                                break;
+                if (j == nlangs)
+                {
+                        langs = (Lang *) realloc(langs, sizeof(Lang) * (size_t) (nlangs + 1));
+                        langs[j].code = all[i].code;
+                        langs[j].count = langs[j].some = langs[j].nosp = 0;
+                        nlangs++;
+                }
+                langs[j].count++;
+                if (is_listed(all[i].name))
+                        langs[j].some = 1;
+                if (no_spaces(all[i].title))
+                        langs[j].nosp = 1;
+        }
+        for (j = 0; j < nlangs; j++)
+        {
+                Names *n = cached(langs[j].code);
+                char e[1024], o[1024], shown[3000], le[1024], lo[1024];
+                int k;
+
+                sprintf(e, "%.1000s", n ? n->english : "");
+                sprintf(o, "%.1000s", n ? n->own : "");
+                if (o[0] != '\0')
+                        title_first(o);
+                if (o[0] != '\0' && no_spaces(o))
+                        langs[j].nosp = 1;
+                for (k = 0; e[k]; k++)
+                        le[k] = (char) tolower(UCHAR(e[k]));
+                le[k] = '\0';
+                for (k = 0; o[k]; k++)
+                        lo[k] = (char) tolower(UCHAR(o[k]));
+                lo[k] = '\0';
+                if (o[0] != '\0' && e[0] != '\0' && strcmp(lo, le) != 0)
+                        sprintf(shown, "%s, %s", o, e);
+                else if (e[0] != '\0')
+                        strcpy(shown, e);
+                else if (o[0] != '\0')
+                        strcpy(shown, o);
+                else
+                        strcpy(shown, langs[j].code);
+                if (n != NULL && n->whose[0] != '\0' && strcmp(n->whose, langs[j].code) != 0)
+                        sprintf(shown + strlen(shown), " [%s]", langs[j].code);
+                langs[j].shown = strdup(shown);
+                if (strcmp(langs[j].code, "en") == 0)
+                        langs[j].order = strdup("0");
+                else if (e[0] != '\0')
+                {
+                        char ord[1100];
+
+                        sprintf(ord, "1%s", le);
+                        langs[j].order = strdup(ord);
+                }
+                else
+                {
+                        char ord[300];
+
+                        sprintf(ord, "2%.290s", langs[j].code);
+                        langs[j].order = strdup(ord);
+                }
+        }
+        qsort(langs, (size_t) nlangs, sizeof(Lang), lang_order);
+}
+
+/* --catalog: for programs (the EBaC integration's voice) */
+static void catalog(void)
+{
+        int i;
+        FILE *keep = stdout;
+
+        /* (what languages() says goes nowhere: the catalog is plain lines) */
+        fflush(stdout);
+        stdout = fopen("/dev/null", "w");
+        languages();
+        fclose(stdout);
+        stdout = keep;
+        for (i = 0; i < nlangs; i++)
+        {
+                Names *n = cached(langs[i].code);
+
+                printf("language\t%s\t%s\t%s\t%d\n", langs[i].code, n ? n->english : "",
+                       n ? n->own : "", langs[i].count);
+        }
+        for (i = 0; i < nall; i++)
+                printf("translation\t%s\t%s\t%s\t%d\n", all[i].name, all[i].code, all[i].title,
+                       is_listed(all[i].name) ? 1 : 0);
+}
+
+/* --list: every translation, by language */
+static void list(void)
+{
+        int i, j;
+
+        printf("Translations that can be added to EBaC, by language:\n");
+        languages();
+        for (i = 0; i < nlangs; i++)
+        {
+                printf("\n%s:", langs[i].shown);
+                for (j = 0; j < nall; j++)
+                        if (strcmp(all[j].code, langs[i].code) == 0)
+                                printf("%s%s", is_listed(all[j].name) ? " *" : " ", all[j].name);
+                printf("\n");
+        }
+        printf("\n* = added already\n");
+}
+
+/* ------------------------------------------------------------------------
+** Choosing (importer.sh's choose_language and choose)
+*/
+static void print_cut(const char *s, int n)
+{
+        char line[4096];
+
+        sprintf(line, "%.4000s", s);
+        cut_cols(line, n);
+        printf("%s\n", line);
+}
+
+/* the words of a line, split at spaces (as sh's set -- $answer) */
+static int words_of(char *line, char **w, int most)
+{
+        int n = 0;
+        char *t;
+
+        for (t = strtok(line, " \t"); t != NULL && n < most; t = strtok(NULL, " \t"))
+                w[n++] = t;
+        return (n);
+}
+
+static int lower_is(const char *s, const char *what)
+{
+        for (; *s && *what; s++, what++)
+                if (tolower(UCHAR(*s)) != *what)
+                        return (FALSE);
+        return (*s == '\0' && *what == '\0');
+}
+
+/* page arithmetic: first on a page boundary for this size */
+static int on_page(int first, int per_page, int count)
+{
+        int pages = (count + per_page - 1) / per_page;
+
+        if (first < 0)
+                first = 0;
+        first = first / per_page * per_page;
+        if (first > (pages - 1) * per_page)
+                first = (pages - 1) * per_page;
+        return (first);
+}
+
+static void prompt(int pages, const char *back)
+{
+        if (cols - 1 >= 66)
+                printf("(%sEnter alone: %s): ", pages > 1 ? "n, p: next, previous page; " : "", back);
+        else
+                printf("(%sEnter: %s): ", pages > 1 ? "n/p: page; " : "", back);
+        fflush(stdout);
+}
+
+/* A language: its index in langs, or -1 to stop */
+static int choose_language(void)
+{
+        int first = 0, per_page, pages, count = nlangs, i, any, n, status;
+        char note[1200] = "", answer[1024], words[1024], *w[64];
+
+        for (;;)
+        {
+                clear_screen();         /* (and the screen's size now) */
+                screen_size();
+                per_page = rows - 6;
+                if (per_page < 3)
+                        per_page = 3;
+                pages = (count + per_page - 1) / per_page;
+                first = on_page(first, per_page, count);
+                print_cut("Add or remove translations", cols - 1);
+                {
+                        char heading[200];
+
+                        if (pages > 1)
+                                sprintf(heading, "Choose a language (page %d of %d)", first / per_page + 1, pages);
+                        else
+                                strcpy(heading, "Choose a language");
+                        print_cut(heading, cols - 1);
+                }
+                for (any = FALSE, i = 0; i < count; i++)
+                        if (langs[i].some)
+                                any = TRUE;
+                printf("%s\n", any ? "* = has translations added" : "");
+                for (i = first; i < first + per_page && i < count; i++)
+                {
+                        char line[4096];
+
+                        sprintf(line, "%s%2d) %.1000s (%d)", langs[i].some ? "*" : " ", i + 1,
+                                langs[i].shown, langs[i].count);
+                        print_cut(line, cols - 1);
+                }
+                print_cut(note, cols - 1);
+                if (cols - 1 >= 44)
+                        printf("Type the number of one language, then Enter.\n");
+                else
+                        printf("One language: its number, Enter.\n");
+                prompt(pages, in_ebac ? "back to EBaC" : "stop");
+                typing_mode("addlist");
+                status = read_answer(answer, sizeof(answer), FALSE);
+                if (status == 2)
+                        continue;       /* resized: draw the list again */
+                note[0] = '\0';
+                strcpy(words, answer);
+                n = words_of(words, w, 64);
+                if (n == 0 || lower_is(w[0], "x") || lower_is(w[0], "q") || status == 1)
+                        return (-1);
+                if (lower_is(w[0], "n"))
+                {
+                        if (first + per_page < count)
+                                first += per_page;
+                        continue;
+                }
+                if (lower_is(w[0], "p"))
+                {
+                        first -= per_page;
+                        if (first < 0)
+                                first = 0;
+                        continue;
+                }
+                if (all_digits(w[0]) && n == 1 && atoi(w[0]) >= 1 && atoi(w[0]) <= count)
+                        return (atoi(w[0]) - 1);
+                if (n > 1)
+                        strcpy(note, "One language at a time: translations come next.");
+                else
+                        sprintf(note, "Not in the list: %.1000s", answer);
+        }
+}
+
+/* The translations of a language: which to add (+NAME) or remove (-NAME),
+   into chosen; 0 if none (back to the languages) */
+static int choose(Lang *lang, char **chosen, int most)
+{
+        int first = 0, per_page, pages, count = 0, i, any, n, k, status, nchosen;
+        int *of = (int *) malloc(sizeof(int) * (size_t) (nall + 1));
+        char note[4096] = "", answer[1024], words[1024], *w[64];
+
+        for (i = 0; i < nall; i++)
+                if (strcmp(all[i].code, lang->code) == 0)
+                        of[count++] = i;
+        for (;;)
+        {
+                clear_screen();         /* (and the screen's size now) */
+                screen_size();
+                per_page = rows - 6 - lang->nosp;
+                if (per_page < 3)
+                        per_page = 3;
+                pages = (count + per_page - 1) / per_page;
+                first = on_page(first, per_page, count);
+                print_cut("Add or remove translations", cols - 1);
+                {
+                        char page[100], line[4096];
+
+                        if (pages > 1)
+                                sprintf(page, " (page %d of %d)", first / per_page + 1, pages);
+                        else
+                                page[0] = '\0';
+                        sprintf(line, "%.3000s", lang->shown);
+                        cut_cols(line, cols - 1 - (int) strlen(page));
+                        printf("%s%s\n", line, page);
+                }
+                if (lang->nosp)
+                        print_cut("Note: often written without spaces between words; searching such a translation works poorly.", cols - 1);
+                for (any = FALSE, i = 0; i < count; i++)
+                        if (is_listed(all[of[i]].name))
+                                any = TRUE;
+                printf("%s\n", any ? "* = added already" : "");
+                for (i = first; i < first + per_page && i < count; i++)
+                {
+                        Translation *t = &all[of[i]];
+                        char line[4096], title[4096], cut[4096];
+                        int room;
+
+                        sprintf(line, "%s%2d) %-12s", is_listed(t->name) ? "*" : " ", i + 1, t->name);
+                        if (strlen(t->name) >= 12)
+                                strcat(line, " ");      /* (a long name: a space still) */
+                        sprintf(title, "%.3000s", t->title);
+                        room = cols - 1 - (int) strlen(line);
+                        strcpy(cut, title);
+                        cut_cols(cut, room);
+                        if (strcmp(cut, title) != 0)
+                        {
+                                if (room > 3)
+                                {
+                                        cut_cols(title, room - 3);
+                                        strcat(title, "...");
+                                }
+                                else
+                                        title[0] = '\0';
+                        }
+                        strcat(line, title);
+                        print_cut(line, cols - 1);
+                }
+                print_cut(note, cols - 1);
+                if (cols - 1 >= 66)
+                        printf("Type numbers to add, as 6 14, or r6 to remove 6; then Enter.\n");
+                else
+                        printf("Add: 6 14, remove: r6; then Enter.\n");
+                prompt(pages, "languages");
+                typing_mode("addlist");
+                status = read_answer(answer, sizeof(answer), FALSE);
+                if (status == 2)
+                        continue;       /* resized: draw the list again */
+                note[0] = '\0';
+                for (i = 0; answer[i]; i++)
+                        if (answer[i] == ',')
+                                answer[i] = ' ';
+                strcpy(words, answer);
+                n = words_of(words, w, 64);
+                if (n == 0 || lower_is(w[0], "x") || lower_is(w[0], "q") || status == 1)
+                {
+                        free(of);
+                        return (0);
+                }
+                if ((lower_is(w[0], "n") || lower_is(w[0], "p")) && n == 1)
+                {
+                        if (lower_is(w[0], "n"))
+                        {
+                                if (first + per_page < count)
+                                        first += per_page;
+                        }
+                        else
+                        {
+                                first -= per_page;
+                                if (first < 0)
+                                        first = 0;
+                        }
+                        continue;
+                }
+                {
+                        char unknown[1200] = "", not_added[1200] = "";
+
+                        nchosen = 0;
+                        for (k = 0; k < n; k++)
+                        {
+                                const char *word = w[k];
+                                Translation *t = NULL;
+
+                                if ((word[0] == 'r' || word[0] == 'R') && isdigit(UCHAR(word[1])))
+                                {
+                                        if (all_digits(word + 1) && atoi(word + 1) >= 1 &&
+                                            atoi(word + 1) <= count)
+                                                t = &all[of[atoi(word + 1) - 1]];
+                                        if (t == NULL)
+                                                sprintf(unknown + strlen(unknown), ", %.100s", word);
+                                        else if (is_added(t->name))
+                                        {
+                                                if (nchosen < most)
+                                                {
+                                                        chosen[nchosen] = (char *) malloc(strlen(t->name) + 2);
+                                                        sprintf(chosen[nchosen++], "-%s", t->name);
+                                                }
+                                        }
+                                        else
+                                                sprintf(not_added + strlen(not_added), ", %.100s", word);
+                                        continue;
+                                }
+                                /* (lookup: a number, or a name in any case) */
+                                if (all_digits(word) && atoi(word) >= 1 && atoi(word) <= count)
+                                        t = &all[of[atoi(word) - 1]];
+                                else
+                                {
+                                        int m;
+
+                                        for (m = 0; m < count && t == NULL; m++)
+                                                if (find(word) == &all[of[m]])
+                                                        t = &all[of[m]];
+                                }
+                                if (t != NULL)
+                                {
+                                        if (nchosen < most)
+                                        {
+                                                chosen[nchosen] = (char *) malloc(strlen(t->name) + 2);
+                                                sprintf(chosen[nchosen++], "+%s", t->name);
+                                        }
+                                }
+                                else
+                                        sprintf(unknown + strlen(unknown), ", %.100s", word);
+                        }
+                        if (unknown[0] != '\0' || not_added[0] != '\0')
+                        {
+                                for (k = 0; k < nchosen; k++)
+                                        free(chosen[k]);
+                                if (unknown[0] != '\0' && not_added[0] != '\0')
+                                        sprintf(note, "Not in the list: %s; not added: %s", unknown + 2, not_added + 2);
+                                else if (unknown[0] != '\0')
+                                        sprintf(note, "Not in the list: %s", unknown + 2);
+                                else
+                                        sprintf(note, "Not added: %s", not_added + 2);
+                                continue;
+                        }
+                        free(of);
+                        return (nchosen);
+                }
+        }
+}
+
 /* agree: the license, and whether it is agreed to */
 static int agree(Translation *tr, const char **how)
 {
@@ -1684,9 +2718,38 @@ static int agree(Translation *tr, const char **how)
                 }
                 return (TRUE);
         }
-        /* (asking, as at a terminal: not yet; see the top) */
-        strcpy(problem, "no one to agree to its license (add --agree to agree to it)");
-        return (FALSE);
+        if (!at_terminal())
+        {
+                strcpy(problem, "no one to agree to its license (add --agree to agree to it)");
+                return (FALSE);
+        }
+        for (;;)
+        {
+                char answer[256], *p;
+                int status;
+
+                printf("Do you agree to these terms (y/n)? ");
+                typing_mode("input");
+                /* (the window changing size, as when a phone's keyboard
+                   comes up, isn't an answer: read on, without asking
+                   again; what was typed is kept) */
+                status = read_answer(answer, sizeof(answer), TRUE);
+                if (status == 1)
+                        strcpy(answer, "n");    /* (end of input) */
+                for (p = answer; *p; p++)
+                        *p = (char) tolower(UCHAR(*p));
+                if (strcmp(answer, "y") == 0 || strcmp(answer, "yes") == 0)
+                {
+                        *how = "typed y";
+                        return (TRUE);
+                }
+                if (strcmp(answer, "n") == 0 || strcmp(answer, "no") == 0)
+                {
+                        strcpy(problem, "its license wasn't agreed to");
+                        return (FALSE);
+                }
+                printf("Please type y or n.\n");
+        }
 }
 
 /* ------------------------------------------------------------------------
@@ -1714,21 +2777,177 @@ static void cleanup(void)
         tmp[0] = '\0';
 }
 
+/* The translations named, chosen, or both: each added (+NAME) or removed
+   (-NAME); start_with, the translation EBaC is to show after */
+static void do_actions(char **chosen, int nchosen, char *start_with)
+{
+        int i, first = TRUE;
+
+        for (i = 0; i < nchosen; i++)
+        {
+                Translation *t;
+                const char *how = "";
+                char version[512], kept[512], date[32];
+
+                if (chosen[i] == NULL)
+                        continue;
+                /* a blank line between translations */
+                if (!first)
+                        printf("\n");
+                first = FALSE;
+                t = find(chosen[i] + 1);
+                if (chosen[i][0] == '-')
+                {
+                        if (remove_one(t->name) == 0)
+                        {
+                                if (start_with != NULL && strcmp(start_with, t->name) == 0)
+                                        start_with[0] = '\0';
+                        }
+                        else
+                        {
+                                printf("%s: not removed: %s.\n", t->name, problem);
+                                failed++;
+                        }
+                        continue;
+                }
+                screen_size();
+                src->version_of(t->name, version, sizeof(version));
+                kept_version(t->name, kept, date);
+                if (version[0] != '\0' && is_added(t->name) && strcmp(kept, version) == 0)
+                {
+                        printf("%s: you already have this version (downloaded %s). To download it again, remove it first (r and its number), then add it.\n",
+                               t->name, date);
+                        continue;
+                }
+                if (!agree(t, &how))
+                {
+                        printf("%s: not added: %s.\n", t->name, problem);
+                        /* (no is an answer, not a failure; no one to answer is) */
+                        if (!at_terminal())
+                                failed++;
+                        continue;
+                }
+                if (add(t, version, how) == 0)
+                {
+                        if (start_with != NULL)
+                                sprintf(start_with, "%.*s", MAX_START - 1, t->name);
+                }
+                else
+                {
+                        printf("%s: not added: %s.\n", t->name, problem);
+                        failed++;
+                }
+        }
+        fflush(stdout);
+}
+
+/* the sources, by the name given on the command line */
+static const Source *source_named(const char *name)
+{
+        if (strcmp(name, "thiagobodruk") == 0)
+                return (&thiagobodruk);
+        return (NULL);
+}
+
+static int start_run(const Source *which)
+{
+        const char *t = getenv("TMPDIR");
+
+        src = which;
+        source = src->source;
+        names_source = NAMES_SOURCE;
+        agree_all = at_end = FALSE;
+        agreed_how = "";
+        failed = 0;
+        typed[0] = '\0';
+        nall = 0;
+        sprintf(tmp, "%.1000s/ebac-add.XXXXXX", (t != NULL && *t != '\0') ? t : "/tmp");
+        if (mkdtemp(tmp) == NULL)
+        {
+                tmp[0] = '\0';
+                return (-1);
+        }
+        return (0);
+}
+
+/*
+** Purpose: A on EBaC's main menu, for one source ("thiagobodruk"): the
+**          languages, then a language's translations, each chosen added
+**          or removed, at EBaC's own terminal; in EBaC itself, rather than
+**          a program run in its place, so that it works where no other
+**          program can be run (a web browser). root: EBaC's folder;
+**          start_with (MAX_START bytes): the translation shown now, and
+**          after, the one EBaC is to show (the last added; "" if the one
+**          shown was removed).
+** Returns: 0, or -1 if the source isn't one of the importer's.
+*/
+int import_in_ebac(const char *which, const char *root, char *start_with)
+{
+        const Source *s = source_named(which);
+        char back[1100];
+        char *chosen[256];
+        int nchosen = 0, i, k;
+
+        if (s == NULL || getcwd(back, sizeof(back)) == NULL)
+                return (-1);
+        sprintf(here, "%.1000s", root);
+        if (start_run(s) != 0)
+                return (-1);
+        in_ebac = TRUE;
+        /* (a copy of the source, or of Unicode's names, instead: for a
+           computer without the Internet, and for tests) */
+        if (getenv("EBAC_IMPORT_SOURCE") != NULL && *getenv("EBAC_IMPORT_SOURCE") != '\0')
+                source = getenv("EBAC_IMPORT_SOURCE");
+        if (getenv("EBAC_NAMES_SOURCE") != NULL && *getenv("EBAC_NAMES_SOURCE") != '\0')
+                names_source = getenv("EBAC_NAMES_SOURCE");
+        clear_screen();
+        if (src->all_translations() != 0)
+                printf("%s: %s\n", src->program, problem);
+        else
+        {
+                languages();
+                for (;;)
+                {
+                        k = choose_language();
+                        if (k < 0)
+                                break;
+                        nchosen = choose(&langs[k], chosen, 256);
+                        if (nchosen > 0)
+                                break;
+                }
+                if (nchosen > 0)
+                        clear_screen();
+                do_actions(chosen, nchosen, start_with);
+                for (i = 0; i < nchosen; i++)
+                        free(chosen[i]);
+        }
+        /* (straight back if nothing was chosen: there is nothing to read) */
+        if (nchosen > 0 || failed > 0)
+                press_any_key();
+        cleanup();
+        in_ebac = FALSE;
+        if (chdir(back) != 0)
+                return (0);
+        return (0);
+}
+
 int import_main(int argc, char **argv)
 {
         const char *mode = "", *mode_name = "";
         char **names;
-        int nnames = 0, i, first = TRUE;
+        int nnames = 0, i, list_only = FALSE, catalog_only = FALSE;
         const char *dir;
 
-        if (argc < 2 || strcmp(argv[1], "thiagobodruk") != 0)
+        if (argc < 2 || source_named(argv[1]) == NULL)
         {
                 fprintf(stderr, "usage: bible --import thiagobodruk ...\n");
                 return (2);
         }
-        src = &thiagobodruk;
-        source = src->source;
-        names = (char **) malloc(sizeof(char *) * (size_t) argc);
+        src = source_named(argv[1]);
+        if (start_run(src) != 0)
+                return (1);
+        atexit(cleanup);
+        names = (char **) malloc(sizeof(char *) * (size_t) (argc + 256));
         for (i = 2; i < argc; i++)
         {
                 const char *a = argv[i];
@@ -1737,9 +2956,13 @@ int import_main(int argc, char **argv)
                         agree_all = TRUE;
                 else if (strcmp(a, "--at-end") == 0)
                         at_end = TRUE;
+                else if (strcmp(a, "--list") == 0)
+                        list_only = TRUE;
+                else if (strcmp(a, "--catalog") == 0)
+                        catalog_only = TRUE;
                 else if ((strcmp(a, "--license") == 0 || strcmp(a, "--check") == 0 ||
                           strcmp(a, "--agreed-how") == 0 || strcmp(a, "--source") == 0 ||
-                          strcmp(a, "--remove") == 0))
+                          strcmp(a, "--names-source") == 0 || strcmp(a, "--remove") == 0))
                 {
                         if (i + 1 >= argc)
                         {
@@ -1755,6 +2978,8 @@ int import_main(int argc, char **argv)
                                 agreed_how = argv[++i];
                         else if (strcmp(a, "--source") == 0)
                                 source = argv[++i];
+                        else if (strcmp(a, "--names-source") == 0)
+                                names_source = argv[++i];
                         else
                         {
                                 char *r = (char *) malloc(strlen(argv[i + 1]) + 2);
@@ -1779,30 +3004,22 @@ int import_main(int argc, char **argv)
                         names[nnames++] = (char *) a;
         }
         dir = getenv("BIBLEROOT");
-        if (dir == NULL || *dir == '\0' || getcwd(here, sizeof(here)) == NULL ||
-            chdir(dir) != 0 || getcwd(here, sizeof(here)) == NULL)
+        if (dir == NULL || *dir == '\0' || chdir(dir) != 0 || getcwd(here, sizeof(here)) == NULL)
         {
                 fprintf(stderr, "%s: BIBLEROOT must name the folder EBaC is in.\n", src->program);
                 return (1);
         }
-        {
-                const char *t = getenv("TMPDIR");
-
-                sprintf(tmp, "%.1000s/ebac-add.XXXXXX", (t != NULL && *t != '\0') ? t : "/tmp");
-                if (mkdtemp(tmp) == NULL)
-                {
-                        tmp[0] = '\0';
-                        return (1);
-                }
-        }
-        atexit(cleanup);
 
         if (src->all_translations() != 0)
         {
                 printf("%s: %s\n", src->program, problem);
                 return (1);
         }
-
+        if (catalog_only)
+        {
+                catalog();
+                return (0);
+        }
         if (mode[0] != '\0')
         {
                 Translation *t = find(mode_name);
@@ -1830,7 +3047,13 @@ int import_main(int argc, char **argv)
                 }
                 return (0);
         }
+        if (list_only)
+        {
+                list();
+                return (0);
+        }
 
+        /* (by name: numbers are only for the list) */
         for (i = 0; i < nnames; i++)
         {
                 const char *word = names[i];
@@ -1857,47 +3080,23 @@ int import_main(int argc, char **argv)
                         names[i] = n;
                 }
         }
-        for (i = 0; i < nnames; i++)
+        if (nnames == 0)
         {
-                Translation *t;
-                const char *how = "";
-                char version[512], kept[512], date[32];
+                /* a language, then its translations, typed at a terminal
+                   (one line at a time: not EBaC's screens) */
+                int k;
 
-                if (names[i] == NULL)
-                        continue;
-                if (!first)
-                        printf("\n");
-                first = FALSE;
-                t = find(names[i] + 1);
-                if (names[i][0] == '-')
+                languages();
+                for (;;)
                 {
-                        if (remove_one(t->name) != 0)
-                        {
-                                printf("%s: not removed: %s.\n", t->name, problem);
-                                failed++;
-                        }
-                        continue;
-                }
-                src->version_of(t->name, version, sizeof(version));
-                kept_version(t->name, kept, date);
-                if (version[0] != '\0' && is_added(t->name) && strcmp(kept, version) == 0)
-                {
-                        printf("%s: you already have this version (downloaded %s). To download it again, remove it first (r and its number), then add it.\n",
-                               t->name, date);
-                        continue;
-                }
-                if (!agree(t, &how))
-                {
-                        printf("%s: not added: %s.\n", t->name, problem);
-                        failed++;
-                        continue;
-                }
-                if (add(t, version, how) != 0)
-                {
-                        printf("%s: not added: %s.\n", t->name, problem);
-                        failed++;
+                        k = choose_language();
+                        if (k < 0)
+                                break;
+                        nnames = choose(&langs[k], names, 256);
+                        if (nnames > 0)
+                                break;
                 }
         }
-        fflush(stdout);
+        do_actions(names, nnames, NULL);
         return (failed == 0 ? 0 : 1);
 }

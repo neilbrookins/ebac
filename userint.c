@@ -95,6 +95,7 @@ struct bcv_type bcv;
 static int main_menu P((void));
 #ifdef UNIXV
 static void add_menu P((void));
+static void add_in_ebac P((char *which));
 #endif
 static void remove_char P((char *strg));
 static int get_number P((void));
@@ -165,6 +166,38 @@ static int screen_key P((void));
 ** one from Project Gutenberg in "-PG" (DRC-PG), so that the same
 ** translation from each place can be kept side by side.
 */
+/*
+** Purpose: add or remove translations from a source, with the importer in
+**          C (import.c), in EBaC itself: the lists of languages and
+**          translations, then each chosen added or removed. After it,
+**          'trans' is read again, and EBaC shows the translation last
+**          added (or, if the one it showed was removed, the first in
+**          'trans'), as the EBaC the shell importer started again did.
+*/
+static void add_in_ebac(char *which)
+{
+        char start_with[MAX_START];
+
+        sprintf(start_with, "%.*s", MAX_START - 1, etla);
+        if (import_in_ebac(which, ebac_root(), start_with) != 0)
+                return;
+        reread_trans();
+        /* (the one shown, removed: the first in trans, as a new EBaC
+           would start with, without a word) */
+        if (start_with[0] == '\0')
+        {
+                extern char trans[][80];
+                int i;
+
+                for (i = 0; trans[0][i] != '\0' && !isspace(UCHAR(trans[0][i])) &&
+                     i < MAX_START - 1; i++)
+                        start_with[i] = trans[0][i];
+                start_with[i] = '\0';
+        }
+        if (start_with[0] != '\0' && strcmp(start_with, etla) != 0)
+                use_translation(start_with);
+}
+
 static void add_menu(void)
 {
         int key;
@@ -195,8 +228,9 @@ static void add_menu(void)
                 key = tolower(screen_key());
                 if ((key == 't' || key == '1') && thiagobodruk[0] != '\0')
                 {
-                        run_importer(thiagobodruk, "thiagobodruk/bible importer");
-                        return;         /* (only if it couldn't start) */
+                        /* (in EBaC itself: the importer in C, import.c) */
+                        add_in_ebac("thiagobodruk");
+                        return;
                 }
                 if ((key == 's' || key == '2') && scrollmapper[0] != '\0')
                 {
@@ -2634,7 +2668,8 @@ int main(int argc, char **argv)
         if (argc > 1)
                 start_trans = argv[1];  /* "bible BSB": start with BSB */
 #ifdef UNIXV
-        find_importer(thiagobodruk, sizeof(thiagobodruk), "add-thiagobodruk.sh");
+        /* (thiagobodruk/bible: the importer in C, always there) */
+        strcpy(thiagobodruk, "(in EBaC)");
         find_importer(scrollmapper, sizeof(scrollmapper), "add-scrollmapper.sh");
         find_importer(gutenberg, sizeof(gutenberg), "add-gutenberg.sh");
 #endif

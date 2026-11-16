@@ -165,6 +165,7 @@ FILE *root_fopen P((char *name));
 extern int interactive;
 #ifdef UNIXV
 int use_translation P((char *name));
+char *ebac_root P((void));
 #endif
 #ifdef RAMDISK
 struct TEMPFILE *find_word P((char *word, int positions));

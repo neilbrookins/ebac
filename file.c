@@ -742,6 +742,12 @@ static int index_format_ok(char *name)
 }
 
 #ifdef UNIXV
+/* Purpose: EBaC's folder (BIBLEROOT) as a full path ("" if not known) */
+char *ebac_root(void)
+{
+        return (root_dir);
+}
+
 /*
 ** Purpose: choose a translation by its name, as listed in trans, without
 **          the menu (for ebac-api): go to its folder and open its index.

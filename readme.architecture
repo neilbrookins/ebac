@@ -2420,3 +2420,15 @@ the browser's own fetch in the browser.
     offers, before switching; then Project Gutenberg the same way; then
     the shell scripts retired. Voice (ebac-admin) keeps a way in from
     the command line.
+  - thiagobodruk/bible, in C (import.c, net.c; bible --import, with the
+    shell importer's options): every one of its 141 translations the
+    same, byte for byte, as add-thiagobodruk.sh wrote it, and what it
+    said (tests/importers.sh); A then T runs it in EBaC itself, with no
+    script, its screens the same as the script's, key by key, at a
+    phone's size and at 80 columns (tests/importscreens.py). The index
+    is built in the same program (indexlib.c: index.c as a function).
+  - In the browser, EBaC's folder of translations is kept in the
+    browser's storage as well, so a translation added is there the next
+    time, and one removed frees its space. The translations that come
+    with the site are copied into it the first time, and again when the
+    site is newer.
