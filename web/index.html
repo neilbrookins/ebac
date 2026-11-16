@@ -74,6 +74,12 @@
     }, true);
   }
 
+  // (Emscripten ends the program by throwing an ExitStatus, which the
+  // browser would report as an error: it is the expected end, not one)
+  window.addEventListener("unhandledrejection", (e) => {
+    if (e.reason && e.reason.name === "ExitStatus") e.preventDefault();
+  });
+
   initEbac({
     pty: slave,
     preRun: [(m) => {
