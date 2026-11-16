@@ -80,7 +80,6 @@ for (const [name, view] of [
     if (await check(page, "the main menu", "Main Menu")) {
         const size = await page.evaluate(() => [window.term.rows, window.term.cols]);
         console.log(`     the terminal has ${size[0]} rows, ${size[1]} columns`);
-        // EBaC's own idea of the size, as its Information screen says
         // EBaC's own idea of the size: on the Information screen's
         // diagnostic page (pressing on, page by page, until it comes)
         await keys(page, "i");
@@ -122,6 +121,55 @@ for (const [name, view] of [
         if (wide > narrower) {
             console.log(`FAIL a line of ${wide} characters in ${narrower} columns`);
             failed++;
+        }
+        await page.setViewport(view);
+        await sleep(1000);
+        await keys(page, "\x0c");
+        await check(page, "back to the first size", "Main Menu");
+
+        // the touch gestures (gestures.js), on the phone
+        if (view.hasTouch) {
+            const mode = () => page.evaluate(() => window.ebacGestureMode());
+            const menu = await mode();
+            console.log(`${menu === "menu" ? "ok  " : "FAIL"} gestures: EBaC says it shows the main menu (${menu})`);
+            if (menu !== "menu") failed++;
+            await keys(page, "v");
+            await keys(page, "john\r");
+            await keys(page, "3\r");
+            await keys(page, "16\r");
+            await check(page, "V: John 3:16 again", "For God so loved");
+            const top = async () => (await screen(page)).split("\n").find(l => /^\d+:\d+ /.test(l)) || "";
+            const before = await top();
+            // a short swipe up: the next verse
+            const x = view.width / 2, y = view.height / 2;
+            await page.touchscreen.touchStart(x, y);
+            for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(x, y - i * 20);
+            await page.touchscreen.touchEnd();
+            await sleep(1000);
+            const after = await top();
+            const moved = before.startsWith("3:16") && after.startsWith("3:17");
+            console.log(`${moved ? "ok  " : "FAIL"} gestures: a swipe up goes on a verse` +
+                        ` ("${before.slice(0, 4)}" then "${after.slice(0, 4)}")`);
+            if (!moved) failed++;
+            await keys(page, "x");
+            await sleep(500);
+            await keys(page, "x");
+            await check(page, "back to the main menu", "Main Menu");
+        }
+
+        // E: EBaC ends; the page says so, and Enter starts it again
+        await keys(page, "e");
+        await sleep(1000);
+        const shown = await page.evaluate(() => {
+            const e = document.getElementById("ended");
+            return getComputedStyle(e).display !== "none" ? e.textContent : "";
+        });
+        const said = shown.includes("EBaC has ended");
+        console.log(`${said ? "ok  " : "FAIL"} E: the page says EBaC has ended`);
+        if (!said) failed++;
+        if (said) {
+            await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.keyboard.press("Enter")]);
+            await check(page, "Enter: EBaC starts again", "Main Menu");
         }
     }
     if (errors.length) {

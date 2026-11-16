@@ -35,13 +35,16 @@ emcc -O2 -Wall -Wextra -DUNIXV -DNORAMDISK -DXTERM_BUILTIN \
     -DEBAC_COMMIT="\"$COMMIT\"" -DEBAC_PACKAGE='"web browser"' \
     bible.c file.c userint.c process.c curses.c utf8.c \
     -sASYNCIFY -sFORCE_FILESYSTEM -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web \
+    -sEXIT_RUNTIME=1 \
     -sEXPORTED_RUNTIME_METHODS=ENV \
     --js-library="$NM/xterm-pty/emscripten-pty.js" \
     --preload-file "$OUT/root@/ebac" \
     -o "$SITE/ebac.mjs"
 
-# The page, and what it loads (all served from the site itself)
-cp web/index.html "$SITE/"
+# The page, and what it loads (all served from the site itself); the
+# touch gestures are the Docker image's and the Home Assistant app's own.
+# (EXIT_RUNTIME, above: so the page hears when EBaC ends, and says so.)
+cp web/index.html docker/gestures.js "$SITE/"
 cp "$NM/@xterm/xterm/lib/xterm.js" "$NM/@xterm/xterm/css/xterm.css" "$SITE/"
 cp "$NM/@xterm/addon-fit/lib/addon-fit.js" "$SITE/"
 cp "$NM/xterm-pty/index.mjs" "$SITE/xterm-pty.mjs"
