@@ -7,7 +7,7 @@ on a server but files. The page is published with GitHub Pages:
 **https://neilbrookins.github.io/ebac/**
 
 It reads the King James Version (AV). The first visit downloads EBaC and
-the text (about 15 megabytes); the browser keeps them after that.
+the text (about 15 megabytes).
 
 ## How it works
 
