@@ -2371,3 +2371,52 @@ AKJV, Ruth into 1 Samuel in the AV, and 1 Nephi in the Book of Mormon
 top or below its book's heading; every screen started with its heading
 (but those going on with a verse taller than the screen, as designed);
 no verse was missed. A search's list shows none.
+
+EBaC in a web browser (November 16, 2026; the designer's request: a
+link anyone can click to try EBaC, with nothing to install, as
+thiagobodruk/open-bible has). The same C source, compiled to WebAssembly
+by Emscripten, runs in the page (web/README.md), published with GitHub
+Pages from main. Kept to one source, made to build for every platform:
+where the browser build met a problem, the source was improved for all,
+not worked around for one.
+  - XTERM_BUILTIN (curses.c): xterm's few terminal capabilities written
+    in, for a terminal known to be xterm, where there is no ncurses or
+    terminfo: the browser, and ttyd's page in the Docker image and the
+    Home Assistant app (bible-xterm; the app installs no ncurses since
+    2.18.1). A plain terminal, of a kind not known in advance, keeps
+    ncurses (bible). ebac-api, which draws on no terminal, has none.
+    make test compares the two builds screen for screen.
+  - A resize interrupting the wait for a key is noticed then (a flag
+    beside the pipe; read_key_byte() in file.c), as the browser's
+    terminal gives up its select() at the keyboard.
+  - The search screen's help is laid out to the window (search_help()).
+  - EBaC's home folder (the search history) is kept in the browser's
+    storage for the site (IndexedDB).
+
+The importers in C (planned, November 16, 2026; the designer's
+decision). A)dd ran shell scripts (importer.sh, add-thiagobodruk.sh,
+add-scrollmapper.sh, add-gutenberg.sh: some 3,700 lines, mostly awk),
+which a browser can't run: no shell, no awk, and no starting another
+program. Shell was chosen over Python because not every platform has
+Python, and bundling it would make EBaC much larger. Of the ways
+weighed (a second importer in JavaScript for the browser; a shell
+compiled to WebAssembly, or a Linux in the page; translations converted
+ahead of time and hosted, which would redistribute texts not free to
+copy; an embedded language such as Lua), the importers are to be
+rewritten in C, in EBaC's own source, so that one importer builds for
+every platform. Only downloading differs: curl or wget on UNIX, as now;
+the browser's own fetch in the browser.
+  - Where a browser may download from (CORS, checked November 16):
+    raw.githubusercontent.com allows any page (thiagobodruk/bible,
+    scrollmapper/bible_databases, Unicode's CLDR names of languages).
+    IANA's registry of language codes doesn't, so the few codes CLDR
+    has no names for are to be kept in EBaC's source instead. Project
+    Gutenberg answered nothing from GitHub's servers (503), and its
+    mirror allows no other page, so in the browser it needs a relay.
+  - In stages: the shared core (downloading, writing a translation's
+    books, 'trans', the index built in the same program, index.c as a
+    function); then the two GitHub sources, each checked byte for byte
+    against the shell importer's output, for every translation it
+    offers, before switching; then Project Gutenberg the same way; then
+    the shell scripts retired. Voice (ebac-admin) keeps a way in from
+    the command line.
