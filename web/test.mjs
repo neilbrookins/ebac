@@ -242,10 +242,10 @@ for (const [name, view] of [
                 await restart();
                 await check(page, "EBaC started again: it is still there", "Selected translation: AFR53-TB");
                 await keys(page, "v");
-                await keys(page, "john\r");
+                await keys(page, "johannes\r");
                 await keys(page, "3\r");
                 await keys(page, "16\r");
-                await check(page, "V: John 3:16 in it", "Want so lief het God");
+                await check(page, "V: John 3:16 in it (Johannes)", "Want so lief het God");
                 await keys(page, "x");
                 await sleep(500);
                 await keys(page, "x");

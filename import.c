@@ -45,7 +45,11 @@
 #       endif
 #endif
 
-#define LINE 65536              /* the longest line read (a verse) */
+#define LINE 65536              /* the longest line read (a verse); each
+                                   such buffer is static: too big for a
+                                   stack of 64 KB, as EBaC has in a web
+                                   browser, where a deeper stack writes
+                                   over the program's other memory */
 
 /* ------------------------------------------------------------------------
 ** A growing string
@@ -141,7 +145,7 @@ static void spaces(char *s)
                 "\342\200\250", "\342\200\251", "\342\200\257", NULL
         };
         char *r = s, *w = s;
-        int k, n;
+        int k, n = 0;
 
         while (*r != '\0')
         {
@@ -456,7 +460,8 @@ static void first_word(const char *line, char *word, int size)
 
 static int is_listed(const char *name)
 {
-        char path[1100], line[LINE], word[256];
+        char path[1100], word[256];
+        static char line[LINE];
         FILE *f;
         int found = FALSE;
 
@@ -476,7 +481,8 @@ static int is_listed(const char *name)
 /* trans without the line of NAME, added to b */
 static void without_line(const char *name, Str *b)
 {
-        char path[1100], line[LINE], word[256];
+        char path[1100], word[256];
+        static char line[LINE];
         FILE *f;
 
         sprintf(path, "%s/trans", here);
@@ -564,7 +570,8 @@ static int others_text(const char *folder)
 /* the version kept when it was added: "FINGERPRINT", and its date */
 static int kept_version(const char *name, char *version, char *date)
 {
-        char path[1300], line[LINE], *p;
+        char path[1300], *p;
+        static char line[LINE];
         FILE *f;
 
         version[0] = date[0] = '\0';
@@ -1156,7 +1163,8 @@ static void hyphen_rows(const char *t, Str *out)
 
 static int add_to(Translation *tr, const char *version_now, const char *agreed)
 {
-        char folder[1200], text_path[1200], line[LINE], path[1400], date[32];
+        char folder[1200], text_path[1200], path[1400], date[32];
+        static char line[LINE];
         FILE *f, *out = NULL, *booklist = NULL, *booknames = NULL, *abbrev = NULL;
         int books = 0, b, kept = 0, i;
         long total = 0, c, v, cur;
@@ -1221,7 +1229,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
                                 continue;
                         }
                         {
-                                char copy[LINE];
+                                static char copy[LINE];
 
                                 strcpy(copy, line);
                                 spaces(copy);
@@ -1237,7 +1245,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
                         }
                         verses[books]++;
                         {
-                                char copy[LINE];
+                                static char copy[LINE];
 
                                 strcpy(copy, rest);
                                 plain(copy);
@@ -1349,7 +1357,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
                         continue;
                 }
                 {
-                        char copy[LINE];
+                        static char copy[LINE];
 
                         strcpy(copy, line);
                         spaces(copy);
@@ -1359,7 +1367,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
                 if (!verse_line(line, &c, &v, &rest))
                         continue;
                 {
-                        char copy[LINE];
+                        static char copy[LINE];
 
                         strcpy(copy, rest);
                         plain(copy);
@@ -1540,7 +1548,8 @@ static int add(Translation *tr, const char *version_now, const char *agreed)
 /* remove one added (importer.sh's remove) */
 static int remove_one(const char *name)
 {
-        char folder[1200], line[LINE], word[256], tpath[1100];
+        char folder[1200], word[256], tpath[1100];
+        static char line[LINE];
         Str rest = { NULL, 0, 0 };
         FILE *f;
         int any = FALSE;
@@ -1887,7 +1896,8 @@ static int fields(char *line, char **f, int n)
 
 static void read_cache(const char *path)
 {
-        char line[LINE], *f[4];
+        char *f[4];
+        static char line[LINE];
         FILE *fp;
         int i;
 
@@ -1924,7 +1934,8 @@ typedef struct
 
 static void read_pairs(const char *path, Pairs *p)
 {
-        char line[LINE], *q, *k, *v;
+        char *q, *k, *v;
+        static char line[LINE];
         FILE *fp;
         size_t n;
 
@@ -1997,7 +2008,8 @@ static int names_quietly = FALSE;
 
 static void language_names(void)
 {
-        char path[1200], line[LINE], en_path[1200], own_path[1200];
+        char path[1200], en_path[1200], own_path[1200];
+        static char line[LINE];
         FILE *fp;
         struct stat st;
         int i, j, any = FALSE;
