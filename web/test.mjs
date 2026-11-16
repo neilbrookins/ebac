@@ -82,7 +82,9 @@ for (const [name, view] of [
         console.log(`     the terminal has ${size[0]} rows, ${size[1]} columns`);
         // EBaC's own idea of the size, as its Information screen says
         await keys(page, "i");
-        if (await check(page, "I: the Information screen", "Window:")) {
+        await check(page, "I: the Information screen", "Electronic Bible and Concordance");
+        await keys(page, " ");
+        if (await check(page, "its second page, the diagnostic information", "Window:")) {
             const m = (await screen(page)).match(/Window: +(\d+) rows, (\d+) columns/);
             const ok = m && +m[1] === size[0] && +m[2] === size[1];
             console.log(`${ok ? "ok  " : "FAIL"} EBaC is told the same size` + (m ? ` (${m[1]} rows, ${m[2]} columns)` : ""));
