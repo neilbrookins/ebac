@@ -1992,6 +1992,9 @@ static void free_pairs(Pairs *p)
         p->n = 0;
 }
 
+/* (--catalog: plain lines only, so language_names() says nothing) */
+static int names_quietly = FALSE;
+
 static void language_names(void)
 {
         char path[1200], line[LINE], en_path[1200], own_path[1200];
@@ -2024,8 +2027,11 @@ static void language_names(void)
                         any = TRUE;
         if (any)
         {
-                printf("Getting the names of the languages (from Unicode)...\n");
-                fflush(stdout);
+                if (!names_quietly)
+                {
+                        printf("Getting the names of the languages (from Unicode)...\n");
+                        fflush(stdout);
+                }
                 sprintf(en_path, "%s/en.json", tmp);
                 if (fetch_from(names_source, "en/languages.json", en_path) != 0)
                         return;
@@ -2360,14 +2366,10 @@ static void languages(void)
 static void catalog(void)
 {
         int i;
-        FILE *keep = stdout;
 
-        /* (what languages() says goes nowhere: the catalog is plain lines) */
-        fflush(stdout);
-        stdout = fopen("/dev/null", "w");
+        names_quietly = TRUE;
         languages();
-        fclose(stdout);
-        stdout = keep;
+        names_quietly = FALSE;
         for (i = 0; i < nlangs; i++)
         {
                 Names *n = cached(langs[i].code);
