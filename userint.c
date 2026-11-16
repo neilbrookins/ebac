@@ -2202,6 +2202,141 @@ static int screen_key(void)
         return c;
 }
 
+/*
+** Purpose: the search screen: its help, then "Enter Search word(s) here:".
+**          Laid out to the window: in two columns, as it always was, where
+**          they fit (72 columns); else in one, for a phone (50 columns or
+**          fewer). And only what fits in its height, with a line left to
+**          type on: the blank lines at the top go first, then the editing
+**          keys, then all of the help. On a phone it was laid out for 80
+**          columns, so its lines wrapped, and with the keyboard up it was
+**          taller than the screen, its first lines scrolled away (found by
+**          the designer in a web browser, November 16, 2026).
+*/
+static char *help_keys_wide[] = {
+	"Search line editing keys:",
+#ifdef ARROWKEYS
+	"Up    or CTRL-g  get previous search   Left  or CTRL-b  back",
+	"Down  or CTRL-v  view next search      Right or CTRL-f  forward",
+#else
+	"CTRL-g  get previous search            CTRL-b  back",
+	"CTRL-v  view next search               CTRL-f  forward",
+#endif
+#ifdef USE_NCURSES /* Home, End and Delete are read from terminfo */
+	"Home, CTRL-a or CTRL-x  beginning      End, CTRL-e or CTRL-r  end",
+	"CTRL-u  undo line                      Delete or CTRL-d  delete",
+#else
+	"CTRL-a or CTRL-x  beginning            CTRL-e or CTRL-r  end",
+	"CTRL-u  undo line                      CTRL-d  delete",
+#endif
+	"",
+	NULL
+};
+static char *help_words_wide[] = {
+	"Prefix bookname with \"@\", as in: @Genesis",
+	"A group of books with \"=\", as in: =nt  =ot  =gospels  =rom..phile",
+	"Words alone are a phrase, as in: in the beginning",
+	"Use postfix (reverse Polish) notation to combine words with operators:",
+	"   0  and (same verse)     N  within N verses      ,  or",
+	"   -  and not             +N  exactly N after      .  phrase: next word",
+	"                          -N  exactly N before",
+	"                          ~N  exactly N apart",
+	"For example, \"love\" and \"hate\" within two verses in Matthew:",
+	"        love hate 2 @Mat 0",
+	"",
+	NULL
+};
+static char *help_keys_narrow[] = {
+	"Search line editing keys:",
+#ifdef ARROWKEYS
+	"Up    or CTRL-g  get previous search",
+	"Down  or CTRL-v  view next search",
+	"Left  or CTRL-b  back",
+	"Right or CTRL-f  forward",
+#else
+	"CTRL-g  get previous search",
+	"CTRL-v  view next search",
+	"CTRL-b  back     CTRL-f  forward",
+#endif
+#ifdef USE_NCURSES /* Home, End and Delete are read from terminfo */
+	"Home, CTRL-a or CTRL-x  beginning",
+	"End, CTRL-e or CTRL-r   end",
+	"CTRL-u  undo line   Delete or CTRL-d  delete",
+#else
+	"CTRL-a or CTRL-x  beginning",
+	"CTRL-e or CTRL-r  end",
+	"CTRL-u  undo line   CTRL-d  delete",
+#endif
+	"",
+	NULL
+};
+static char *help_words_narrow[] = {
+	"Prefix bookname with \"@\", as in: @Genesis",
+	"A group of books with \"=\", as in:",
+	"   =nt  =ot  =gospels  =rom..phile",
+	"Words alone are a phrase, as in: in the beginning",
+	"Use postfix (reverse Polish) notation to",
+	"combine words with operators:",
+	"   0  and (same verse)    N  within N verses",
+	"   -  and not            +N  exactly N after",
+	"   ,  or                 -N  exactly N before",
+	"   .  phrase: next word  ~N  exactly N apart",
+	"For example, \"love\" and \"hate\" within two",
+	"verses in Matthew:",
+	"        love hate 2 @Mat 0",
+	"",
+	NULL
+};
+
+static int help_count(char **lines)
+{
+	int n = 0;
+
+	if (lines == NULL)
+		return 0;
+	while (lines[n] != NULL)
+		n++;
+	return n;
+}
+
+static void help_print(char **lines)
+{
+	if (lines == NULL)
+		return;
+	while (*lines != NULL)
+		printf("%s\n", *lines++);
+}
+
+static void search_help(void)
+{
+	char **keys, **words;
+	int room, top = 2;
+
+	cls();          /* (s_lines and s_cols: the window's size now) */
+	if (s_cols - 1 >= 72)
+	{
+		keys = help_keys_wide;
+		words = help_words_wide;
+	}
+	else
+	{
+		keys = help_keys_narrow;
+		words = help_words_narrow;
+	}
+	room = s_lines - 2;     /* (and the prompt, and the line typed on) */
+	if (top + help_count(keys) + help_count(words) > room)
+		top = 0;
+	if (help_count(keys) + help_count(words) > room)
+		keys = NULL;
+	if (help_count(words) > room)
+		words = NULL;
+	while (top-- > 0)
+		putchar('\n');
+	help_print(keys);
+	help_print(words);
+	printf("Enter Search word(s) here:\n");
+}
+
 /* Purpose: the label shown beside entry number "tag" in a list */
 static int tag_label(int tag)
 {
@@ -2528,33 +2663,7 @@ int main(int argc, char **argv)
                         }
                         break;
                 case 's':
-cls();
-printf("\n\nSearch line editing keys:\n");
-#ifdef ARROWKEYS
-printf("Up    or CTRL-g  get previous search   Left  or CTRL-b  back\n");
-printf("Down  or CTRL-v  view next search      Right or CTRL-f  forward\n");
-#else
-printf("CTRL-g  get previous search            CTRL-b  back\n");
-printf("CTRL-v  view next search               CTRL-f  forward\n");
-#endif
-#ifdef USE_NCURSES /* Home, End and Delete are read from terminfo */
-printf("Home, CTRL-a or CTRL-x  beginning      End, CTRL-e or CTRL-r  end\n");
-printf("CTRL-u  undo line                      Delete or CTRL-d  delete\n");
-#else
-printf("CTRL-a or CTRL-x  beginning            CTRL-e or CTRL-r  end\n");
-printf("CTRL-u  undo line                      CTRL-d  delete\n");
-#endif
-printf("\nPrefix bookname with \"@\", as in: @Genesis\n");
-printf("A group of books with \"=\", as in: =nt  =ot  =gospels  =rom..phile\n");
-printf("Words alone are a phrase, as in: in the beginning\n");
-printf("Use postfix (reverse Polish) notation to combine words with operators:\n");
-printf("   0  and (same verse)     N  within N verses      ,  or\n");
-printf("   -  and not             +N  exactly N after      .  phrase: next word\n");
-printf("                          -N  exactly N before\n");
-printf("                          ~N  exactly N apart\n");
-printf("For example, \"love\" and \"hate\" within two verses in Matthew:\n");
-printf("        love hate 2 @Mat 0\n\n");
-printf("Enter Search word(s) here:\n");
+                        search_help();
                         verse_list = process_words();
                         if (verse_list == NULL) /* blank, or not valid */
                                 break;

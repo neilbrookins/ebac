@@ -143,6 +143,23 @@ for (const [name, view] of [
 
         // the touch gestures (gestures.js), on the phone
         if (view.hasTouch) {
+            // S, then the keyboard (the window shorter, 28 rows or so): the
+            // search screen's help fits, its first line still on the screen
+            await keys(page, "s");
+            await check(page, "S: the search screen", "Enter Search word(s) here:");
+            await page.setViewport({ ...view, height: 450 });
+            await sleep(1500);
+            const sl = (await screen(page)).split("\n");
+            const fits = sl.some(l => l.startsWith("Search line editing keys:")) &&
+                         sl.some(l => l.startsWith("Enter Search word(s) here:")) &&
+                         sl.every(l => !l.startsWith("TRL") && !l.startsWith("e or CTRL"));
+            const rowsNow = await page.evaluate(() => window.term.rows);
+            console.log(`${fits ? "ok  " : "FAIL"} the search screen fits ${rowsNow} rows, its first line kept`);
+            if (!fits) failed++;
+            await page.keyboard.press("Enter");     // (a blank search: back)
+            await page.setViewport(view);
+            await sleep(1000);
+            await check(page, "back to the main menu", "Main Menu");
             const mode = () => page.evaluate(() => window.ebacGestureMode());
             const menu = await mode();
             console.log(`${menu === "menu" ? "ok  " : "FAIL"} gestures: EBaC says it shows the main menu (${menu})`);
