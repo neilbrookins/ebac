@@ -102,6 +102,20 @@ for (const [name, view] of [
         await keys(page, "3\r");
         await keys(page, "16\r");
         await check(page, "V: John 3:16", "For God so loved");
+        // the window made shorter and taller again, as a phone's keyboard
+        // coming and going does: EBaC draws the passage again each time,
+        // with no key pressed (its heading on the top line; the screen full)
+        for (const [what, height] of [["shorter", Math.round(view.height * 0.55)], ["taller again", view.height]]) {
+            await page.setViewport({ ...view, height });
+            await sleep(1500);
+            const lines = (await screen(page)).split("\n");
+            const rows = await page.evaluate(() => window.term.rows);
+            const used = lines.filter(l => l.trim()).length;
+            const ok = lines[0].includes("John") && used >= rows - 8;
+            console.log(`${ok ? "ok  " : "FAIL"} the window ${what} (${rows} rows): drawn again at once` +
+                        ` (top line "${lines[0].trim().slice(0, 20)}", ${used} lines used)`);
+            if (!ok) failed++;
+        }
         await keys(page, "x");
         await sleep(500);
         await keys(page, "x");
