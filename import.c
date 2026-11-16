@@ -1598,10 +1598,25 @@ static int remove_one(const char *name)
                 return (-1);
         }
         free(rest.s);
-        if (remove_all(folder) != 0)
+        /* (out of the folder while it is deleted: EBaC may be in it, the
+           translation it shows, and some systems, as a browser's, won't
+           delete the folder a program is in; then back, if it is still
+           there) */
         {
-                sprintf(problem, "couldn't delete the folder %s", name);
-                return (-1);
+                char was[1200];
+                int back = getcwd(was, sizeof(was)) != NULL && chdir(here) == 0;
+                int ok = remove_all(folder) == 0;
+
+                if (back && chdir(was) != 0)
+                {
+                        /* (it was the folder deleted: EBaC changes
+                           translation next) */
+                }
+                if (!ok)
+                {
+                        sprintf(problem, "couldn't delete the folder %s", name);
+                        return (-1);
+                }
         }
         (void) f;
         printf("%s: removed.\n", name);
