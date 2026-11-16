@@ -28,9 +28,6 @@ jobs:
         run: sh web/build.sh
       - name: Test in a browser
         run: node web/test.mjs web/build/site
-      - name: Experiment, the first search
-        if: github.ref == 'refs/heads/web'
-        run: node web/firstsearch.mjs web/build/site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/build/site

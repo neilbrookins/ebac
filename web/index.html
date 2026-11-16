@@ -7,12 +7,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- (interactive-widget: a phone's keyboard makes the page itself shorter,
+     not just covers it; see the style for html and body) -->
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>EBaC</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="xterm.css">
 <style>
-  html, body { margin: 0; height: 100%; background: #000; }
+  /* The page never scrolls: it is the terminal, fitted to the part above
+     a phone's keyboard. (On a phone, the browser scrolled the page up to
+     show the terminal's typing box as the keyboard came, cutting off the
+     top of the screen and leaving rows blank at the bottom, as on the
+     first search after the page opened: found by the designer.) */
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { position: fixed; inset: 0; }
   /* (laid out as ttyd's page: gestures.js sizes #terminal-container to
      the part of the page above a phone's keyboard, then sends "resize") */
   #terminal-container { width: 100%; height: 100%; margin: 0 auto; padding: 0; }
@@ -58,6 +66,10 @@
   term.loadAddon(master);
   fit.fit();
   window.addEventListener("resize", () => fit.fit());
+  // (and should the browser scroll it anyway, as it shows the keyboard)
+  const unscroll = () => { if (window.scrollY || window.scrollX) window.scrollTo(0, 0); };
+  window.addEventListener("scroll", unscroll);
+  if (window.visualViewport) window.visualViewport.addEventListener("scroll", unscroll);
   window.term = term;           // (gestures.js finds the terminal here)
   term.focus();
 
