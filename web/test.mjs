@@ -81,16 +81,22 @@ for (const [name, view] of [
         const size = await page.evaluate(() => [window.term.rows, window.term.cols]);
         console.log(`     the terminal has ${size[0]} rows, ${size[1]} columns`);
         // EBaC's own idea of the size, as its Information screen says
+        // EBaC's own idea of the size: on the Information screen's
+        // diagnostic page (pressing on, page by page, until it comes)
         await keys(page, "i");
         await check(page, "I: the Information screen", "Electronic Bible and Concordance");
-        await keys(page, " ");
-        if (await check(page, "its second page, the diagnostic information", "Window:")) {
-            const m = (await screen(page)).match(/Window: +(\d+) rows, (\d+) columns/);
-            const ok = m && +m[1] === size[0] && +m[2] === size[1];
-            console.log(`${ok ? "ok  " : "FAIL"} EBaC is told the same size` + (m ? ` (${m[1]} rows, ${m[2]} columns)` : ""));
-            if (!ok) failed++;
+        let m = null;
+        for (let i = 0; i < 6 && !m; i++) {
+            m = (await screen(page)).match(/Window: +(\d+) rows, (\d+) columns/);
+            if (!m) { await keys(page, " "); await sleep(500); }
         }
-        await keys(page, " ");
+        const same = m && +m[1] === size[0] && +m[2] === size[1];
+        console.log(`${same ? "ok  " : "FAIL"} EBaC is told the same size` +
+                    (m ? ` (${m[1]} rows, ${m[2]} columns)` : ": no Window line found"));
+        if (!same) failed++;
+        for (let i = 0; i < 6 && !(await screen(page)).includes("Main Menu"); i++) {
+            await keys(page, " "); await sleep(500);
+        }
         await check(page, "back to the main menu", "Main Menu");
         await keys(page, "v");
         await keys(page, "john\r");
