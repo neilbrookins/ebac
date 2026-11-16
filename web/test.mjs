@@ -52,7 +52,14 @@ async function check(page, name, text) {
 }
 async function keys(page, s) {
     for (const ch of s) {
-        await page.keyboard.sendCharacter(ch === "\r" ? "\r" : ch);
+        if (ch === "\r")
+            await page.keyboard.press("Enter");
+        else if (ch === "\x0c") {             // Ctrl-L
+            await page.keyboard.down("Control");
+            await page.keyboard.press("l");
+            await page.keyboard.up("Control");
+        } else
+            await page.keyboard.sendCharacter(ch);
         await sleep(60);
     }
 }
@@ -66,6 +73,8 @@ for (const [name, view] of [
     const errors = [];
     page.on("pageerror", e => errors.push(String(e)));
     page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
+    page.on("requestfailed", r => errors.push("failed: " + r.url()));
+    page.on("response", r => { if (r.status() >= 400) errors.push(`${r.status()}: ${r.url()}`); });
     await page.setViewport(view);
     await page.goto("http://localhost:8097/", { waitUntil: "load" });
     if (await check(page, "the main menu", "Main Menu")) {

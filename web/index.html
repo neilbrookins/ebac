@@ -7,6 +7,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>EBaC</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="xterm.css">
 <style>
   html, body { margin: 0; height: 100%; background: #000; }
@@ -26,7 +27,9 @@
   import initEbac from "./ebac.mjs";
 
   // white on black, as the Docker image's and the Home Assistant app's page
+  // (13 pixels, as ttyd's: 50 columns on a phone, as EBaC's screens are made for)
   const term = new Terminal({
+    fontSize: 13,
     theme: { foreground: "#ffffff", background: "#000000", cursor: "#ffffff",
              cursorAccent: "#000000", selectionBackground: "#5a5a5a",
              white: "#ffffff", brightWhite: "#ffffff" },
