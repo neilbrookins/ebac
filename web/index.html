@@ -97,13 +97,14 @@
     if (e.reason && e.reason.name === "ExitStatus") e.preventDefault();
   });
 
-  // EBaC's home folder, where it keeps the search history (.ebac_log), is
-  // kept in the browser's storage for this site (IndexedDB), so it is
-  // there the next time: read back before EBaC starts, and saved whenever
-  // it may have changed. (Without that storage, as in a private window,
-  // it lasts only while the page is open.)
-  const HOME = "/home/web_user";
-  let FS = null, saving = false, again = false;
+  // EBaC's home folder, where it keeps the search history (.ebac_log), and
+  // its folder of translations (BIBLEROOT), where A adds them, are kept in
+  // the browser's storage for this site (IndexedDB), so they are there the
+  // next time: read back before EBaC starts, and saved whenever they may
+  // have changed. (Without that storage, as in a private window, they last
+  // only while the page is open.)
+  const HOME = "/home/web_user", ROOT = "/ebac", SITE = "/ebac-site";
+  let ebac = null, FS = null, saving = false, again = false;
   function save() {
     if (!FS) return;
     if (saving) { again = true; return; }
@@ -125,25 +126,69 @@
     wait();
   });
 
+  // The translations that come with the site (in SITE), copied into EBaC's
+  // folder: the first time, and again when the site is newer than the ones
+  // there (each replaced, its line in trans too; the translations added
+  // with A, and the order of trans, kept). Then SITE is let go of.
+  function siteTranslations(fs) {
+    const read = (p) => { try { return fs.readFile(p, { encoding: "utf8" }); } catch (e) { return null; } };
+    const isDir = (p) => { try { return fs.isDir(fs.stat(p).mode); } catch (e) { return false; } };
+    const names = (p) => fs.readdir(p).filter((n) => n !== "." && n !== "..");
+    const remove = (p) => {
+      if (isDir(p)) { names(p).forEach((n) => remove(p + "/" + n)); fs.rmdir(p); }
+      else fs.unlink(p);
+    };
+    const copy = (from, to) => {
+      if (isDir(from)) { fs.mkdir(to); names(from).forEach((n) => copy(from + "/" + n, to + "/" + n)); }
+      else fs.writeFile(to, fs.readFile(from));
+    };
+    const site = read(SITE + "/.site");
+    if (site !== null && site !== read(ROOT + "/.site")) {
+      const lines = (t) => (t || "").split("\n").filter((l) => l.trim());
+      const first = (l) => l.split(/\s/)[0];
+      const theirs = lines(read(SITE + "/trans"));
+      let trans = lines(read(ROOT + "/trans"));
+      for (const line of theirs) {
+        const name = first(line);
+        if (isDir(ROOT + "/" + name)) remove(ROOT + "/" + name);
+        copy(SITE + "/" + name, ROOT + "/" + name);
+        const at = trans.findIndex((l) => first(l) === name);
+        if (at >= 0) trans[at] = line; else trans.push(line);
+      }
+      fs.writeFile(ROOT + "/trans", trans.join("\n") + "\n");
+      fs.writeFile(ROOT + "/.site", site);
+    }
+    if (isDir(SITE)) remove(SITE);
+  }
+
   initEbac({
     pty: slave,
     preRun: [(m) => {
-      m.ENV.BIBLEROOT = "/ebac";
+      ebac = m;
+      m.ENV.BIBLEROOT = ROOT;
       m.ENV.TERM = "xterm";
       m.ENV.EBAC_GESTURES = "1";      // EBaC says which screen it shows
+      m.FS.mkdir(ROOT);
       try {
         m.FS.mount(m.FS.filesystems.IDBFS, {}, HOME);
-        m.addRunDependency("home");
+        m.FS.mount(m.FS.filesystems.IDBFS, {}, ROOT);
+        m.addRunDependency("storage");
         m.FS.syncfs(true, (err) => {
           if (err) console.warn("EBaC: the browser's storage can't be read:", err);
           FS = m.FS;
-          m.removeRunDependency("home");
+          m.removeRunDependency("storage");
         });
       } catch (err) {
         console.warn("EBaC: no storage in this browser:", err);
       }
     }],
-    onRuntimeInitialized: () => document.getElementById("loading").remove(),
+    // (after the storage is read and the site's files are in, before EBaC
+    // starts)
+    onRuntimeInitialized() {
+      siteTranslations(ebac.FS);
+      document.getElementById("loading").remove();
+      save();
+    },
     onExit: ebacEnded,
   });
 </script>

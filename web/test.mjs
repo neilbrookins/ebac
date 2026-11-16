@@ -1,7 +1,8 @@
 // test.mjs SITE -- EBaC in a web browser, in headless Chrome: serves the
 // built site (web/build/site), opens it at a desktop's size and a phone's,
 // and checks that the main menu comes, a verse can be read (V, John 3:16),
-// a search finds (S, jesus wept), and a resize changes EBaC's width.
+// a search finds (S, jesus wept), and a resize changes EBaC's width; and
+// that A adds a translation (from GitHub) that is kept, and removes it.
 // Prints each screen it checks. Exits 1 if any check fails.
 //
 //   node web/test.mjs web/build/site     (puppeteer-core; CHROME: the browser)
@@ -41,8 +42,8 @@ async function waitFor(page, text, ms = 20000) {
     }
     return false;
 }
-async function check(page, name, text) {
-    const ok = await waitFor(page, text);
+async function check(page, name, text, ms) {
+    const ok = await waitFor(page, text, ms);
     console.log(`${ok ? "ok  " : "FAIL"} ${name}`);
     if (!ok) {
         failed++;
@@ -214,6 +215,68 @@ for (const [name, view] of [
             await check(page, "and finds it again", "11:35");
             await keys(page, "x");
             await check(page, "back to the main menu", "Main Menu");
+
+            // A, T: a translation added (downloaded, from thiagobodruk/bible
+            // on GitHub), kept in the browser's storage, so it is there when
+            // EBaC starts again; then removed, and gone the next time.
+            // (Once: the phone's page has the same storage.)
+            if (!view.hasTouch) {
+                const restart = async () => {
+                    await keys(page, "e");
+                    await sleep(1000);
+                    await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.keyboard.press("Enter")]);
+                };
+                await keys(page, "a");
+                await check(page, "A: where from?", "Where from?");
+                await keys(page, "t");
+                await check(page, "T: the languages (from GitHub)", "Choose a language", 60000);
+                await keys(page, "2\r");
+                await check(page, "2: Afrikaans", "AFR53-TB");
+                await keys(page, "1\r");
+                await check(page, "1: its license", "Do you agree to these terms (y/n)?");
+                await keys(page, "y\r");
+                await check(page, "y: downloaded, written, indexed", "Press any key to go back to EBaC.", 180000);
+                await check(page, "the index was built", "is ready");
+                await keys(page, " ");
+                await check(page, "back to EBaC, with it", "Selected translation: AFR53-TB");
+                await restart();
+                await check(page, "EBaC started again: it is still there", "Selected translation: AFR53-TB");
+                await keys(page, "v");
+                await keys(page, "john\r");
+                await keys(page, "3\r");
+                await keys(page, "16\r");
+                await check(page, "V: John 3:16 in it", "Want so lief het God");
+                await keys(page, "x");
+                await sleep(500);
+                await keys(page, "x");
+                await check(page, "back to the main menu", "Main Menu");
+                await keys(page, "a");
+                await keys(page, "t");
+                await check(page, "A, T: the languages", "Choose a language", 60000);
+                await keys(page, "2\r");
+                await check(page, "2: Afrikaans, added already", "* 1) AFR53-TB");
+                await keys(page, "r1\r");
+                await check(page, "r1: removed", "AFR53-TB: removed.");
+                await keys(page, " ");
+                await check(page, "back to EBaC, with the AV", "Selected translation: AV");
+                await restart();
+                await check(page, "EBaC started again: still the AV", "Selected translation: AV");
+                const left = await page.evaluate(() => new Promise((resolve) => {
+                    const r = indexedDB.open("/ebac");
+                    r.onsuccess = () => {
+                        const db = r.result, out = [];
+                        const c = db.transaction(db.objectStoreNames[0]).objectStore(db.objectStoreNames[0]).openCursor();
+                        c.onsuccess = (e) => {
+                            const cur = e.target.result;
+                            if (cur) { if (String(cur.key).startsWith("/ebac/AFR53-TB")) out.push(cur.key); cur.continue(); }
+                            else resolve(out.length);
+                        };
+                    };
+                    r.onerror = () => resolve(-1);
+                }));
+                console.log(`${left === 0 ? "ok  " : "FAIL"} and its files are gone from the browser's storage (${left} left)`);
+                if (left !== 0) failed++;
+            }
         }
     }
     if (errors.length) {

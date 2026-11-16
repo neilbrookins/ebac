@@ -31,8 +31,14 @@ the text (about 15 megabytes).
 - **The end**: E on the main menu ends EBaC; the page then says so, and
   Enter or a tap starts it again, as ttyd's page offers to reconnect.
 - **The files**: the AV and its concordance index, built natively by
-  `index` as for every build, packed into `ebac.data` and read from memory
-  as EBaC's folder (`BIBLEROOT=/ebac`).
+  `index` as for every build, packed into `ebac.data`, and copied into
+  EBaC's folder (`BIBLEROOT=/ebac`) the first time, and again when the
+  site is newer.
+- **The browser's storage** (IndexedDB): EBaC's folder and its home
+  folder are kept there, so the search history, and the translations
+  added with A, are there the next time.
+- **Adding translations**: A, then T (thiagobodruk/bible, downloaded
+  from GitHub), by the importer in C, in EBaC itself.
 
 ## Building
 
@@ -48,5 +54,6 @@ from `main`.
 
 ## Not yet
 
-- Adding translations (the importers are shell scripts, which a browser
-  can't run).
+- Adding translations from scrollmapper/bible_databases and Project
+  Gutenberg (their importers are still shell scripts, which a browser
+  can't run; being rewritten in C).

@@ -23,13 +23,16 @@ make --no-print-directory index indexes
 rm -rf "$OUT"
 mkdir -p "$SITE" "$OUT/root"
 
-# The files EBaC reads, as its folder (BIBLEROOT) has them: the King James
-# Version, for now, with its index.
-cp -RL AV "$OUT/root/AV"
-grep '^AV ' trans > "$OUT/root/trans"
-
 # The version, as the Information screen shows it
 COMMIT=$(git log -1 --format='%h, %cs' 2>/dev/null || sed -n '/Format/!s/^commit //p' version.txt)
+
+# The translations that come with the site, as EBaC's folder (BIBLEROOT)
+# has them: the King James Version, for now, with its index. The page
+# copies them into EBaC's folder in the browser's storage (see index.html),
+# again when the site is newer (.site: which site they came with).
+cp -RL AV "$OUT/root/AV"
+grep '^AV ' trans > "$OUT/root/trans"
+printf '%s\n' "$COMMIT" > "$OUT/root/.site"
 
 emcc -O2 -Wall -Wextra -DUNIXV -DNORAMDISK -DXTERM_BUILTIN \
     -DEBAC_COMMIT="\"$COMMIT\"" -DEBAC_PACKAGE='"web browser"' \
@@ -39,13 +42,14 @@ emcc -O2 -Wall -Wextra -DUNIXV -DNORAMDISK -DXTERM_BUILTIN \
     -sEXPORTED_RUNTIME_METHODS=ENV,FS,addRunDependency,removeRunDependency \
     -lidbfs.js \
     --js-library="$NM/xterm-pty/emscripten-pty.js" \
-    --preload-file "$OUT/root@/ebac" \
+    --preload-file "$OUT/root@/ebac-site" \
     -o "$SITE/ebac.mjs"
 
 # The page, and what it loads (all served from the site itself); the
 # touch gestures are the Docker image's and the Home Assistant app's own.
 # (EXIT_RUNTIME, above: so the page hears when EBaC ends, and says so;
-# idbfs: the browser's storage, IndexedDB, for EBaC's home folder.)
+# idbfs: the browser's storage, IndexedDB, for EBaC's home folder and
+# its folder of translations.)
 cp web/index.html docker/gestures.js "$SITE/"
 cp "$NM/@xterm/xterm/lib/xterm.js" "$NM/@xterm/xterm/css/xterm.css" "$SITE/"
 cp "$NM/@xterm/addon-fit/lib/addon-fit.js" "$SITE/"
