@@ -37,12 +37,15 @@
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   term.open(document.getElementById("terminal"));
-  fit.fit();
-  window.addEventListener("resize", () => fit.fit());
   window.term = term;
 
+  // The pty first, then the fit: the pty learns the terminal's size only
+  // when it changes, and takes 80 by 24 until then, so a fit made before
+  // it was there went unseen, and EBaC laid out a phone's screens 80 wide.
   const { master, slave } = openpty();
   term.loadAddon(master);
+  fit.fit();
+  window.addEventListener("resize", () => fit.fit());
   term.focus();
 
   initEbac({

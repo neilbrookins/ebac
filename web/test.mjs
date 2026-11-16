@@ -78,8 +78,18 @@ for (const [name, view] of [
     await page.setViewport(view);
     await page.goto("http://localhost:8097/", { waitUntil: "load" });
     if (await check(page, "the main menu", "Main Menu")) {
-        const cols = await page.evaluate(() => window.term.cols);
-        console.log(`     the terminal has ${cols} columns`);
+        const size = await page.evaluate(() => [window.term.rows, window.term.cols]);
+        console.log(`     the terminal has ${size[0]} rows, ${size[1]} columns`);
+        // EBaC's own idea of the size, as its Information screen says
+        await keys(page, "i");
+        if (await check(page, "I: the Information screen", "Window:")) {
+            const m = (await screen(page)).match(/Window: +(\d+) rows, (\d+) columns/);
+            const ok = m && +m[1] === size[0] && +m[2] === size[1];
+            console.log(`${ok ? "ok  " : "FAIL"} EBaC is told the same size` + (m ? ` (${m[1]} rows, ${m[2]} columns)` : ""));
+            if (!ok) failed++;
+        }
+        await keys(page, " ");
+        await check(page, "back to the main menu", "Main Menu");
         await keys(page, "v");
         await keys(page, "john\r");
         await keys(page, "3\r");
