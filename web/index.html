@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- EBaC in a web browser: the C program compiled to WebAssembly (ebac.mjs,
+     ebac.wasm, and its files in ebac.data), running in this page, in
+     xterm.js, with xterm-pty for its terminal. See web/README.md. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EBaC</title>
+<link rel="stylesheet" href="xterm.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; }
+  #terminal { width: 100%; height: 100%; }
+  #terminal .terminal { padding: 5px; height: calc(100% - 10px); }
+  #loading { position: fixed; top: 1em; left: 1em; color: #fff;
+             font: 16px sans-serif; }
+</style>
+</head>
+<body>
+<div id="loading">Loading EBaC&hellip;</div>
+<div id="terminal"></div>
+<script src="xterm.js"></script>
+<script src="addon-fit.js"></script>
+<script type="module">
+  import { openpty } from "./xterm-pty.mjs";
+  import initEbac from "./ebac.mjs";
+
+  // white on black, as the Docker image's and the Home Assistant app's page
+  const term = new Terminal({
+    theme: { foreground: "#ffffff", background: "#000000", cursor: "#ffffff",
+             cursorAccent: "#000000", selectionBackground: "#5a5a5a",
+             white: "#ffffff", brightWhite: "#ffffff" },
+  });
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.open(document.getElementById("terminal"));
+  fit.fit();
+  window.addEventListener("resize", () => fit.fit());
+  window.term = term;
+
+  const { master, slave } = openpty();
+  term.loadAddon(master);
+  term.focus();
+
+  initEbac({
+    pty: slave,
+    preRun: [(m) => {
+      m.ENV.BIBLEROOT = "/ebac";
+      m.ENV.TERM = "xterm";
+    }],
+    onRuntimeInitialized: () => document.getElementById("loading").remove(),
+  });
+</script>
+</body>
+</html>

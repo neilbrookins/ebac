@@ -1,0 +1,48 @@
+#!/bin/sh
+# Build EBaC to run in a web browser, with nothing on a server but files
+# (see web/README.md): the same C source, compiled to WebAssembly by
+# Emscripten, in a page with xterm.js, the terminal ttyd uses, and
+# xterm-pty, which gives the compiled program a terminal (keys, raw mode,
+# the window's size) in the page.
+#
+# Needs: Emscripten (emcc) on the PATH; make and a C compiler, to build the
+# concordance index natively first; and, in web/node_modules (npm install
+# in web/), @xterm/xterm, @xterm/addon-fit and xterm-pty.
+#
+#   sh web/build.sh            the site, in web/build/site
+set -e
+cd "$(dirname "$0")/.."
+OUT=web/build
+SITE=$OUT/site
+NM=web/node_modules
+
+# The concordance index (each translation's .dat files): built by the
+# native index program, as for every other build; the browser only reads it.
+make --no-print-directory index indexes
+
+rm -rf "$OUT"
+mkdir -p "$SITE" "$OUT/root"
+
+# The files EBaC reads, as its folder (BIBLEROOT) has them: the King James
+# Version, for now, with its index.
+cp -RL AV "$OUT/root/AV"
+grep '^AV ' trans > "$OUT/root/trans"
+
+# The version, as the Information screen shows it
+COMMIT=$(git log -1 --format='%h, %cs' 2>/dev/null || sed -n '/Format/!s/^commit //p' version.txt)
+
+emcc -O2 -Wall -Wextra -DUNIXV -DNORAMDISK -DXTERM_BUILTIN \
+    -DEBAC_COMMIT="\"$COMMIT\"" -DEBAC_PACKAGE='"web browser"' \
+    bible.c file.c userint.c process.c curses.c utf8.c \
+    -sASYNCIFY -sFORCE_FILESYSTEM -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web \
+    -sEXPORTED_RUNTIME_METHODS=ENV \
+    --js-library="$NM/xterm-pty/emscripten-pty.js" \
+    --preload-file "$OUT/root@/ebac" \
+    -o "$SITE/ebac.mjs"
+
+# The page, and what it loads (all served from the site itself)
+cp web/index.html "$SITE/"
+cp "$NM/@xterm/xterm/lib/xterm.js" "$NM/@xterm/xterm/css/xterm.css" "$SITE/"
+cp "$NM/@xterm/addon-fit/lib/addon-fit.js" "$SITE/"
+cp "$NM/xterm-pty/index.mjs" "$SITE/xterm-pty.mjs"
+ls -l "$SITE"

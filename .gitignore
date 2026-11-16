@@ -10,6 +10,9 @@
 /verses
 /tests/build/
 /coco/build/
+/web/build/
+/web/node_modules/
+/web/package-lock.json
 
 # Concordance index files, made by "make" (see translation.mk)
 *.dat

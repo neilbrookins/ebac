@@ -1,0 +1,13 @@
+{
+  "name": "ebac-web",
+  "private": true,
+  "description": "EBaC in a web browser: what web/build.sh copies into the site, and the test's browser driver",
+  "dependencies": {
+    "@xterm/xterm": "5.5.0",
+    "@xterm/addon-fit": "0.10.0",
+    "xterm-pty": "0.12.0"
+  },
+  "devDependencies": {
+    "puppeteer-core": "23.11.1"
+  }
+}

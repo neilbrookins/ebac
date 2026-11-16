@@ -59,7 +59,89 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>          /* TIOCGWINSZ */
+#ifndef XTERM_BUILTIN
 #include <term.h>
+#else
+/*
+** XTERM_BUILTIN: for a terminal that is always xterm (or one that works as
+** xterm does, such as xterm.js, the terminal in a web page), where there
+** is no terminfo database and no ncurses library to read it: EBaC in a web
+** browser (WebAssembly; see web/README.md). The few capabilities EBaC uses
+** are written in here, as xterm's terminfo entry has them, and stand in
+** for ncurses' functions of the same names; the rest of this file is the
+** same for both. (November 16, 2026.)
+*/
+static struct
+{
+	char    *name;          /* terminfo name */
+	char    *value;         /* xterm's */
+} xterm_caps[] = {
+	{ "smso",  "\033[7m" },  { "rmso",  "\033[27m" },
+	{ "smul",  "\033[4m" },  { "rmul",  "\033[24m" },
+	{ "clear", "\033[H\033[2J" },    { "cuf1",  "\033[C" },
+	{ "smkx",  "\033[?1h\033=" },    { "rmkx",  "\033[?1l\033>" },
+	{ "kcuu1", "\033OA" },   { "kcud1", "\033OB" },
+	{ "kcuf1", "\033OC" },   { "kcub1", "\033OD" },
+	{ "khome", "\033OH" },   { "kend",  "\033OF" },
+	{ "kpp",   "\033[5~" },  { "knp",   "\033[6~" },
+	{ "kdch1", "\033[3~" }
+};
+
+static char *tigetstr(const char *name)
+{
+	int     i;
+
+	for (i = 0; i < (int) (sizeof(xterm_caps) / sizeof(xterm_caps[0])); i++)
+		if (strcmp(xterm_caps[i].name, name) == 0)
+			return xterm_caps[i].value;
+	return NULL;
+}
+
+/* (no padding: xterm needs none) */
+static int tputs(const char *s, int affcnt, int (*out)(int))
+{
+	(void) affcnt;
+	while (*s)
+		out((unsigned char) *s++);
+	return 0;
+}
+
+/* lines and cols: the window's, else $LINES and $COLUMNS, else 24 by 80 */
+static int tigetnum(const char *name)
+{
+	int     lines = 0, cols = 0;
+	char    *e;
+#ifdef TIOCGWINSZ
+	struct winsize size;
+
+	if (ioctl(1, TIOCGWINSZ, &size) == 0)
+	{
+		lines = size.ws_row;
+		cols = size.ws_col;
+	}
+#endif
+	if (lines <= 0 && (e = getenv("LINES")) != NULL)
+		lines = atoi(e);
+	if (cols <= 0 && (e = getenv("COLUMNS")) != NULL)
+		cols = atoi(e);
+	if (strcmp(name, "lines") == 0)
+		return lines > 0 ? lines : 24;
+	return cols > 0 ? cols : 80;
+}
+
+static int setupterm(const char *term, int fd, int *err)
+{
+	(void) term;
+	(void) fd;
+	*err = 1;
+	return 0;
+}
+
+const char *curses_version(void)
+{
+	return "xterm, built in";
+}
+#endif /* XTERM_BUILTIN */
 
 /* variables, publicly available & used in the macros */
 int     s_lines;          /* number of rows */

@@ -1,0 +1,29 @@
+# EBaC in a web browser (web/README.md): the C source compiled to
+# WebAssembly by Emscripten, and tested in headless Chrome.
+name: Web build
+
+on:
+  push:
+    branches: [web]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # (Emscripten's version is pinned: xterm-pty works by changing some of
+      # Emscripten's own functions, and is tested with 3.1.69 and the latest)
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.69
+      - name: The page's parts
+        working-directory: web
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: sh web/build.sh
+      - name: Test in a browser
+        run: node web/test.mjs web/build/site
