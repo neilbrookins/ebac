@@ -893,7 +893,12 @@ char *get_line(int mode)
         }while(c != '\r');
         if (!file_is_closed)
                 mfclose(fp, LOGFILE); /* close file which WAS is read mode */
-        if (mode != DIGITS_MODE) /* Don't log chapt, and verse numbers */
+        /* (Nor a blank line, which only goes back to the main menu: kept,
+           it came first on Up, hiding the search before it.) */
+        for (i = 0; line[i] == ' ' || line[i] == '\t'; i++)
+                ;
+        if (mode != DIGITS_MODE /* Don't log chapt, and verse numbers */
+            && line[i] != '\r' && line[i] != '\n' && line[i] != '\0')
         {
                 fp = mfopen(LOGFILE, APPENDMODE);
                 if (fputs(line, fp) == -1)
