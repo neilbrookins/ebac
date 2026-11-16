@@ -1,10 +1,11 @@
 # EBaC in a web browser (web/README.md): the C source compiled to
-# WebAssembly by Emscripten, and tested in headless Chrome.
+# WebAssembly by Emscripten, tested in headless Chrome, and, from main,
+# published with GitHub Pages (Settings > Pages > Source: GitHub Actions).
 name: Web build
 
 on:
   push:
-    branches: [web]
+    branches: [main, web]
   workflow_dispatch:
 
 jobs:
@@ -27,3 +28,20 @@ jobs:
         run: sh web/build.sh
       - name: Test in a browser
         run: node web/test.mjs web/build/site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/build/site
+
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

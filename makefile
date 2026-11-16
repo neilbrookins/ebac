@@ -54,6 +54,9 @@ endif
 #RFILES= bible.o file.o userint.o process.o cure.o utf8.o
 #LIBS=
 
+#For a web browser (WebAssembly, compiled by Emscripten): see web/README.md
+#and web/build.sh; the same source, with -DUNIXV -DNORAMDISK -DXTERM_BUILTIN.
+
 #If you are using OpenVMS, VAX/VMS:
 #on a VAXstation, using Digital C
 #then use descrip.mms and options_file.opt instead of this file.
