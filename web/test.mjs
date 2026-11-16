@@ -181,6 +181,10 @@ for (const [name, view] of [
         const said = shown.includes("EBaC has ended");
         console.log(`${said ? "ok  " : "FAIL"} E: the page says EBaC has ended`);
         if (!said) failed++;
+        const tapOnly = shown.includes("Tap to start it again") && !shown.includes("\u23CE");
+        const right = view.hasTouch ? tapOnly : shown.includes("\u23CE");
+        console.log(`${right ? "ok  " : "FAIL"} and how to start it again, for ${view.hasTouch ? "a touch screen" : "a keyboard"}: "${shown.replace("EBaC has ended.", "")}"`);
+        if (!right) failed++;
         if (said) {
             await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.keyboard.press("Enter")]);
             await check(page, "Enter: EBaC starts again", "Main Menu");

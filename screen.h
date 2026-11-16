@@ -47,6 +47,8 @@ extern void     scr_end P((void));
 extern void     scr_resume P((void));
 /* readable when the window has been resized (see ugetchar() in file.c) */
 extern int      scr_resize_fd P((void));
+/* whether the window was resized since last asked (see curses.c) */
+extern int      scr_resized P((void));
 /* tell a web terminal page which screen is showing (see curses.c) */
 extern void     scr_mode P((char *name));
 /* the terminal library and its version, such as "ncurses 6.4.20240113" */

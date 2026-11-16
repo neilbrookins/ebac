@@ -162,6 +162,16 @@ static char *termtype;  /* name of terminal entry */
 ** for a key can also be woken by a resize (see scr_resize_fd()).
 */
 static int resize_pipe[2] = { -1, -1 };
+/*
+** And a flag it sets, for a wait the signal interrupts (select() returns
+** EINTR): the reader looks at it then, without depending on select()
+** going on to see the pipe. In a web browser (WebAssembly; web/README.md)
+** the terminal's select() gives up at the keyboard, the first thing it
+** looks at, and never gets to the pipe: so a phone's keyboard coming or
+** going resized the screen, but EBaC drew it again only at the next key
+** (found by the designer, November 16, 2026). See scr_resized().
+*/
+static volatile sig_atomic_t resized = 0;
 static char *mayhave(char *name);
 static char *KS = NULL; /* smkx: keypad transmit mode on */
 static char *KE = NULL; /* rmkx: keypad transmit mode off */
@@ -345,6 +355,7 @@ static void winch(int signo)
 	int saved_errno = errno;
 
 	(void) signo;
+	resized = 1;
 	if (resize_pipe[1] >= 0 && write(resize_pipe[1], "r", 1) < 0)
 	{
 		/* pipe full: a wake-up is already waiting */
@@ -361,6 +372,18 @@ static void winch(int signo)
 int scr_resize_fd(void)
 {
 	return resize_pipe[0];
+}
+
+/*
+** Purpose: whether the window has been resized since this was last asked
+**          (and the answer cleared); for a wait the resize interrupted.
+*/
+int scr_resized(void)
+{
+	int was = resized;
+
+	resized = 0;
+	return was;
 }
 
 /*

@@ -30,7 +30,7 @@
 </head>
 <body>
 <div id="loading">Loading EBaC&hellip;</div>
-<div id="ended"><div>EBaC has ended.<br>Press &#x23CE; or tap to start it again.</div></div>
+<div id="ended"><div>EBaC has ended.<br><span id="again">Press &#x23CE; or click to start it again.</span></div></div>
 <div id="terminal-container"></div>
 <script src="xterm.js"></script>
 <script src="addon-fit.js"></script>
@@ -62,9 +62,12 @@
   term.focus();
 
   // EBaC has ended (E on the main menu): say so, and start it again on
-  // Enter or a tap, as ttyd's page offers to reconnect
+  // Enter, a click or a tap, as ttyd's page offers to reconnect
   const ended = document.getElementById("ended");
   function ebacEnded() {
+    // (on a touch screen, whose keyboard is hidden by now: a tap only)
+    if (window.matchMedia("(pointer: coarse)").matches)
+      document.getElementById("again").textContent = "Tap to start it again.";
     term.options.disableStdin = true;
     term.blur();
     ended.style.display = "flex";

@@ -207,14 +207,23 @@ static int read_key_byte(int timeout)
                 n = select(rfd + 1, &fds, NULL, NULL, NULL);
                 if (n < 0)
                 {
-                        if (errno == EINTR)
-                                continue;
-                        break;          /* fall back to a plain read */
+                        if (errno != EINTR)
+                                break;  /* fall back to a plain read */
+                        /* (interrupted: by a resize? see scr_resized()) */
+                        if (scr_resized())
+                        {
+                                while (read(rfd, junk, sizeof(junk)) > 0)
+                                        ;       /* clear the wake-up(s) */
+                                if (redraw_on_resize)
+                                        return RESIZED;
+                        }
+                        continue;
                 }
                 if (FD_ISSET(rfd, &fds))
                 {
                         while (read(rfd, junk, sizeof(junk)) > 0)
                                 ;       /* clear the wake-up(s) */
+                        (void) scr_resized();   /* (and the flag) */
                         if (redraw_on_resize)
                                 return RESIZED;
                 }
