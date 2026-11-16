@@ -24,6 +24,12 @@ the text (about 15 megabytes).
   the window's size, and a signal when it changes. EBaC waits for keys by
   Emscripten's Asyncify, so it needs no special headers from the web
   server (GitHub Pages can't send them).
+- **The touch gestures**: the Docker image's and the Home Assistant app's
+  own, `docker/gestures.js`, unchanged: the page is laid out as ttyd's
+  (`#terminal-container`), and EBaC runs with `EBAC_GESTURES`, so it says
+  which screen it shows.
+- **The end**: E on the main menu ends EBaC; the page then says so, and
+  Enter or a tap starts it again, as ttyd's page offers to reconnect.
 - **The files**: the AV and its concordance index, built natively by
   `index` as for every build, packed into `ebac.data` and read from memory
   as EBaC's folder (`BIBLEROOT=/ebac`).
@@ -44,4 +50,3 @@ from `main`.
 
 - Adding translations (the importers are shell scripts, which a browser
   can't run).
-- The touch gestures of the Docker and Home Assistant page (gestures.js).
