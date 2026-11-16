@@ -30,6 +30,7 @@ A step "<resize ROWSxCOLS>" resizes the window instead of typing.
 """
 import glob
 import os
+import re
 import pty
 import select
 import shutil
@@ -274,6 +275,9 @@ def main():
                 # compare with them blanked out
                 out = out.replace(os.path.abspath(binary).encode(), b"<program>")
                 out = out.replace(home.encode(), b"<home>")
+                # and the terminal library, which differs between ncurses and
+                # the built-in xterm (XTERM_BUILTIN; see make test)
+                out = re.sub(rb"Terminal library: [^\r\n]*", b"Terminal library: <library>", out)
                 res[tag] = (out, exited)
 
             # run both builds at the same time, each in its own terminal

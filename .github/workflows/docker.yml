@@ -75,6 +75,9 @@ jobs:
           # The plain terminal: EBaC starts, and Q at the main menu ends it
           printf 'q' | timeout 20 docker run -i --rm -e TERM=dumb ebac:test terminal > term.txt 2>&1 || true
           cat term.txt | head -20
+          # The web page's program needs no ncurses (bible-xterm); the plain
+          # terminal's does (bible)
+          docker run --rm --entrypoint sh ebac:test -c '! ldd /usr/share/ebac/bible-xterm | grep -q ncurses && ! ldd /usr/share/ebac/ebac-api | grep -q ncurses && ldd /usr/share/ebac/bible | grep -q ncurses'
           # Built for the commit
           docker run --rm --entrypoint sh ebac:test -c 'strings /usr/share/ebac/bible | grep -F "${{ steps.commit.outputs.short }}"'
 

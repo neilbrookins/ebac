@@ -32,9 +32,9 @@ WORKDIR /src
 COPY . .
 RUN if [ -n "$EBAC_COMMIT" ]; then set -- EBAC_COMMIT="$EBAC_COMMIT"; else set --; fi \
     && git config --global --add safe.directory /src \
-    && make "$@" EBAC_PACKAGE="Docker" \
+    && make "$@" EBAC_PACKAGE="Docker" all bible-xterm \
     && mkdir -p /out \
-    && cp bible ebac-api ebac-admin index importer.sh add-thiagobodruk.sh add-scrollmapper.sh add-gutenberg.sh trans groups groups.* spoken said /out/ \
+    && cp bible bible-xterm ebac-api ebac-admin index importer.sh add-thiagobodruk.sh add-scrollmapper.sh add-gutenberg.sh trans groups groups.* spoken said /out/ \
     && cat index.c both.h utf8.c utf8.h | sha256sum | cut -c1-64 > /out/index.version
 
 # ---- Stage 2: the King James text, with its index ----
@@ -59,8 +59,10 @@ FROM ${ALPINE}
 # below are installed afresh at most once a week, for Alpine's fixes;
 # within the week, each version of the image shares the same layer.
 ARG PACKAGES_REFRESH=
-# ttyd: the web terminal. ncurses-terminfo-base: its terminal
-# (xterm-256color). curl and ca-certificates: the translation importers'
+# ttyd: the web terminal. ncurses-libs and ncurses-terminfo-base: for
+# bible in a plain terminal ("terminal", whose kind isn't known in
+# advance); the web page's bible-xterm needs neither. curl and
+# ca-certificates: the translation importers'
 # downloads. busybox-extras: BusyBox's web server, httpd, which runs
 # ebac-api. tini: a proper first process, so the container stops at once.
 RUN apk add --no-cache ttyd ncurses-libs ncurses-terminfo-base curl ca-certificates \

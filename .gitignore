@@ -1,6 +1,7 @@
 # build output
 *.o
 /bible
+/bible-xterm
 /index
 /split
 /splitmsdos

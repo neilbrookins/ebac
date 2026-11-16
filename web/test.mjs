@@ -188,6 +188,15 @@ for (const [name, view] of [
         if (said) {
             await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.keyboard.press("Enter")]);
             await check(page, "Enter: EBaC starts again", "Main Menu");
+            // the search history, kept from before (S, then Up: the last search)
+            await keys(page, "s");
+            await sleep(500);
+            await page.keyboard.press("ArrowUp");
+            await check(page, "S, Up: the search before EBaC ended is still there", "jesus wept");
+            await page.keyboard.press("Enter");
+            await check(page, "and finds it again", "11:35");
+            await keys(page, "x");
+            await check(page, "back to the main menu", "Main Menu");
         }
     }
     if (errors.length) {

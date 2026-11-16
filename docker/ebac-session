@@ -30,4 +30,13 @@ cd "$HOME" || exit 1
 # touch gestures know which key to send (see gestures.js). (Not in a plain
 # terminal, which would show what it sends.)
 [ "${1:-}" = terminal ] || export EBAC_GESTURES=1
-exec /usr/share/ebac/bible
+
+# The program. In the web page, bible-xterm: ttyd's terminal is always
+# xterm, so it needs no ncurses (curses.c's XTERM_BUILTIN). In a plain
+# terminal, of whatever kind, bible, which asks ncurses. (Whichever is
+# there, if only one is: the Home Assistant app has only bible-xterm.)
+prog=/usr/share/ebac/bible-xterm
+if [ "${1:-}" = terminal ] || [ ! -x "$prog" ]; then
+    [ -x /usr/share/ebac/bible ] && prog=/usr/share/ebac/bible
+fi
+exec "$prog"

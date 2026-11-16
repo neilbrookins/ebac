@@ -105,8 +105,19 @@ bible: $(RFILES)
 # ebac-api: EBaC for other programs (a CGI program; see api.c): the same
 # source as bible, with its own main() and the reference parser.
 APISRC= api.c refparse.c bible.c file.c userint.c process.c curses.c utf8.c
+# (It never draws on a terminal, so it is built without ncurses: curses.c's
+# XTERM_BUILTIN stands in, as in bible-xterm, below.)
 ebac-api: $(APISRC) bible.h both.h screen.h utf8.h refparse.h version.stamp
-	$(CC) $(CPPFLAGS) $(CFLAGS) -Wno-unused-function $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DEBAC_API $(LDFLAGS) -o ebac-api $(APISRC) $(LIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wno-unused-function -DXTERM_BUILTIN $(VERSION_FLAGS) -DEBAC_API $(LDFLAGS) -o ebac-api $(APISRC)
+
+# bible-xterm: the program for a terminal known to be xterm, without
+# ncurses: curses.c's XTERM_BUILTIN gives it xterm's few capabilities. For
+# ttyd's web page (xterm.js), in the Docker image and the Home Assistant
+# app, as in a web browser (web/README.md); a terminal of any other kind,
+# or of a kind not known in advance, needs bible, with ncurses.
+XTERMSRC= bible.c file.c userint.c process.c curses.c utf8.c
+bible-xterm: $(XTERMSRC) bible.h both.h screen.h utf8.h version.stamp
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DXTERM_BUILTIN $(VERSION_FLAGS) $(LDFLAGS) -o bible-xterm $(XTERMSRC)
 
 index: index.c utf8.c utf8.h both.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(OD)index index.c utf8.c
@@ -132,7 +143,9 @@ verses: verses.c
 # Test: build the program twice, once with NORAMDISK (results kept in
 # memory) and once with RAMDISK (results kept in temporary files), and
 # check that both produce byte-for-byte identical screens for a set of
-# scripted sessions. Any change to the code must keep them identical.
+# scripted sessions. Any change to the code must keep them identical. Then
+# the same for the build without ncurses (XTERM_BUILTIN, as bible-xterm),
+# against the first, but the Information screen's terminal library.
 # Then that a book's whole name chooses it, though other names begin so
 # (tests/booknames.py), in both builds and ebac-api; and that a translation
 # added or removed by another EBaC, or by voice, while one runs, neither
@@ -149,6 +162,9 @@ test: $(TESTSRC) bible.h both.h screen.h utf8.h tests/sidebyside.py tests/bookna
 	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DNORAMDISK -o tests/build/noramdisk/bible $(TESTSRC) $(LIBS)
 	$(CC) $(TESTCFLAGS) $(NCURSES_CFLAGS) $(VERSION_FLAGS) -DRAMDISK -o tests/build/ramdisk/bible $(TESTSRC) $(LIBS)
 	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/ramdisk/bible
+	mkdir -p tests/build/xterm
+	$(CC) $(TESTCFLAGS) -DXTERM_BUILTIN $(VERSION_FLAGS) -DNORAMDISK -o tests/build/xterm/bible $(TESTSRC)
+	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/xterm/bible
 	python3 tests/booknames.py tests/build/noramdisk/bible tests/build/ramdisk/bible ebac-api index
 	python3 tests/otherebac.py tests/build/noramdisk/bible tests/build/ramdisk/bible
 
