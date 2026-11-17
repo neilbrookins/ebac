@@ -6,8 +6,9 @@ on a server but files. The page is published with GitHub Pages:
 
 **https://neilbrookins.github.io/ebac/**
 
-It reads the King James Version (AV). The first visit downloads EBaC and
-the text (about 15 megabytes).
+It comes with the King James Version (AV), and A on the main menu adds
+others, from the same three places as every other build. The first visit
+downloads EBaC and the text (about 15 megabytes).
 
 ## How it works
 
@@ -40,8 +41,9 @@ the text (about 15 megabytes).
   folder are kept there, so the search history, and the translations
   added with A, are there the next time.
 - **Adding translations**: A, then T (thiagobodruk/bible) or S
-  (scrollmapper/bible_databases), downloaded from GitHub, by the importer
-  in C, in EBaC itself.
+  (scrollmapper/bible_databases), downloaded from GitHub, or P (Project
+  Gutenberg), downloaded through EBaC's relay (below), by the importer in
+  C, in EBaC itself, as in every other build.
 
 ## Building
 
@@ -54,11 +56,6 @@ the text (about 15 megabytes).
 Emscripten's own functions, and is tested with that version and the
 latest). The workflow builds and tests each change, and publishes the site
 from `main`.
-
-## Not yet
-
-- Adding texts from Project Gutenberg, until its relay is set up (see
-  below): without it, P isn't offered here.
 
 ## The relay to Project Gutenberg
 
@@ -76,13 +73,20 @@ as any program can, and passes it on unchanged, with the header added,
 for EBaC's page only, and only what the importer asks for (an ebook's
 page and its text, from those two sites).
 
-To set it up, in Cloudflare's dashboard: **Workers & Pages**, **Create**,
-**Create Worker**; name it `ebac-gutenberg`; **Deploy**; then **Edit
-code**, replace the code with `relay/gutenberg-relay.js`, and **Deploy**.
-Its address is then `https://ebac-gutenberg.SUBDOMAIN.workers.dev`
-(SUBDOMAIN: the account's). The build takes it from `GUTENBERG_RELAY`
-(the default in `build.sh`, or in the environment); without one, P
-isn't offered.
+EBaC's relay runs at `https://ebac-gutenberg.hybridcarssucklg.workers.dev`,
+the default in `build.sh`. A build takes another from `GUTENBERG_RELAY`
+in the environment; built with `GUTENBERG_RELAY=` (none), P isn't
+offered.
+
+To set one up, in Cloudflare's dashboard: **Compute**, **Workers &
+Pages**, **Create application**, **Start with Hello World!**; name it
+(such as `ebac-gutenberg`); **Deploy**; then **Edit code**, replace the
+code with `relay/gutenberg-relay.js`, and **Deploy**. Its address is
+`https://NAME.SUBDOMAIN.workers.dev` (SUBDOMAIN: the account's own,
+fixed when the account is made). It lets only EBaC's page
+(neilbrookins.github.io) and pages on this computer (`localhost`, for
+`test.mjs`) read through it; another site's copy of the page needs its
+address added to `PAGES` in the relay.
 
 The text itself comes from the mirror first (run by Project Gutenberg,
 and the same file, byte for byte), and from www.gutenberg.org only if
