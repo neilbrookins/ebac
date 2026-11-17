@@ -3,7 +3,8 @@
 // and checks that the main menu comes, a verse can be read (V, John 3:16),
 // a search finds (S, jesus wept), and a resize changes EBaC's width; and
 // that A adds a translation (from GitHub) that is kept, and removes it,
-// and lists scrollmapper/bible_databases's languages.
+// lists scrollmapper/bible_databases's languages, and adds a text from
+// Project Gutenberg through EBaC's relay.
 // Prints each screen it checks. Exits 1 if any check fails.
 //
 //   node web/test.mjs web/build/site     (puppeteer-core; CHROME: the browser)
@@ -327,6 +328,39 @@ for (const [name, view] of [
                 await check(page, "S: its languages (from GitHub)", "Ancient Hebrew", 60000);
                 await keys(page, "\r");
                 await check(page, "Enter: back to EBaC", "Main Menu");
+
+                // A, P: a text from Project Gutenberg, by its ebook number,
+                // through EBaC's relay (web/relay: Gutenberg's sites don't
+                // let a page read them); from its mirror while
+                // www.gutenberg.org is down. Added, read, and removed.
+                await keys(page, "a");
+                await check(page, "A: where from? (P too)", "P)roject Gutenberg");
+                await keys(page, "p");
+                await check(page, "P: its ebook number", "Ebook number (Enter alone: back):");
+                await keys(page, "17\r");
+                await check(page, "17: its license", "Do you agree to these terms (y/n)?", 180000);
+                await keys(page, "y\r");
+                await check(page, "y: downloaded (through the relay), written, indexed",
+                            "Press any key to go back to EBaC.", 180000);
+                await check(page, "the Book of Mormon is ready", "BOM-PG: done.");
+                await keys(page, " ");
+                await check(page, "back to EBaC, with it", "Selected translation: BOM-PG");
+                await keys(page, "v");
+                await keys(page, "1 nephi\r");
+                await keys(page, "1\r");
+                await keys(page, "1\r");
+                await check(page, "V: 1 Nephi 1:1", "having been born of goodly parents");
+                await keys(page, "x");
+                await sleep(500);
+                await keys(page, "x");
+                await check(page, "back to the main menu", "Main Menu");
+                await keys(page, "a");
+                await keys(page, "p");
+                await check(page, "A, P: it is listed", "Added from Project Gutenberg:");
+                await keys(page, "r1\r");
+                await check(page, "r1: removed", "BOM-PG: removed.");
+                await keys(page, " ");
+                await check(page, "back to EBaC, with the AV", "Selected translation: AV");
             }
         }
     }

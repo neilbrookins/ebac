@@ -37,7 +37,7 @@ printf '%s\n' "$COMMIT" > "$OUT/root/.site"
 # EBaC's relay to Project Gutenberg (web/relay/gutenberg-relay.js, a
 # Cloudflare Worker): a web page can't read what Gutenberg's sites send
 # (CORS), so P under A downloads through it. Without it, no P.
-RELAY=${GUTENBERG_RELAY-https://ebac-gutenberg.RELAY.workers.dev}
+RELAY=${GUTENBERG_RELAY-https://ebac-gutenberg.hybridcarssucklg.workers.dev}
 case $RELAY in *RELAY*) RELAY="" ;; esac
 
 emcc -O2 -Wall -Wextra -DUNIXV -DNORAMDISK -DXTERM_BUILTIN \
