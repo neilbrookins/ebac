@@ -2143,9 +2143,12 @@ static const char *gb_page_address(void)
         return (e != NULL && *e != '\0' ? e : GB_PAGE);
 }
 
-/* Gutenberg's mirror's copy of the text (its two %s: the number), when
-   www.gutenberg.org can't be reached: the file www.gutenberg.org's text
-   address leads to (cache/epub/N/pgN.txt), the same, byte for byte */
+/* Gutenberg's mirror's copy of the text (its two %s: the number), where
+   the text is downloaded from (November 17, 2026, the designer's
+   decision), its version too: the file www.gutenberg.org's text address
+   leads to (cache/epub/N/pgN.txt), the same, byte for byte. Its page, with
+   its title, last update and copyright status, is only on
+   www.gutenberg.org. */
 #define GB_MIRROR_TEXT "https://gutenberg.pglaf.org/cache/epub/%s/pg%s.txt"
 
 static void gb_mirror_address(char *url)
@@ -2808,21 +2811,26 @@ static int gb_download_text(void)
                         return (-1);
                 }
         }
-        else if (gb_get(gb_url, raw) != 0)
+        else
         {
-                /* (www.gutenberg.org down: its mirror's copy, the same file,
-                   if it can be had) */
+                /* From Gutenberg's own mirror first (gutenberg.pglaf.org:
+                   "high-speed", run by Project Gutenberg), so as not to load
+                   www.gutenberg.org, which is "intended for human users
+                   only"; from www.gutenberg.org if the mirror can't be had */
                 char mirror[700], why[600];
 
-                strcpy(why, net_problem);
                 gb_mirror_address(mirror);
-                printf("%s: %s; downloading from its mirror, gutenberg.pglaf.org...\n", gb_name, why);
-                fflush(stdout);
-                let_page_draw(TRUE);
                 if (gb_get(mirror, raw) != 0)
                 {
-                        strcpy(problem, net_problem);
-                        return (-1);
+                        strcpy(why, net_problem);
+                        printf("%s: %s; downloading from www.gutenberg.org...\n", gb_name, why);
+                        fflush(stdout);
+                        let_page_draw(TRUE);
+                        if (gb_get(gb_url, raw) != 0)
+                        {
+                                strcpy(problem, net_problem);
+                                return (-1);
+                        }
                 }
         }
         if ((in = fopen(raw, "rb")) == NULL || (out = fopen(path, "wb")) == NULL)
@@ -2887,7 +2895,13 @@ static void gb_version_of(void)
                         gb_etag[0] = '\0';
                 return;
         }
-        net_head(gb_via(gb_url), gb_etag, gb_size, gb_modified, 120);
+        {
+                char mirror[700];
+
+                /* (of the mirror's copy: the one downloaded) */
+                gb_mirror_address(mirror);
+                net_head(gb_via(mirror), gb_etag, gb_size, gb_modified, 120);
+        }
 }
 
 static int is_dir(const char *path)

@@ -82,7 +82,11 @@ Its address is then `https://ebac-gutenberg.SUBDOMAIN.workers.dev`
 (the default in `build.sh`, or in the environment); without one, P
 isn't offered.
 
-When www.gutenberg.org can't be reached, the importer downloads the text
-from the mirror (the same file, byte for byte), here and everywhere else
-EBaC runs.
+The text itself comes from the mirror first (run by Project Gutenberg,
+and the same file, byte for byte), and from www.gutenberg.org only if
+the mirror can't be had, here and everywhere else EBaC runs: Gutenberg
+says its website is "intended for human users only". Its page (title,
+last update, copyright status) is only on www.gutenberg.org. The relay
+streams: each file goes on to the browser as it comes, never held whole
+in the Worker's memory.
 

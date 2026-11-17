@@ -2452,10 +2452,16 @@ the browser's own fetch in the browser.
     a Cloudflare Worker on the designer's account
     (ebac-gutenberg.hybridcarssucklg.workers.dev), gets the same files
     and passes them on with that header, for EBaC's page only, and only
-    an ebook's page and text. And, everywhere, when www.gutenberg.org
-    can't be reached, the text comes from its mirror,
-    gutenberg.pglaf.org/cache/epub/N/pgN.txt: the file
-    www.gutenberg.org/ebooks/N.txt.utf-8 leads to, the same byte for byte.
+    an ebook's page and text. And, everywhere, the text (and its
+    version) comes from Gutenberg's mirror,
+    gutenberg.pglaf.org/cache/epub/N/pgN.txt, first (the designer's
+    decision: Gutenberg says www.gutenberg.org is "intended for human
+    users only", and lists the mirror, its own, as "high-speed"): the
+    file www.gutenberg.org/ebooks/N.txt.utf-8 leads to, the same byte
+    for byte; from www.gutenberg.org only if the mirror can't be had.
+    The page (title, last update, copyright status) is only on
+    www.gutenberg.org. The gutenberg file's Address is still
+    www.gutenberg.org's, the text's own address.
   - The shell importers retired (November 17, 2026; the designer's
     decision): add-thiagobodruk.sh, add-scrollmapper.sh, add-gutenberg.sh
     and importer.sh are gone. EBaC no longer starts them (its A runs the

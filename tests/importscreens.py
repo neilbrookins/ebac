@@ -178,7 +178,8 @@ def main():
             b = run(new, roots["new"][0], roots["new"][1], rows, cols,
                     {"EBAC_IMPORT_SOURCE": src, "EBAC_NAMES_SOURCE": names,
                      "EBAC_GUTENBERG_TEXT": "file://%s/%%s.txt" % src,
-                     "EBAC_GUTENBERG_PAGE": "file://%s/%%s.html" % src}, letter, steps)
+                     "EBAC_GUTENBERG_PAGE": "file://%s/%%s.html" % src,
+                     "EBAC_GUTENBERG_MIRROR": "file://%s/%%s.txt" % src}, letter, steps)
             for (keys, ok_a, sa), (_, ok_b, sb) in zip(a, b):
                 same = sa == sb
                 label = "%dx%d %r" % (rows, cols, keys)
