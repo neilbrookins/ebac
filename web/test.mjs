@@ -427,8 +427,6 @@ for (const [name, view] of [
                         const b = window.term.buffer.active;
                         return [b.getLine(b.baseY + b.cursorY).translateToString(true), b.cursorX];
                     });
-                    if (i % 5 === 0)
-                        console.log(`     (cursor line ${JSON.stringify(line)}, column ${x})`);
                     if (x === 1 && /^[\\|\/-]$/.test(line))
                         turns.add(line);
                     await sleep(100);
