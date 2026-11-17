@@ -27,7 +27,9 @@ the text (about 15 megabytes).
 - **The touch gestures**: the Docker image's and the Home Assistant app's
   own, `docker/gestures.js`, unchanged: the page is laid out as ttyd's
   (`#terminal-container`), and EBaC runs with `EBAC_GESTURES`, so it says
-  which screen it shows.
+  which screen it shows; and the font: F and f on the main menu, a pinch,
+  or the mouse wheel on the main menu, a pixel a step, kept in the
+  browser's storage (`ebac-font-size`).
 - **The end**: E on the main menu ends EBaC; the page then says so, and
   Enter or a tap starts it again, as ttyd's page offers to reconnect.
 - **The files**: the AV and its concordance index, built natively by

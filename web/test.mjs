@@ -144,6 +144,75 @@ for (const [name, view] of [
         await keys(page, "\x0c");
         await check(page, "back to the first size", "Main Menu");
 
+        // F and f: the font a pixel larger, then smaller again; the
+        // terminal refitted (fewer columns), and the size kept
+        {
+            const font = () => page.evaluate(() => [window.term.options.fontSize, window.term.cols,
+                                                    localStorage.getItem("ebac-font-size")]);
+            await check(page, "the main menu offers F and f", "F/f) Font: LARGER / smaller");
+            const [size0, cols0] = await font();
+            await keys(page, "F");
+            await sleep(1000);
+            const [size1, cols1, kept1] = await font();
+            const ok1 = size1 === size0 + 1 && cols1 < cols0 && kept1 === String(size1);
+            console.log(`${ok1 ? "ok  " : "FAIL"} F: font ${size0} to ${size1}, ${cols0} to ${cols1} columns, kept ${kept1}`);
+            if (!ok1) failed++;
+            await check(page, "redrawn at the new size", "Main Menu");
+            await keys(page, "f");
+            await sleep(1000);
+            const [size2, cols2, kept2] = await font();
+            const ok2 = size2 === size0 && cols2 === cols0 && kept2 === String(size0);
+            console.log(`${ok2 ? "ok  " : "FAIL"} f: font back to ${size2}, ${cols2} columns, kept ${kept2}`);
+            if (!ok2) failed++;
+
+            // the wheel, on the main menu: a step a notch, up larger
+            await page.mouse.move(view.width / 2, view.height / 2);
+            await page.mouse.wheel({ deltaY: -40 });       // part of a notch: none
+            await sleep(500);
+            const [w0] = await font();
+            await page.mouse.wheel({ deltaY: -60 });       // the rest: a step
+            await sleep(1000);
+            const [w1] = await font();
+            await page.mouse.wheel({ deltaY: 500 });       // a fast turn: a step only
+            await sleep(1000);
+            const [w2] = await font();
+            const ok4 = w0 === size0 && w1 === size0 + 1 && w2 === size0;
+            console.log(`${ok4 ? "ok  " : "FAIL"} the wheel: font ${w0}, ${w1}, ${w2}`);
+            if (!ok4) failed++;
+            await check(page, "the main menu, after the wheel", "Main Menu");
+
+            // a pinch (two fingers apart): larger, a step or a few, not more
+            if (view.hasTouch) {
+                const cdp = await page.createCDPSession();
+                const touch = (type, pts) => cdp.send("Input.dispatchTouchEvent",
+                    { type, touchPoints: pts.map(([x, y], id) => ({ x, y, id })) });
+                const pinch = async (a, b) => {
+                    const cx = view.width / 2, cy = view.height / 2;
+                    await touch("touchStart", [[cx - a, cy], [cx + a, cy]]);
+                    for (let i = 1; i <= 5; i++) {
+                        const d = a + (b - a) * i / 5;
+                        await touch("touchMove", [[cx - d, cy], [cx + d, cy]]);
+                        await sleep(30);
+                    }
+                    await touch("touchEnd", []);
+                    await sleep(1000);
+                };
+                await pinch(50, 75);            // 1.5 times apart: a step
+                const [p1] = await font();
+                await pinch(30, 180);           // 6 times: still only a few
+                const [p2] = await font();
+                await pinch(180, 30);           // and together: back
+                const [p3] = await font();
+                await pinch(75, 50);
+                const [p4] = await font();
+                const ok3 = p1 === size0 + 1 && p2 > p1 && p2 <= p1 + 4 && p3 === p1 && p4 === size0;
+                console.log(`${ok3 ? "ok  " : "FAIL"} pinches: font ${size0}, ${p1}, ${p2}, ${p3}, ${p4}`);
+                if (!ok3) failed++;
+                await keys(page, "\x0c");
+                await check(page, "the main menu, after the pinches", "Main Menu");
+            }
+        }
+
         // the touch gestures (gestures.js), on the phone
         if (view.hasTouch) {
             // S, then the keyboard (the window shorter, 28 rows or so): the

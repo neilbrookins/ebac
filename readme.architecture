@@ -2476,3 +2476,24 @@ the browser's own fetch in the browser.
     time, and one removed frees its space. The translations that come
     with the site are copied into it the first time, and again when the
     site is newer.
+  - The font, in a web page (November 17, 2026; the designer's
+    decision): F makes it a pixel larger, f a pixel smaller (the main
+    menu's one choice with a case: "F/f) Font: LARGER / smaller"),
+    offered only where EBAC_GESTURES says a page has the terminal, as
+    only a page can change its font; a plain terminal's is its own.
+    EBaC asks with the same escape sequence as its screens ("font+",
+    "font-"; scr_font() in curses.c); gestures.js sets the terminal's
+    fontSize, keeps it in the browser's storage, and refits, so the
+    window holds more rows and columns, or fewer, and EBaC redraws as on
+    any resize. A pinch does it too, on any screen, and the mouse wheel
+    on the main menu, but gently, so a big change takes several: a
+    pinch a pixel for a moderate one, at most 4 for a large one; the
+    wheel a pixel a notch, never more at a time.
+  - The Information screens: the sources of translations listed
+    (thiagobodruk/bible, scrollmapper/bible_databases, Project
+    Gutenberg), the blank lines between its parts left out only when
+    the screen is too short to show the page with them; the
+    platforms include the Home Assistant voice integration and web
+    browsers (Emscripten). In the Add menu, T)hiagoBodruk and
+    S)crollMapper are capitalised, so the letter to press shows as a
+    capital, as P)roject Gutenberg's does (the designer's choice).

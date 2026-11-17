@@ -51,6 +51,10 @@ extern int      scr_resize_fd P((void));
 extern int      scr_resized P((void));
 /* tell a web terminal page which screen is showing (see curses.c) */
 extern void     scr_mode P((char *name));
+/* whether the page has the terminal (EBAC_GESTURES), and so its font */
+extern int      scr_gestures P((void));
+/* ask that page for its font a step (a pixel) larger, or smaller */
+extern void     scr_font P((int bigger));
 /* the terminal library and its version, such as "ncurses 6.4.20240113" */
 extern char     *scr_library P((void));
 
@@ -84,6 +88,8 @@ extern int      scr_key_lookup P((char *seq, int len, int *code));
 #else /* termcap, or the fixed sequences in cure.c */
 
 #define scr_mode(name)  /* only the ncurses build talks to web pages */
+#define scr_gestures()  0
+#define scr_font(bigger)
 #define scr_library()   ""
 
 /* termcap library (cure.c supplies its own tputs) */

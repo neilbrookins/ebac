@@ -410,17 +410,33 @@ char *scr_library(void)
 	return (char *) curses_version();
 }
 
-void scr_mode(char *name)
+int scr_gestures(void)
 {
 	static int enabled = -1;
 
 	if (enabled < 0)
 		enabled = (getenv("EBAC_GESTURES") != NULL);
-	if (enabled)
+	return enabled;
+}
+
+void scr_mode(char *name)
+{
+	if (scr_gestures())
 	{
 		printf("\033]7766;%s\007", name);
 		fflush(stdout);
 	}
+}
+
+/*
+** F and f on the main menu: the page's font a pixel larger, or smaller
+** (gestures.js; a pinch does the same). Only the page can: a terminal's
+** font is its own. The page fits the terminal to its window again, and
+** EBaC hears of it as of any resize, and draws its screen again.
+*/
+void scr_font(int bigger)
+{
+	scr_mode(bigger ? "font+" : "font-");
 }
 
 /*

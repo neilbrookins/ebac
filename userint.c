@@ -201,10 +201,10 @@ static void add_menu(void)
                 underend();
                 printf("\nWhere from?\n\n");
                 if (thiagobodruk[0] != '\0')
-                        printf("T)hiagobodruk/bible on GitHub: Bibles,\n"
+                        printf("T)hiagoBodruk/bible on GitHub: Bibles,\n"
                                "   by language (short names end in -TB)\n\n");
                 if (scrollmapper[0] != '\0')
-                        printf("S)crollmapper/bible_databases on GitHub:\n"
+                        printf("S)crollMapper/bible_databases on GitHub:\n"
                                "   Bibles, by language (short names end in -SM)\n\n");
                 if (gutenberg[0] != '\0')
                         printf("P)roject Gutenberg: a text, by its ebook\n"
@@ -269,13 +269,18 @@ static int main_menu(void)
         printf("V)iew by:   Bookname Chapter:Verse\n\n");
         printf("S)earch by: Keyword(s)\n\n");
         printf("I)nformation about EBaC\n\n");
+        /* (only in a web page, which has the terminal: see scr_font()) */
+        if (scr_gestures())
+                printf("F/f) Font: LARGER / smaller\n\n");
         printf("E)xit Program\n\n");
 #ifdef UNIXV
         if (ANY_IMPORTER)
-                printf("Please press C, A, V, S, I, or E now.\n");
+                printf("Please press C, A, V, S, I, %sor E now.\n",
+                       scr_gestures() ? "F, f, " : "");
         else
 #endif
-        printf("Please press C, V, S, I, or E now.\n");
+        printf("Please press C, V, S, I, %sor E now.\n",
+               scr_gestures() ? "F, f, " : "");
 /*
 ** I wish I understood why this is needed, but with the \r, the display
 ** seems to behave in the same way that OS-9 systems behave without the \r.
@@ -2393,17 +2398,22 @@ static int key_to_tag(int key)
 
 /*
 ** The first two Information pages. Each line is at most 50 characters, so
-** that it fits a phone's screen (about 52 columns) without wrapping, and
-** each page fits 24 lines.
+** that it fits a phone's screen (about 52 columns) without wrapping. The
+** first page's blank lines are left out on a screen too short for it all
+** (as on 24 lines): what it says, all of it, matters more.
 */
 static void prog_info(void)
 {
+int lines = (EBAC_COMMIT[0] != '\0' ? 3 : 2) + 8 + 11 + 1 + 3;
+int roomy = s_lines >= lines;   /* (3: its blank lines) */
+
 cls();
 printf("Electronic Bible and Concordance (EBaC) %s\n", EBAC_RELEASE);
 printf("  Copyright (C) 2004 by Neil G. Brookins\n");
 if (EBAC_COMMIT[0] != '\0')
         printf("  Built from commit %s\n", EBAC_COMMIT);
-printf("\n");
+if (roomy)
+        printf("\n");
 /* the translations of EBaC 1.3, from before the downloads (A) */
 printf("Translations EBaC was first made for:\n");
 printf("  King James (Authorized) Version\n");
@@ -2413,7 +2423,8 @@ printf("  Revised Standard Version\n");
 printf("  Webster's Bible\n");
 printf("  Darby Bible\n");
 printf("  Young's Literal Translation\n");
-printf("\n");
+if (roomy)
+        printf("\n");
 printf("For help, or to report a problem, open an issue:\n");
 printf("  The program:\n");
 printf("    github.com/neilbrookins/ebac\n");
@@ -2421,9 +2432,13 @@ printf("  The Home Assistant app:\n");
 printf("    github.com/neilbrookins/ebac-ha-app\n");
 printf("  The Home Assistant voice integration:\n");
 printf("    github.com/neilbrookins/ebac-ha-integration\n");
+/* (A's places, as A lists them) */
 printf("  The texts to download (A on the main menu):\n");
+printf("    github.com/thiagobodruk/bible\n");
 printf("    github.com/scrollmapper/bible_databases\n");
-printf("\n");
+printf("    gutenberg.org (Project Gutenberg)\n");
+if (roomy)
+        printf("\n");
 printf("(Press any Key) ");
 fflush(stdout);
 scr_mode("anykey");
@@ -2446,6 +2461,11 @@ printf("  PCs and Raspberry Pi   (Linux, with ncurses)\n");
 printf("  Windows 10 and 11      (WSL, or Cygwin)\n");
 printf("  Apple Macintosh        (macOS)\n");
 printf("  Home Assistant         (an app in its sidebar)\n");
+/* (by voice: ebac-ha-integration, Assist's sentences, its answers
+   from ebac-api; in a web browser: compiled to WebAssembly by
+   Emscripten, web/) */
+printf("  Home Assistant voice   (the EBaC integration)\n");
+printf("  Web browsers           (Emscripten)\n");
 printf("\n");
 printf("(Press any Key) ");
 fflush(stdout);
@@ -2477,14 +2497,27 @@ static void prog_diagnostics(void)
         printf("\n");
         printf("Version:          %s", EBAC_RELEASE);
         if (EBAC_COMMIT[0] != '\0')
-                printf(", commit %s", EBAC_COMMIT);
+        {
+                /* (on a narrow screen, as a phone's, the commit on a line
+                   of its own, not wrapped) */
+                if (18 + strlen(EBAC_RELEASE) + 9 + strlen(EBAC_COMMIT) > (size_t) s_cols - 1)
+                        printf(",\n                  commit %s", EBAC_COMMIT);
+                else
+                        printf(", commit %s", EBAC_COMMIT);
+        }
         printf("\n");
         if (EBAC_PACKAGE[0] != '\0')
                 printf("                  %s\n", EBAC_PACKAGE);
+#ifndef __EMSCRIPTEN__  /* (in a browser, "./this.program": no file) */
         if (program_path[0] != '\0')
                 printf("Program:          %s\n", program_path);
+#endif
         printf("BIBLEROOT:        %s\n", bible_root);
         printf("Search history:   %s\n", LOGFILE);
+#ifdef __EMSCRIPTEN__
+        /* (the home folder, kept in the browser's storage: web/index.html) */
+        printf("                  (kept in this browser's storage)\n");
+#endif
 #ifdef UNIXV
         term = getenv("TERM");
         printf("TERM:             %s\n", term != NULL ? term : "(not set)");
@@ -2497,11 +2530,14 @@ static void prog_diagnostics(void)
         if (uname(&sys) == 0)
                 printf("System:           %s %s %s\n", sys.sysname, sys.release,
                        sys.machine);
+#ifndef XTERM_BUILTIN    /* (there, the terminal is always xterm) */
         printf("\n");
-        printf("If the screen looks garbled, TERM may not match your terminal\n");
-        printf("window: a login script may set TERM=vt100 in an xterm, say. Set\n");
-        printf("TERM to your terminal's type (xterm-256color, for most), and\n");
+        printf("If the screen looks garbled, TERM may not match\n");
+        printf("your terminal window: a login script may set\n");
+        printf("TERM=vt100 in an xterm, say. Set TERM to your\n");
+        printf("terminal's type (xterm-256color, for most), and\n");
         printf("start EBaC again.\n");
+#endif
 #endif
         printf("\n");
         printf("(Press any Key) ");
@@ -2545,6 +2581,7 @@ int main(int argc, char **argv)
 #endif
         long int cur_verse;
         struct bcv_type *point_bcv;
+        int key;               /* the main menu's */
         set_program_path(argc > 0 ? argv[0] : NULL);
 #ifdef UNIXV
         /* "bible --import SOURCE ...": the importer of translations, in C
@@ -2572,7 +2609,14 @@ int main(int argc, char **argv)
                    or voice)? Say so, and read from another */
                 if (translation_gone || !translation_exists())
                         translation_removed();
-                switch (tolower(main_menu()))
+                key = main_menu();
+                /* F, larger; f, smaller (the one choice with a case) */
+                if ((key == 'F' || key == 'f') && scr_gestures())
+                {
+                        scr_font(key == 'F');
+                        continue;
+                }
+                switch (tolower(key))
                 {
 		case 'c':
 			change_translations();

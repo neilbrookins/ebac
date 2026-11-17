@@ -278,6 +278,10 @@ def main():
                 # and the terminal library, which differs between ncurses and
                 # the built-in xterm (XTERM_BUILTIN; see make test)
                 out = re.sub(rb"Terminal library: [^\r\n]*", b"Terminal library: <library>", out)
+                # and the advice on TERM, which the built-in xterm leaves out
+                # (its terminal is always xterm)
+                out = re.sub(rb"\r?\nIf the screen looks garbled.*?start EBaC again\.\r?\n", b"", out,
+                             flags=re.S)
                 res[tag] = (out, exited)
 
             # run both builds at the same time, each in its own terminal

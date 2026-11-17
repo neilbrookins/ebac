@@ -47,6 +47,13 @@
  * Search, Add a translation and Project Gutenberg in the main menu, which ask for typing next. Any other tap works
  * as before: it brings up the keyboard.
  *
+ * The font: a pinch (on any screen) makes it larger (fingers apart) or
+ * smaller (together), by a pixel for a moderate pinch and a few for a large
+ * one, never more than 4; on the main menu, a notch of the mouse wheel does
+ * a pixel (up, larger), and so do F and f, which EBaC asks for with
+ * "font+" and "font-" in the same escape sequence. The size is kept in this
+ * browser, and the terminal refitted: more rows and columns, or fewer.
+ *
  * Letters a phone keyboard holds back as a word being composed are sent to
  * EBaC at once (see "Keyboards that hold back what is typed", below).
  *
@@ -69,6 +76,11 @@
 
     var MODE_OSC = 7766;    /* EBaC's "which screen" escape sequence */
     var TAP_MAX = 24;       /* px: a touch moving less than this is a tap */
+    /* The font's size (F and f on EBaC's main menu, and a pinch): in CSS
+       pixels, a pixel a step (the smallest worth taking), kept in this
+       browser for the next time (November 17, 2026, the designer) */
+    var FONT_MIN = 8, FONT_MAX = 40;
+    var FONT_KEY = "ebac-font-size";
     var LONG_SWIPE = 0.3;   /* a sideways swipe longer than this share of
                                the terminal's width is a long one: to the
                                start or end of the line, say */
@@ -546,6 +558,61 @@
                mode === "input" || mode === "addlist";
     }
 
+    /* (where this script runs, the page has the terminal, so its font is
+       the page's to change; EBaC offers F and f only here, as it is told
+       of this script by EBAC_GESTURES) */
+    function fontControl() {
+        return !!(term && term.options);
+    }
+
+    /* the font made SIZE pixels (within FONT_MIN and FONT_MAX), kept,
+       and the terminal fitted to the window again: the same window holds
+       more rows and columns of a smaller font, fewer of a larger one, and
+       EBaC is told, as of a resize, and draws its screen again */
+    function setFont(size, why) {
+        if (!term || !term.options)
+            return;
+        size = Math.max(FONT_MIN, Math.min(FONT_MAX, Math.round(size)));
+        if (size !== term.options.fontSize) {
+            debug("font " + size + " (" + why + ")");
+            term.options.fontSize = size;
+        }
+        try { localStorage.setItem(FONT_KEY, String(size)); } catch (e) { /* none kept */ }
+        window.dispatchEvent(new Event("resize"));      /* the page fits */
+    }
+
+    function savedFont() {
+        var n;
+        try { n = parseInt(localStorage.getItem(FONT_KEY), 10); } catch (e) { n = NaN; }
+        return isNaN(n) ? null : n;
+    }
+
+    /*
+    ** A pinch: how many steps (pixels) the font grows (apart) or shrinks
+    ** (together), or 0 for none, by how far the fingers moved apart or
+    ** together, but gently: a moderate pinch is a step, a large one only a
+    ** few more, at most 4; a big change takes several pinches (the
+    ** designer). By the ratio of the fingers' distance, end to start: under
+    ** 1.16 (or over 1/1.16), none; then a step more for each 1.42 times.
+    */
+    function pinchSteps(from, to) {
+        var r, l, n;
+        if (!(from > 0 && to > 0))
+            return 0;
+        r = to / from;
+        l = Math.abs(Math.log(r));
+        if (l < 0.15)
+            return 0;
+        n = Math.min(4, 1 + Math.floor((l - 0.15) / 0.35));
+        return r > 1 ? n : -n;
+    }
+
+    /* the distance between the first two fingers */
+    function spread(touches) {
+        return Math.hypot(touches[0].clientX - touches[1].clientX,
+                          touches[0].clientY - touches[1].clientY);
+    }
+
     /* the point midway between the first two fingers */
     function midpoint(touches) {
         return { x: (touches[0].clientX + touches[1].clientX) / 2,
@@ -563,7 +630,8 @@
             start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         } else if (e.touches.length === 2 && (start || !two)) {
             start = null;               /* not a one-finger gesture now */
-            two = { from: midpoint(e.touches), to: midpoint(e.touches) };
+            two = { from: midpoint(e.touches), to: midpoint(e.touches),
+                    spread0: spread(e.touches), spread1: spread(e.touches) };
         } else {
             start = null;               /* three fingers, or a lost touch */
             two = { from: null, to: null };     /* ignore until all lift */
@@ -573,8 +641,17 @@
     }
 
     function onTouchMove(e) {
-        if (two && two.from && e.touches.length === 2)
+        if (two && two.from && e.touches.length === 2) {
             two.to = midpoint(e.touches);
+            two.spread1 = spread(e.touches);
+        }
+        /* (two fingers, on any screen: a pinch is the font's, not the
+           browser's zoom of the page) */
+        if (two && fontControl() && e.cancelable) {
+            e.stopPropagation();
+            e.preventDefault();
+            return;
+        }
         if (!(start || two) || !gestureScreen())
             return;
         /* keep the page from scrolling or refreshing under a swipe, and the
@@ -598,9 +675,12 @@
         if (two) {
             if (e.touches.length > 0)
                 return;                 /* wait for the last finger */
-            key = two.from ? twoFingerKey(two.to.x - two.from.x,
-                                          two.to.y - two.from.y) : null;
+            var steps = two.from && fontControl() ? pinchSteps(two.spread0, two.spread1) : 0;
+            key = two.from && !steps ? twoFingerKey(two.to.x - two.from.x,
+                                                    two.to.y - two.from.y) : null;
             two = null;
+            if (steps)
+                setFont(term.options.fontSize + steps, "a pinch, " + (steps > 0 ? "+" : "") + steps);
             lastTouchEnd = Date.now();
             if (key !== null) {
                 keepKeyboardHidden();
@@ -651,11 +731,58 @@
     ** the terminal does as it does.
     */
     var wheelLines = 0;         /* part of a line, carried to the next turn */
+    var wheelFont = 0;          /* part of a notch, toward a font step */
+
+    /* whether the screen shows EBaC's main menu with its Font line (F/f):
+       where the wheel is the font's */
+    function fontMenu() {
+        var r;
+        if (mode !== "menu" || !fontControl())
+            return false;
+        for (r = 0; r < term.rows; r++)
+            if (/^\s*F\/f\) Font/.test(rowText(r)))
+                return true;
+        return false;
+    }
+
+    /*
+    ** On the main menu, the wheel is the font, for a mouse, as a pinch is
+    ** for a touch screen (the designer, November 17, 2026): up, larger;
+    ** down, smaller; but by the smallest step (a pixel) a notch, and never
+    ** more than a step at a time, so a big change takes a long turn of the
+    ** wheel, or several. A notch: 100 pixels of a wheel that counts pixels
+    ** (Chrome's), 3 lines of one that counts lines (Firefox's); a touchpad's
+    ** small movements add up to one.
+    */
+    function wheelFontStep(e) {
+        var notches;
+        if (e.deltaMode === 1)
+            notches = e.deltaY / 3;
+        else if (e.deltaMode === 2)
+            notches = e.deltaY;
+        else
+            notches = e.deltaY / 100;
+        if ((notches < 0) !== (wheelFont < 0))
+            wheelFont = 0;              /* turned the other way: anew */
+        wheelFont += notches;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (Math.abs(wheelFont) < 1)
+            return;
+        setFont(term.options.fontSize + (wheelFont < 0 ? 1 : -1),
+                "the wheel, " + (wheelFont < 0 ? "up" : "down"));
+        wheelFont = 0;                  /* (the rest of a fast turn: dropped) */
+    }
+
     function onWheel(e) {
         var screen, cell, n, seq, out = "";
 
         if (!namedScreen() || e.deltaY === 0 || e.shiftKey)
             return;
+        if (fontMenu()) {
+            wheelFontStep(e);
+            return;
+        }
         if (e.deltaMode === 1)                  /* (lines) */
             wheelLines += e.deltaY;
         else if (e.deltaMode === 2)             /* (pages) */
@@ -932,6 +1059,12 @@
         composing = false;
         noScrollback(t);
         t.parser.registerOscHandler(MODE_OSC, function (name) {
+            /* (F and f on the main menu: the font a step larger, or
+               smaller; not a screen) */
+            if (name === "font+" || name === "font-") {
+                setFont(t.options.fontSize + (name === "font+" ? 1 : -1), "EBaC's " + name);
+                return true;
+            }
             if (name !== mode)
                 debug("screen " + name);
             mode = name;
@@ -962,6 +1095,10 @@
         if (t.onWriteParsed && t.onRender) {
             var firstOutput = t.onWriteParsed(function () {
                 firstOutput.dispose();
+                /* (the size chosen before, in this browser: once the
+                   page's own settings are in, so it isn't undone) */
+                if (savedFont() !== null && savedFont() !== t.options.fontSize)
+                    setFont(savedFont(), "as chosen before");
                 var firstDrawn = t.onRender(function () {
                     firstDrawn.dispose();
                     setTimeout(function () { refit("the first output drawn"); }, 0);
