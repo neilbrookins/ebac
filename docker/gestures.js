@@ -213,11 +213,14 @@
     var fitTimer = null;
     function fitToVisible() {
         var box = document.getElementById("terminal-container"),
-            h = Math.floor(windowHeight()), want;
+            h = Math.floor(windowHeight()), top, want;
 
         if (!box)
             return;
-        want = (h < window.innerHeight - 2) ? h + "px" : "";
+        /* (below anything above it on the page, such as the web page's
+           offer of a home-screen shortcut: none on ttyd's) */
+        top = Math.max(0, Math.round(box.getBoundingClientRect().top));
+        want = (h < window.innerHeight - 2) ? (h - top) + "px" : "";
         if (box.style.height === want)
             return;
         box.style.height = want;

@@ -33,6 +33,15 @@ downloads EBaC and the text (about 15 megabytes).
   browser's storage (`ebac-font-size`).
 - **The end**: E on the main menu ends EBaC; the page then says so, and
   Enter or a tap starts it again, as ttyd's page offers to reconnect.
+- **The home screen**: `manifest.webmanifest` makes the page installable
+  (its name, EBaC; its icon, in `icons/`, drawn by `icons/draw.py`: the
+  Home Assistant app's red Bible, on a white tile, the same on Android
+  and the iPhone; and opening full screen). A page can't add a shortcut
+  itself, so on a touch screen a bar above the terminal offers it until
+  it is taken or closed (✕): on Android, its **Install** button asks
+  Chrome to (Chrome's own offer is held back for it); on an iPhone or
+  iPad, it says how (Share, then Add to Home Screen), as Apple's browsers
+  let no page ask. Not shown when EBaC was opened from its icon.
 - **The files**: the AV and its concordance index, built natively by
   `index` as for every build, packed into `ebac.data`, and copied into
   EBaC's folder (`BIBLEROOT=/ebac`) the first time, and again when the

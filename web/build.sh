@@ -57,7 +57,10 @@ emcc -O2 -Wall -Wextra -DUNIXV -DNORAMDISK -DXTERM_BUILTIN \
 # (EXIT_RUNTIME, above: so the page hears when EBaC ends, and says so;
 # idbfs: the browser's storage, IndexedDB, for EBaC's home folder and
 # its folder of translations.)
-cp web/index.html docker/gestures.js "$SITE/"
+cp web/index.html web/manifest.webmanifest docker/gestures.js "$SITE/"
+# (the home screen's icon: web/icons/draw.py draws them)
+mkdir -p "$SITE/icons"
+cp web/icons/*.png "$SITE/icons/"
 cp "$NM/@xterm/xterm/lib/xterm.js" "$NM/@xterm/xterm/css/xterm.css" "$SITE/"
 cp "$NM/@xterm/addon-fit/lib/addon-fit.js" "$SITE/"
 cp "$NM/xterm-pty/index.mjs" "$SITE/xterm-pty.mjs"

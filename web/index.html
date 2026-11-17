@@ -11,7 +11,16 @@
      not just covers it; see the style for html and body) -->
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>EBaC</title>
-<link rel="icon" href="data:,">
+<!-- (a shortcut on the home screen, an "app": its name, icon, and opening
+     full screen, without the browser's address bar; see #install below) -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="EBaC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
 <link rel="stylesheet" href="xterm.css">
 <style>
   /* The page never scrolls: it is the terminal, fitted to the part above
@@ -20,10 +29,26 @@
      top of the screen and leaving rows blank at the bottom, as on the
      first search after the page opened: found by the designer.) */
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-  body { position: fixed; inset: 0; }
+  body { position: fixed; inset: 0; display: flex; flex-direction: column; }
   /* (laid out as ttyd's page: gestures.js sizes #terminal-container to
      the part of the page above a phone's keyboard, then sends "resize") */
-  #terminal-container { width: 100%; height: 100%; margin: 0 auto; padding: 0; }
+  #terminal-container { width: 100%; flex: 1 1 auto; min-height: 0;
+                        margin: 0 auto; padding: 0; }
+  /* (sized by gestures.js to the part above a phone's keyboard, where the
+     page itself doesn't shrink for it: that height, not the room left) */
+  #terminal-container[style*="height"] { flex: none; }
+  /* the offer of a shortcut on the home screen, above the terminal (the
+     terminal fits to what is left) */
+  #install { display: none; flex: none; align-items: center; gap: 0.6em;
+             padding: 0.45em 0.6em; background: #26313d; color: #fff;
+             font: 15px/1.3 sans-serif; border-bottom: 1px solid #3d4b5a; }
+  #install img { width: 32px; height: 32px; border-radius: 7px; flex: none; }
+  #install .text { flex: 1 1 auto; }
+  #install button { font: bold 15px sans-serif; border: 0; border-radius: 5px;
+                    padding: 0.45em 0.8em; cursor: pointer; flex: none; }
+  #install .add { background: #ffd54f; color: #000; }
+  #install .close { background: transparent; color: #fff; font-size: 20px;
+                    padding: 0.2em 0.4em; }
   #terminal-container .terminal { padding: 5px; height: calc(100% - 10px); }
   #loading { position: fixed; top: 1em; left: 1em; color: #fff;
              font: 16px sans-serif; }
@@ -39,10 +64,79 @@
 <body>
 <div id="loading">Loading EBaC&hellip;</div>
 <div id="ended"><div>EBaC has ended.<br><span id="again">Press &#x23CE; or click to start it again.</span></div></div>
+<div id="install" role="region" aria-label="Add EBaC to your home screen">
+  <img src="icons/icon-180.png" alt="">
+  <span class="text"></span>
+  <button class="add" type="button">Install</button>
+  <button class="close" type="button" aria-label="Close">&#x2715;</button>
+</div>
 <div id="terminal-container"></div>
 <script src="xterm.js"></script>
 <script src="addon-fit.js"></script>
 <script src="gestures.js"></script>
+<script>
+  /*
+  ** The offer of a shortcut on the home screen (web/README.md): a bar above
+  ** the terminal, the first time and every time until it is taken or
+  ** closed, so that someone who came by a link or a QR code can find EBaC
+  ** again without it. A web page can't add the shortcut itself; it can
+  ** only ask the browser to offer it (Android's Chrome, and browsers made
+  ** from it), or say how (an iPhone or iPad: Apple's browsers offer it
+  ** only from the Share menu). Not where EBaC was opened from its icon
+  ** already, and only on a touch screen (a computer's Chrome offers it in
+  ** its own address bar).
+  */
+  (function () {
+    const KEY = "ebac-install-bar";
+    const bar = document.getElementById("install");
+    const text = bar.querySelector(".text");
+    const add = bar.querySelector(".add");
+    const standalone = window.matchMedia("(display-mode: standalone)").matches ||
+                       navigator.standalone === true;
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    let closed = false, offer = null;
+    try { closed = localStorage.getItem(KEY) === "closed"; } catch (e) { /* none kept */ }
+
+    // (the terminal refitted to the room left, by the page's own resize)
+    function show(on) {
+      bar.style.display = on ? "flex" : "none";
+      window.dispatchEvent(new Event("resize"));
+    }
+    function close() {
+      try { localStorage.setItem(KEY, "closed"); } catch (e) { /* this time only */ }
+      show(false);
+    }
+    bar.querySelector(".close").addEventListener("click", close);
+    window.addEventListener("appinstalled", () => show(false));
+    window.ebacInstallBar = () => bar.style.display === "flex";   // (test.mjs)
+    if (standalone || closed || !touch)
+      return;
+
+    if (ios) {
+      text.textContent = "Keep EBaC on your home screen: tap Share, then Add to Home Screen.";
+      add.style.display = "none";
+      show(true);
+      return;
+    }
+    // Chrome on Android: its own offer kept back (no mini-bar of its own
+    // as well), and made from this one's button
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      offer = e;
+      text.textContent = "Keep EBaC on your home screen, to open it again later.";
+      show(true);
+    });
+    add.addEventListener("click", async () => {
+      if (!offer) return;
+      offer.prompt();
+      const { outcome } = await offer.userChoice;
+      offer = null;
+      show(false);      // (taken; or not now: offered again next time)
+    });
+  })();
+</script>
 <script type="module">
   import { openpty } from "./xterm-pty.mjs";
   import initEbac from "./ebac.mjs";

@@ -15,7 +15,8 @@ import path from "node:path";
 
 const site = path.resolve(process.argv[2] || "web/build/site");
 const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",
-                ".css": "text/css", ".wasm": "application/wasm", ".data": "application/octet-stream" };
+                ".css": "text/css", ".wasm": "application/wasm", ".data": "application/octet-stream",
+                ".png": "image/png", ".webmanifest": "application/manifest+json" };
 const server = http.createServer((req, res) => {
     const p = path.join(site, decodeURIComponent(new URL(req.url, "http://x").pathname));
     const file = p.endsWith("/") ? path.join(p, "index.html") : p;
@@ -441,6 +442,77 @@ for (const [name, view] of [
     }
     await page.close();
 }
+// The shortcut on the home screen: the page can be installed (Chrome's
+// own judgement, with its icons), and offers it on a phone in a bar above
+// the terminal, which fits to what is left; closed, it stays closed.
+{
+    console.log("\n== the home-screen shortcut");
+    const report = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) failed++; };
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 900 });
+    await page.goto("http://localhost:8097/", { waitUntil: "load" });
+    await check(page, "a computer: the main menu", "Main Menu");
+    const cdp = await page.createCDPSession();
+    const { installabilityErrors } = await cdp.send("Page.getInstallabilityErrors");
+    report(installabilityErrors.length === 0,
+           "Chrome can install it: " + (installabilityErrors.map(e => e.errorId).join(", ") || "no errors"));
+    const manifest = await (await fetch("http://localhost:8097/manifest.webmanifest")).json();
+    for (const icon of [...manifest.icons.map(i => i.src), "icons/icon-180.png"]) {
+        const r = await fetch("http://localhost:8097/" + icon);
+        report(r.ok && r.headers.get("content-type") === "image/png", `its icon ${icon}`);
+    }
+    report(!(await page.evaluate(() => window.ebacInstallBar())), "no bar on a computer");
+    await page.close();
+
+    // an Android phone: the bar once Chrome offers to install (an offer
+    // made up here: headless Chrome makes none)
+    const phone = { width: 412, height: 923, deviceScaleFactor: 2.625, isMobile: true, hasTouch: true };
+    const android = await browser.newPage();
+    await android.setViewport(phone);
+    await android.goto("http://localhost:8097/", { waitUntil: "load" });
+    await check(android, "Android: the main menu", "Main Menu");
+    const rows0 = await android.evaluate(() => window.term.rows);
+    await android.evaluate(() => {
+        const e = new Event("beforeinstallprompt", { cancelable: true });
+        e.prompt = () => { window.prompted = true; };
+        e.userChoice = Promise.resolve({ outcome: "accepted" });
+        window.dispatchEvent(e);
+    });
+    await sleep(1000);
+    const rows1 = await android.evaluate(() => window.term.rows);
+    report(await android.evaluate(() => window.ebacInstallBar()) && rows1 < rows0,
+           `Android: the bar shown, the terminal ${rows0} rows to ${rows1}`);
+    await keys(android, "\x0c");
+    await check(android, "the main menu, below the bar", "Main Menu");
+    await android.click("#install .add");
+    await sleep(1000);
+    report(await android.evaluate(() => window.prompted === true && !window.ebacInstallBar()) &&
+           (await android.evaluate(() => window.term.rows)) === rows0,
+           "Install: Chrome's own offer made; the bar gone, the rows back");
+    await android.close();
+
+    // an iPhone: the bar says how (Share, then Add to Home Screen); its
+    // close button closes it, and it stays closed
+    const iphone = await browser.newPage();
+    await iphone.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) " +
+                              "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1");
+    await iphone.setViewport({ width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+    await iphone.goto("http://localhost:8097/", { waitUntil: "load" });
+    await check(iphone, "iPhone: the main menu", "Main Menu");
+    const said = await iphone.evaluate(() => window.ebacInstallBar() &&
+                                       document.querySelector("#install .text").textContent);
+    report(/Share, then Add to Home Screen/.test(said || ""), `iPhone: the bar says how: ${said}`);
+    await iphone.click("#install .close");
+    await sleep(500);
+    report(!(await iphone.evaluate(() => window.ebacInstallBar())) &&
+           (await iphone.evaluate(() => localStorage.getItem("ebac-install-bar"))) === "closed",
+           "✕: closed, and kept closed");
+    await iphone.reload({ waitUntil: "load" });
+    await check(iphone, "iPhone, again: the main menu", "Main Menu");
+    report(!(await iphone.evaluate(() => window.ebacInstallBar())), "iPhone, again: no bar");
+    await iphone.close();
+}
+
 await browser.close();
 server.close();
 console.log(failed ? `\n${failed} checks failed` : "\nall checks passed");
