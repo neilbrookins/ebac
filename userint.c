@@ -2555,11 +2555,12 @@ int main(int argc, char **argv)
         if (argc > 1)
                 start_trans = argv[1];  /* "bible BSB": start with BSB */
 #ifdef UNIXV
-        /* (the importer in C, always there; but Project Gutenberg's site
-           doesn't let a web page download from it, so not in a browser) */
+        /* (the importer in C, always there; in a browser, Project
+           Gutenberg's only through EBaC's relay, web/relay: its sites
+           don't let a web page read what they send) */
         strcpy(thiagobodruk, "(in EBaC)");
         strcpy(scrollmapper, "(in EBaC)");
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) || defined(EBAC_GUTENBERG_RELAY)
         strcpy(gutenberg, "(in EBaC)");
 #endif
 #endif

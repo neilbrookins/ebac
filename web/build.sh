@@ -34,8 +34,15 @@ cp -RL AV "$OUT/root/AV"
 grep '^AV ' trans > "$OUT/root/trans"
 printf '%s\n' "$COMMIT" > "$OUT/root/.site"
 
+# EBaC's relay to Project Gutenberg (web/relay/gutenberg-relay.js, a
+# Cloudflare Worker): a web page can't read what Gutenberg's sites send
+# (CORS), so P under A downloads through it. Without it, no P.
+RELAY=${GUTENBERG_RELAY-https://ebac-gutenberg.RELAY.workers.dev}
+case $RELAY in *RELAY*) RELAY="" ;; esac
+
 emcc -O2 -Wall -Wextra -DUNIXV -DNORAMDISK -DXTERM_BUILTIN \
     -DEBAC_COMMIT="\"$COMMIT\"" -DEBAC_PACKAGE='"web browser"' \
+    ${RELAY:+-DEBAC_GUTENBERG_RELAY="\"$RELAY\""} \
     bible.c file.c userint.c process.c curses.c utf8.c import.c net.c indexlib.c \
     -sASYNCIFY -sFORCE_FILESYSTEM -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web \
     -sEXIT_RUNTIME=1 \

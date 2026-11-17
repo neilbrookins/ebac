@@ -55,6 +55,34 @@ from `main`.
 
 ## Not yet
 
-- Adding texts from Project Gutenberg: its importer is in C now, as the
-  others are, but its site doesn't let other pages download from it
-  (CORS), so P isn't offered here.
+- Adding texts from Project Gutenberg, until its relay is set up (see
+  below): without it, P isn't offered here.
+
+## The relay to Project Gutenberg
+
+A web page may read what it downloads from another site only if that
+site's answer says it may (the header `Access-Control-Allow-Origin`:
+CORS). The browser enforces it: it sends the page's address with the
+request (`Origin`), and gives the page nothing if the answer doesn't
+allow it. GitHub's answers allow any page (thiagobodruk/bible and
+scrollmapper/bible_databases); Project Gutenberg's don't, neither
+www.gutenberg.org's nor its mirror's (gutenberg.pglaf.org), so P (under
+A) downloads through a relay of EBaC's own:
+[`relay/gutenberg-relay.js`](relay/gutenberg-relay.js), a Cloudflare
+Worker (the free plan is plenty). It gets the same file from Gutenberg,
+as any program can, and passes it on unchanged, with the header added,
+for EBaC's page only, and only what the importer asks for (an ebook's
+page and its text, from those two sites).
+
+To set it up, in Cloudflare's dashboard: **Workers & Pages**, **Create**,
+**Create Worker**; name it `ebac-gutenberg`; **Deploy**; then **Edit
+code**, replace the code with `relay/gutenberg-relay.js`, and **Deploy**.
+Its address is then `https://ebac-gutenberg.SUBDOMAIN.workers.dev`
+(SUBDOMAIN: the account's). The build takes it from `GUTENBERG_RELAY`
+(the default in `build.sh`, or in the environment); without one, P
+isn't offered.
+
+When www.gutenberg.org can't be reached, the importer downloads the text
+from the mirror (the same file, byte for byte), here and everywhere else
+EBaC runs.
+

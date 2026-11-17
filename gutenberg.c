@@ -2127,7 +2127,8 @@ static char gb_start_with[MAX_START];
 static Str gb_renamed;
 
 /* (for tests: the addresses of the text and its page instead, as
-   "file:///copies/%s.txt"; EBAC_GUTENBERG_TEXT, EBAC_GUTENBERG_PAGE) */
+   "file:///copies/%s.txt"; EBAC_GUTENBERG_TEXT, EBAC_GUTENBERG_PAGE,
+   EBAC_GUTENBERG_MIRROR) */
 static const char *gb_plain_text_address(void)
 {
         const char *e = getenv("EBAC_GUTENBERG_TEXT");
@@ -2140,6 +2141,52 @@ static const char *gb_page_address(void)
         const char *e = getenv("EBAC_GUTENBERG_PAGE");
 
         return (e != NULL && *e != '\0' ? e : GB_PAGE);
+}
+
+/* Gutenberg's mirror's copy of the text (its two %s: the number), when
+   www.gutenberg.org can't be reached: the file www.gutenberg.org's text
+   address leads to (cache/epub/N/pgN.txt), the same, byte for byte */
+#define GB_MIRROR_TEXT "https://gutenberg.pglaf.org/cache/epub/%s/pg%s.txt"
+
+static void gb_mirror_address(char *url)
+{
+        const char *e = getenv("EBAC_GUTENBERG_MIRROR");
+
+        sprintf(url, e != NULL && *e != '\0' ? e : GB_MIRROR_TEXT, gb_number, gb_number);
+}
+
+/*
+** Where to download an address from (EBAC_GUTENBERG_RELAY, in a web
+** browser): a web page may read what another site sends only if that
+** site says so (CORS), and Project Gutenberg's sites don't; so EBaC's web
+** page asks a relay of its own (web/relay/gutenberg-relay.js), which gets
+** the same file from Gutenberg and passes it on, with the word that the
+** page may read it: https://RELAY/www.gutenberg.org/ebooks/17.txt.utf-8.
+** Elsewhere, the address itself.
+*/
+static char *gb_via(const char *url)
+{
+#ifdef EBAC_GUTENBERG_RELAY
+        if (strncmp(url, "https://", 8) == 0)
+                return (gb_cat3(EBAC_GUTENBERG_RELAY, "/", url + 8));
+#endif
+        return (gb_s(url));
+}
+
+static int gb_get(const char *url, const char *path)
+{
+        char *via = gb_via(url), *at;
+        int r = net_get(via, path);
+
+        /* (what went wrong said of Gutenberg's address, not the relay's) */
+        if (r != 0 && strcmp(via, url) != 0 && (at = strstr(net_problem, via)) != NULL)
+        {
+                char rest[600];
+
+                strcpy(rest, at + strlen(via));
+                sprintf(at, "%.300s%s", url, rest);
+        }
+        return (r);
 }
 
 /* each of the text's names (gb_names, separated by spaces), in turn */
@@ -2761,10 +2808,22 @@ static int gb_download_text(void)
                         return (-1);
                 }
         }
-        else if (net_get(gb_url, raw) != 0)
+        else if (gb_get(gb_url, raw) != 0)
         {
-                strcpy(problem, net_problem);
-                return (-1);
+                /* (www.gutenberg.org down: its mirror's copy, the same file,
+                   if it can be had) */
+                char mirror[700], why[600];
+
+                strcpy(why, net_problem);
+                gb_mirror_address(mirror);
+                printf("%s: %s; downloading from its mirror, gutenberg.pglaf.org...\n", gb_name, why);
+                fflush(stdout);
+                let_page_draw(TRUE);
+                if (gb_get(mirror, raw) != 0)
+                {
+                        strcpy(problem, net_problem);
+                        return (-1);
+                }
         }
         if ((in = fopen(raw, "rb")) == NULL || (out = fopen(path, "wb")) == NULL)
         {
@@ -2828,7 +2887,7 @@ static void gb_version_of(void)
                         gb_etag[0] = '\0';
                 return;
         }
-        net_head(gb_url, gb_etag, gb_size, gb_modified, 120);
+        net_head(gb_via(gb_url), gb_etag, gb_size, gb_modified, 120);
 }
 
 static int is_dir(const char *path)
@@ -2890,7 +2949,7 @@ static int gb_add_number(const char *arg)
                 char url[700];
 
                 sprintf(url, gb_page_address(), gb_number);
-                page_read = net_get(url, path) == 0;
+                page_read = gb_get(url, path) == 0;
         }
         if (page_read)
         {
@@ -3025,7 +3084,7 @@ static void gb_license_facts(char **f)
         sprintf(gb_license_text, "Project Gutenberg License (%s)", GB_LICENSE);
         sprintf(path, "%s/page", tmp);
         sprintf(url, gb_page_address(), gb_number);
-        if (net_get(url, path) == 0)
+        if (gb_get(url, path) == 0)
         {
                 gb_page_facts(path);
                 if (gb_rights[0] != '\0')
