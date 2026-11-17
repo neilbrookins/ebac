@@ -471,7 +471,10 @@ for (const [name, view] of [
     await android.setViewport(phone);
     await android.goto("http://localhost:8097/", { waitUntil: "load" });
     await check(android, "Android: the main menu", "Main Menu");
-    const rows0 = await android.evaluate(() => window.term.rows);
+    // (Chrome may offer it itself, as the page loads: the bar is then
+    // there already; the offer made up here is then the one taken)
+    const own = await android.evaluate(() => window.ebacInstallBar());
+    console.log(`     (Chrome itself offered to install it: ${own ? "yes" : "no"})`);
     await android.evaluate(() => {
         const e = new Event("beforeinstallprompt", { cancelable: true });
         e.prompt = () => { window.prompted = true; };
@@ -480,15 +483,15 @@ for (const [name, view] of [
     });
     await sleep(1000);
     const rows1 = await android.evaluate(() => window.term.rows);
-    report(await android.evaluate(() => window.ebacInstallBar()) && rows1 < rows0,
-           `Android: the bar shown, the terminal ${rows0} rows to ${rows1}`);
+    report(await android.evaluate(() => window.ebacInstallBar()), "Android: the bar shown");
     await keys(android, "\x0c");
     await check(android, "the main menu, below the bar", "Main Menu");
     await android.click("#install .add");
     await sleep(1000);
+    const rows2 = await android.evaluate(() => window.term.rows);
     report(await android.evaluate(() => window.prompted === true && !window.ebacInstallBar()) &&
-           (await android.evaluate(() => window.term.rows)) === rows0,
-           "Install: Chrome's own offer made; the bar gone, the rows back");
+           rows2 > rows1,
+           `Install: Chrome's own offer made; the bar gone, the terminal ${rows1} rows to ${rows2}`);
     await android.close();
 
     // an iPhone: the bar says how (Share, then Add to Home Screen); its
