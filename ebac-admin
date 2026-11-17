@@ -11,15 +11,18 @@
 # options, both off unless checked). See "More of EBaC by voice" in
 # readme.architecture.
 #
-# Sources (November 8, 2026): source= in a request says which importer:
-#   scrollmapper   add-scrollmapper.sh: scrollmapper/bible_databases (the
-#                  default, as before)
-#   thiagobodruk   add-thiagobodruk.sh: thiagobodruk/bible (names -TB)
-#   gutenberg      add-gutenberg.sh: Project Gutenberg, the ebooks it knows,
-#                  by number (name=8294); its catalog gives each one's
-#                  short names too ("names": "WEB-PG")
-# Removing takes no source: the importer that added the translation, by its
-# folder's mark (gutenberg, thiagobodruk; those from scrollmapper/bible_databases have none).
+# Sources (November 8, 2026): source= in a request says which source, as
+# EBaC's importer takes it ("bible --import SOURCE ...", in EBaC's own
+# program since November 17, 2026: the shell importers it replaced are
+# gone):
+#   scrollmapper   scrollmapper/bible_databases (the default, as before)
+#   thiagobodruk   thiagobodruk/bible (names -TB)
+#   gutenberg      Project Gutenberg, the ebooks it knows, by number
+#                  (name=8294); its catalog gives each one's short names
+#                  too ("names": "WEB-PG")
+# Removing takes no source: the one that added the translation, by its
+# folder's mark (gutenberg, thiagobodruk; those from
+# scrollmapper/bible_databases have none).
 #
 # Requests (PATH_INFO, QUERY_STRING; the answer is JSON; an error is HTTP
 # 400, or 403 when not allowed, or 409 when another add is under way, with
@@ -42,7 +45,9 @@
 #
 # By hand, for testing: BIBLEROOT=~/ebac sh ebac-admin 'check?name=LITV'
 #
-# BIBLEROOT is EBaC's folder, with the importers in it. The adds'
+# BIBLEROOT is EBaC's folder. EBaC's program is EBAC_PROGRAM, or else the
+# first of bible and bible-xterm beside this program, in BIBLEROOT, or on
+# the PATH (the Home Assistant app has bible-xterm only). The adds'
 # progress is kept in BIBLEROOT/.voice-adds: NAME.state (running, done or
 # failed, and when), NAME.log (what the importer printed) and NAME.pid.
 
@@ -52,6 +57,8 @@ set -f
 
 root=${BIBLEROOT:-.}
 jobs=$root/.voice-adds
+BIBLEROOT=$root
+export BIBLEROOT
 
 if [ -n "${GATEWAY_INTERFACE:-}" ]; then
         cgi=yes
@@ -124,28 +131,41 @@ name_param() {
 
 bool() { if "$@"; then echo true; else echo false; fi; }
 
-# the importer of source= (see Sources, above)
+# EBaC's program, with its importer (bible --import)
+program=${EBAC_PROGRAM:-}
+if [ -z "$program" ]; then
+        here=$(cd "$(dirname "$0")" && pwd)
+        for p in "$here/bible" "$here/bible-xterm" "$root/bible" "$root/bible-xterm"; do
+                [ -x "$p" ] && [ ! -d "$p" ] && { program=$p; break; }
+        done
+fi
+if [ -z "$program" ]; then
+        for p in bible bible-xterm; do
+                command -v "$p" > /dev/null 2>&1 && { program=$(command -v "$p"); break; }
+        done
+fi
+
+# the source of source= (see Sources, above)
 source=$(param source)
 case $source in
-"" | scrollmapper) importer=$root/add-scrollmapper.sh ;;
-thiagobodruk) importer=$root/add-thiagobodruk.sh ;;
-gutenberg) importer=$root/add-gutenberg.sh ;;
+"") source=scrollmapper ;;
+scrollmapper | thiagobodruk | gutenberg) ;;
 *) fail "400 Bad Request" "no such source: $source (scrollmapper, thiagobodruk, gutenberg)" ;;
 esac
 
-# importer_of NAME: the importer that added the translation NAME, by its
+# source_of NAME: the source that added the translation NAME, by its
 # folder's mark (for removing)
-importer_of() {
+source_of() {
         if [ -f "$root/$1/gutenberg" ]; then
-                echo "$root/add-gutenberg.sh"
+                echo gutenberg
         elif [ -f "$root/$1/thiagobodruk" ]; then
-                echo "$root/add-thiagobodruk.sh"
+                echo thiagobodruk
         else
-                echo "$root/add-scrollmapper.sh"
+                echo scrollmapper
         fi
 }
 
-[ -f "$importer" ] || fail "400 Bad Request" "${importer##*/} isn't in $root"
+[ -n "$program" ] || fail "400 Bad Request" "EBaC's program (bible, or bible-xterm) isn't beside ebac-admin, in $root, or on the PATH"
 
 case $request in
 permissions)
@@ -156,7 +176,7 @@ permissions)
 catalog)
         # (reading the list is harmless, but downloads it: only with adding)
         allowed_add || fail "403 Forbidden" "adding translations isn't allowed (the EBaC app's options)"
-        out=$(sh "$importer" --catalog 2> /dev/null) || fail "400 Bad Request" "couldn't read the list of translations"
+        out=$("$program" --import "$source" --catalog 2> /dev/null) || fail "400 Bad Request" "couldn't read the list of translations"
         headers "200 OK"
         printf '%s\n' "$out" | awk -F '\t' '
         function j(s) {
@@ -175,7 +195,7 @@ catalog)
 license)
         allowed_add || fail "403 Forbidden" "adding translations isn't allowed (the EBaC app's options)"
         name_param
-        out=$(sh "$importer" --license "$name" 2>&1) || fail "400 Bad Request" "$out"
+        out=$("$program" --import "$source" --license "$name" 2>&1) || fail "400 Bad Request" "$out"
         headers "200 OK"
         printf '{"name": %s, "title": %s, "license": %s, "details": %s}\n' "$(json "$name")" \
                 "$(json "$(printf '%s\n' "$out" | sed -n 's/^Title: //p')")" \
@@ -186,7 +206,7 @@ license)
 check)
         allowed_add || fail "403 Forbidden" "adding translations isn't allowed (the EBaC app's options)"
         name_param
-        out=$(sh "$importer" --check "$name" 2>&1) || fail "400 Bad Request" "$out"
+        out=$("$program" --import "$source" --check "$name" 2>&1) || fail "400 Bad Request" "$out"
         same=$(printf '%s\n' "$out" | awk -F '\t' '$1 == "same version" { print $2 }')
         headers "200 OK"
         printf '{"name": %s, "added": %s, "same_version": %s, "downloaded": %s}\n' "$(json "$name")" \
@@ -220,11 +240,11 @@ add)
         detach=nohup
         command -v setsid > /dev/null 2>&1 && detach=setsid
         $detach sh -c '
-                importer=$1 name=$2 agreed=$3 jobs=$4
+                program=$1 source=$2 name=$3 agreed=$4 jobs=$5
                 echo $$ > "$jobs/$name.pid"     # (its own: setsid may fork)
                 # (done: as the importer says; a Gutenberg ebook, asked
                 # for by number, is done under its short names)
-                if sh "$importer" --agree --agreed-how "$agreed" --at-end "$name" \
+                if "$program" --import "$source" --agree --agreed-how "$agreed" --at-end "$name" \
                         > "$jobs/$name.log" 2>&1 < /dev/null &&
                    grep -F ": done." "$jobs/$name.log" > /dev/null; then
                         printf "done\t%s\n" "$(date "+%Y-%m-%d %H:%M")" > "$jobs/$name.state"
@@ -232,7 +252,7 @@ add)
                         printf "failed\t%s\n" "$(date "+%Y-%m-%d %H:%M")" > "$jobs/$name.state"
                 fi
                 rm -f "$jobs/$name.pid"
-        ' sh "$importer" "$name" "$agreed" "$jobs" < /dev/null > /dev/null 2>&1 &
+        ' sh "$program" "$source" "$name" "$agreed" "$jobs" < /dev/null > /dev/null 2>&1 &
         # (until the add writes its own: so that another isn't started)
         [ -f "$jobs/$name.pid" ] || echo $! > "$jobs/$name.pid"
         headers "200 OK"
@@ -251,7 +271,7 @@ status)
                    ! kill -0 "$(cat "$jobs/$name.pid")" 2> /dev/null; then
                         state=failed    # (stopped without saying: as when the app restarted)
                 fi
-                # the reason: add-scrollmapper.sh's last line ("NAME: not
+                # the reason: the importer's last line ("NAME: not
                 # added: ...", or what it was doing)
                 [ "$state" = done ] || message=$(grep -v '^[[:space:]]*$' "$jobs/$name.log" 2> /dev/null | tail -n 1)
                 [ "$state" = running ] && [ ! -f "$jobs/$name.pid" ] && state=failed
@@ -267,7 +287,7 @@ remove)
         # (one of EBaC's own, as the King James Version in the Home
         # Assistant app: a link into the image, never removed)
         [ -L "$root/$name" ] && fail "400 Bad Request" "$name is one of EBaC's own, and can't be removed"
-        out=$(sh "$(importer_of "$name")" --remove "$name" 2>&1 < /dev/null)
+        out=$("$program" --import "$(source_of "$name")" --remove "$name" 2>&1 < /dev/null)
         case $out in
         *"$name: removed."*)
                 headers "200 OK"

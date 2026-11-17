@@ -528,10 +528,10 @@ The same can be done without EBaC's menus:
 
 ```sh
 cd ~/ebac
-sh add-thiagobodruk.sh                  # list the translations, and ask which to add or remove
-sh add-thiagobodruk.sh NIV-TB NLT-TB    # add these
-sh add-thiagobodruk.sh --remove NIV-TB  # remove this one
-sh add-thiagobodruk.sh --list           # just list them, by language
+BIBLEROOT=$PWD ./bible --import thiagobodruk                  # list the translations, and ask which to add or remove
+BIBLEROOT=$PWD ./bible --import thiagobodruk NIV-TB NLT-TB    # add these
+BIBLEROOT=$PWD ./bible --import thiagobodruk --remove NIV-TB  # remove this one
+BIBLEROOT=$PWD ./bible --import thiagobodruk --list           # just list them, by language
 ```
 
 ### From scrollmapper/bible_databases (S)
@@ -550,15 +550,15 @@ To add one:
 
 To remove one: **A**, **S**, then **r** and its number, such as `r6` (see [Removing a translation](#removing-a-translation)).
 
-**A**, **S** runs `add-scrollmapper.sh`, in the EBaC folder (with `importer.sh`, which it shares with `add-thiagobodruk.sh`): a shell script, which needs only the standard shell and awk, and `curl` or `wget` to download (Linux, macOS, WSL and Solaris have them, and so does the Home Assistant app). It can also be run by itself:
+Adding is EBaC's own: its importer is part of the program (since November 17, 2026; before, shell scripts did it), so it works wherever EBaC does, in a web browser too. It downloads with `curl` or `wget` (Linux, macOS, WSL and Solaris have them, and so does the Home Assistant app), or in a browser, with the browser's own. It can also be run by itself, as `bible --import` and the place, with EBaC's folder as `BIBLEROOT`:
 
 ```sh
 cd ~/ebac
-sh add-scrollmapper.sh              # list the translations, and ask which to add or remove
-sh add-scrollmapper.sh BSB-SM LEB-SM  # add these
-sh add-scrollmapper.sh --remove BSB-SM  # remove this one
-sh add-scrollmapper.sh --list       # just list them, by language
-sh add-scrollmapper.sh --agree BSB  # from a script: agree to its license
+BIBLEROOT=$PWD ./bible --import scrollmapper                  # list the translations, and ask which to add or remove
+BIBLEROOT=$PWD ./bible --import scrollmapper BSB-SM LEB-SM    # add these
+BIBLEROOT=$PWD ./bible --import scrollmapper --remove BSB-SM  # remove this one
+BIBLEROOT=$PWD ./bible --import scrollmapper --list           # just list them, by language
+BIBLEROOT=$PWD ./bible --import scrollmapper --agree BSB-SM   # from a script: agree to its license
 ```
 
 Run from a script, with no one to answer the license question, a translation is added only with `--agree`, by which you agree to the license of each one named; the licenses are shown either way.
@@ -584,13 +584,13 @@ Gutenberg's texts are laid out in many ways, so EBaC knows each one by its ebook
 
 Nothing the text gives is left out. What comes before each book's chapter 1 (its heading and summary; before the first book, the front matter too: in the Book of Mormon, the title page, the testimonies of the witnesses with their names, the contents) is kept as that book's chapter 0, row by row as the text lays it out: each title line, name or line of contents its own row, blank lines as blank rows, and each paragraph one row, wrapped to your screen (a line of the text is joined to the next only where the text wrapped it). EBaC shows chapter 0 as plain text above verse 1, without the 0s, which aren't in the text; searches find it, and comma or the up arrow from 1:1 goes back through it (references such as `1 Nephi 0:19` are shown in a list of search results). A verse taller than the screen, as a long paragraph can be on a phone, is shown a screenful at a time. In the Douay-Rheims, Challoner's notes are kept with the verse each follows, on lines of their own under it, each note's first line marked `---` in the margin where a verse's number goes, so that someone reading the verses aloud sees where the verse ends and the note begins (searches find notes; voice leaves them out), each chapter's summary and each psalm's title come before its verse 1, marked `===` in the margin so that they don't read as the end of the verse above, and the appendices (the Prayer of Manasses, 3 and 4 Esdras, and others from the 1582 and 1609-1610 printings, in their own spelling) are books at the end, as printed.
 
-**A**, **P** runs `add-gutenberg.sh`, a shell script beside `add-scrollmapper.sh`, which can also be run by itself:
+It can also be run by itself:
 
 ```sh
 cd ~/ebac
-sh add-gutenberg.sh 17
-sh add-gutenberg.sh --remove BOM-PG
-sh add-gutenberg.sh --list
+BIBLEROOT=$PWD ./bible --import gutenberg 17
+BIBLEROOT=$PWD ./bible --import gutenberg --remove BOM-PG
+BIBLEROOT=$PWD ./bible --import gutenberg --list
 ```
 
 ### For all three places
@@ -688,7 +688,7 @@ export BIBLEROOT=$PWD
 
 Its requests (`translations`, `books`, `numbers`, `parse`, `verse`, `next`, `previous`, `search`, `info`, `license`) are described in [`readme.architecture`](readme.architecture), under "Voice". A translation's `booknames` file gives its books' full names to speak (`Song of Solomon`); downloading a translation writes it.
 
-`ebac-api` only reads. A second CGI program, [`ebac-admin`](ebac-admin) (a shell script), adds and removes translations for other programs, with `add-scrollmapper.sh`. It does nothing that changes the disk unless the web server's setup allows it: `EBAC_ALLOW_ADD=yes` for adding, and `EBAC_ALLOW_REMOVE=yes` as well for removing. Its requests (`permissions`, `catalog`, `license`, `check`, `add`, `status`, `remove`) are described at its top. An add runs in the background and agrees to the translation's license as the request says (`agreed=by voice, from Kitchen`), recorded in the translation's `license` file. It goes at the end of `trans`, so EBaC still starts with the same translation.
+`ebac-api` only reads. A second CGI program, [`ebac-admin`](ebac-admin) (a shell script), adds and removes translations for other programs, with EBaC's own importer (`bible --import`). It does nothing that changes the disk unless the web server's setup allows it: `EBAC_ALLOW_ADD=yes` for adding, and `EBAC_ALLOW_REMOVE=yes` as well for removing. Its requests (`permissions`, `catalog`, `license`, `check`, `add`, `status`, `remove`) are described at its top. An add runs in the background and agrees to the translation's license as the request says (`agreed=by voice, from Kitchen`), recorded in the translation's `license` file. It goes at the end of `trans`, so EBaC still starts with the same translation.
 
 [↑ Contents](#contents)
 

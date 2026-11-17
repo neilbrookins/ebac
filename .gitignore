@@ -21,6 +21,6 @@
 /version.stamp.new
 __pycache__/
 
-# the names of languages, kept by add-scrollmapper.sh
+# the names of languages, kept by the importer (A, on the main menu)
 languages.cache
 /ebac-api

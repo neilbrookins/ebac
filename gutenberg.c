@@ -7,7 +7,8 @@
 ** importer in C (import.c includes this file, so that the two share the
 ** importer's state and parts), in place of add-gutenberg.sh, and checked
 ** byte for byte against it (tests/importers.sh). What each part does, and
-** why, is said there too; this follows it step by step, awk by awk:
+** why, is said there too (in git: commit 72ace7e, the last with it); this
+** follows it step by step, awk by awk:
 **
 **   bible --import gutenberg [--agree] [--file PATH] [--page PATH] NUMBER
 **   bible --import gutenberg --remove NAME | --list | --catalog

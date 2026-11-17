@@ -11,9 +11,11 @@
 **
 ** Ported a source at a time, each checked byte for byte against the shell
 ** importer's output (the folder it writes, and what it says;
-** tests/importers.sh), and A's screens key by key (tests/importscreens.py).
-** So far thiagobodruk/bible and scrollmapper/bible_databases; not yet
-** Project Gutenberg (add-gutenberg.sh). A on EBaC's main menu runs it in
+** tests/importers.sh), and A's screens key by key (tests/importscreens.py):
+** thiagobodruk/bible, scrollmapper/bible_databases, and Project Gutenberg
+** (gutenberg.c). The shell importers were then retired (November 17,
+** 2026); the comments here still name their parts, as git keeps them
+** (commit 72ace7e, the last with them). A on EBaC's main menu runs it in
 ** EBaC itself (import_in_ebac()); from the command line:
 **
 **   bible --import SOURCE [--source PLACE] [--names-source PLACE]
@@ -21,8 +23,9 @@
 **         [--remove NAME ...]
 **   bible --import SOURCE --list
 **
-** SOURCE: thiagobodruk or scrollmapper; with no NAME, the lists of
-** languages and translations, to choose from. For programs (ebac-admin,
+** SOURCE: thiagobodruk or scrollmapper (gutenberg: see gutenberg.c); with
+** no NAME, the lists of languages and translations, to choose from. For
+** programs (ebac-admin,
 ** which adds and removes translations for the EBaC integration's voice
 ** commands), plain lines separated by tabs:
 **

@@ -756,7 +756,7 @@ static int line_fit(char *strg, int width)
 /*
 ** A tab in a verse's text starts a new line (November 2026): a text from
 ** Project Gutenberg keeps a note on a verse, or a heading before it, in the
-** verse, on a line of its own (see split_paragraphs() in add-gutenberg.sh).
+** verse, on a line of its own (see gp_paragraph() in gutenberg.c).
 ** So a verse is shown, and counted, a part at a time, each part after a tab
 ** starting a line (an empty part, a blank line), each wrapped as before.
 **

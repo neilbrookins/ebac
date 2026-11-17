@@ -318,7 +318,7 @@ int net_version(const char *url, char *version, int size)
 }
 
 /*
-** What the server says of the file (add-gutenberg.sh's version_of): its
+** What the server says of the file (as add-gutenberg.sh's version_of did): its
 ** headers, as curl -sSIL (or wget's spider) gives them, without carriage
 ** returns, spaces at the start of each line left out; each answer
 ** ("HTTP/...") starting afresh. The ETag and Content-Length are the

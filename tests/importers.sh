@@ -1,6 +1,6 @@
 #!/bin/sh
 # tests/importers.sh -- the importer in C (bible --import) against the
-# shell importer it replaces, byte for byte: each translation added by
+# shell importer it replaced, byte for byte: each translation added by
 # both, from the same copy of the source, into two EBaC folders, then the
 # folders compared (every file, but the date in license and version) and
 # what each said. See "The importers in C" in readme.architecture.
@@ -16,8 +16,12 @@
 # with its page, then without it). With no NAME, every translation in its
 # list. EBAC_NAMES_SOURCE: a copy of Unicode's names of languages
 # (cldr-localenames-full/main), for that list, if not from the Internet.
-# Run from EBaC's folder, after make (bible and index).
+# Run from EBaC's folder, after make (bible and index). The shell
+# importers, retired since, are taken from git, as they were last
+# (IMPORTERS_FROM: another commit to take them from).
 set -u
+# (the last commit with the shell importers)
+from=${IMPORTERS_FROM:-72ace7e3033f7f25bdd28ae3b97ec1fbcf015e8c}
 which=$1
 source=$(cd "$2" && pwd)
 shift 2
@@ -38,7 +42,11 @@ for d in "$work/sh" "$work/c"; do
         grep '^AV ' "$repo/trans" > "$d/trans"
         ln -s "$repo/AV" "$d/AV"
 done
-cp "$repo/$script" "$repo/importer.sh" "$repo/index" "$work/sh/"
+for f in "$script" importer.sh; do
+        git -C "$repo" show "$from:$f" > "$work/sh/$f" ||
+                { echo "importers.sh: $f isn't in commit $from" >&2; exit 2; }
+done
+cp "$repo/index" "$work/sh/"
 
 # (each folder compared: every file, but the date in license and version)
 compare_folder() {

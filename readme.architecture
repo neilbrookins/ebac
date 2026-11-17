@@ -2446,6 +2446,15 @@ the browser's own fetch in the browser.
     was renamed to trans.NNNN (replace_trans() set the loop's variable,
     new). Not in the browser: Project Gutenberg's site doesn't let a web
     page download from it (CORS), so P isn't offered there.
+  - The shell importers retired (November 17, 2026; the designer's
+    decision): add-thiagobodruk.sh, add-scrollmapper.sh, add-gutenberg.sh
+    and importer.sh are gone. EBaC no longer starts them (its A runs the
+    importer in itself), ebac-admin runs "bible --import SOURCE" with
+    the same options (bible, or bible-xterm in the Home Assistant app,
+    beside it), the Docker image and the app no longer ship them, and
+    ebac-setup removes their links from a folder an earlier version
+    made. tests/importers.sh takes them from git (commit 72ace7e, the
+    last with them) to compare against.
   - In the browser, EBaC's folder of translations is kept in the
     browser's storage as well, so a translation added is there the next
     time, and one removed frees its space. The translations that come

@@ -3,8 +3,8 @@
 Translations added or removed by another EBaC, or by voice, while this one
 runs (November 9, 2026).
 
-The importers (add-scrollmapper.sh, add-thiagobodruk.sh, add-gutenberg.sh)
-add and remove translations for everyone: another user's EBaC, or the Home
+The importer (bible --import, A on the main menu) adds and removes
+translations for everyone: another user's EBaC, or the Home
 Assistant integration's voice, can do it while this EBaC is running. This
 checks, in both builds (NORAMDISK and RAMDISK), that:
 
@@ -14,10 +14,12 @@ checks, in both builds (NORAMDISK and RAMDISK), that:
     so, and reads from another, whether it is noticed at the main menu, in a
     passage (moving on to another book) or in a search's results
     (translation_removed()); the RAMDISK build's temporary files are deleted;
-  - the importers' replace_trans() writes 'trans' all at once, keeping its
-    permissions, and writes through a 'trans' that is a symbolic link.
+  - the importer's replace_trans() (import.c) writes 'trans' all at once,
+    keeping its permissions, and writes through a 'trans' that is a
+    symbolic link (bible --import gutenberg --remove: a removal needs
+    nothing downloaded).
 
-The other EBaC's part is played by the shell, as importer.sh's remove()
+The other EBaC's part is played by the shell, as the importer's remove
 does it: 'trans' without the line, then the folder deleted. The
 translations are copies of the AV (KJ2, KJ3), in a folder made for the test.
 
@@ -112,34 +114,48 @@ def run_with_shell(binary, steps, root, home):
         sidebyside.os.write = real_write
 
 
-def check_replace_trans(tmp):
-    """importer.sh's and add-gutenberg.sh's replace_trans()."""
+def check_replace_trans(tmp, binary):
+    """The importer's replace_trans() (import.c), as a removal uses it."""
     problems = []
-    for script in ("importer.sh", "add-gutenberg.sh"):
-        with open(os.path.join(REPO, script)) as f:
-            text = f.read()
-        if "replace_trans() {" not in text:
-            problems.append("%s: it has no replace_trans()" % script)
-            continue
-        start = text.index("replace_trans() {")
-        function = text[start:text.index("\n}\n", start) + 3]
-        here = os.path.join(tmp, "rt")
+    here = os.path.join(tmp, "rt")
+
+    def setup(link):
         shutil.rmtree(here, ignore_errors=True)
         os.makedirs(os.path.join(here, "real"))
-        test = function + r'''
-here="$1"; printf 'AV x\n' > "$here/trans"; chmod 664 "$here/trans"
-printf 'AV x\nKJ2 y\n' > "$here/new"
-replace_trans "$here/new" || echo "failed"
-[ "$(wc -l < "$here/trans")" -eq 2 ] || echo "not written"
-[ "$(stat -c %a "$here/trans" 2>/dev/null || stat -f %Lp "$here/trans")" = 664 ] || echo "permissions not kept"
-ls "$here" | grep -q 'trans\.' && echo "a file left beside it"
-rm "$here/trans"; printf 'AV x\n' > "$here/real/trans"; ln -s real/trans "$here/trans"
-replace_trans "$here/new"
-[ -L "$here/trans" ] || echo "the symbolic link replaced"
-[ "$(wc -l < "$here/real/trans")" -eq 2 ] || echo "not written through the link"
-'''
-        result = subprocess.run(["sh", "-c", test, "sh", here], capture_output=True, text=True)
-        problems += ["%s: %s" % (script, line) for line in result.stdout.split("\n") if line]
+        os.makedirs(os.path.join(here, "KJ2"))
+        with open(os.path.join(here, "KJ2", "gutenberg"), "w") as f:
+            f.write("Ebook: 1\n")
+        trans = os.path.join(here, "real" if link else "", "trans")
+        with open(trans, "w") as f:
+            f.write("AV x\nKJ2 y\n")
+        os.chmod(trans, 0o664)
+        if link:
+            os.symlink("real/trans", os.path.join(here, "trans"))
+
+    def remove():
+        r = subprocess.run([binary, "--import", "gutenberg", "--remove", "KJ2"],
+                           capture_output=True, text=True,
+                           env=dict(os.environ, BIBLEROOT=here))
+        if "KJ2: removed." not in r.stdout:
+            problems.append("not removed: " + (r.stdout + r.stderr).strip())
+
+    setup(False)
+    remove()
+    trans = os.path.join(here, "trans")
+    with open(trans) as f:
+        if f.read() != "AV x\n":
+            problems.append("not written")
+    if os.stat(trans).st_mode & 0o7777 != 0o664:
+        problems.append("permissions not kept")
+    if [n for n in os.listdir(here) if n.startswith("trans.")]:
+        problems.append("a file left beside it")
+    setup(True)
+    remove()
+    if not os.path.islink(os.path.join(here, "trans")):
+        problems.append("the symbolic link replaced")
+    with open(os.path.join(here, "real", "trans")) as f:
+        if f.read() != "AV x\n":
+            problems.append("not written through the link")
     return problems
 
 
@@ -187,7 +203,7 @@ def main():
             for p in problems:
                 print("     " + p)
             sys.stdout.flush()
-        problems = check_replace_trans(tmp)
+        problems = check_replace_trans(tmp, builds[0][1])
         fails += bool(problems)
         print("%s replace_trans() writes 'trans' all at once" % ("FAIL" if problems else "ok  "))
         for p in problems:

@@ -15,7 +15,8 @@ Usage:
     python3 tests/importscreens.py OLD_BIBLE NEW_BIBLE SOURCE_COPY NAMES_COPY
                                    [thiagobodruk|scrollmapper|gutenberg [REGISTRY_COPY]]
 SOURCE_COPY, for gutenberg: a folder of its texts and pages (17.txt, 17.html).
-OLD_BIBLE: EBaC as built before (with its index program beside it).
+OLD_BIBLE: EBaC as built before (with its index program and its shell
+importers beside it: a checkout of commit 72ace7e, the last with them, built).
 REGISTRY_COPY: a folder with IANA's language-subtag-registry, for the old
 importer (scrollmapper/bible_databases has codes Unicode has no names for).
 """
