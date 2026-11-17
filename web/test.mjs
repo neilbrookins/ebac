@@ -414,7 +414,7 @@ for (const [name, view] of [
                 // spinner turns where the cursor is (\ | / -), then is gone
                 await page.setRequestInterception(true);
                 const hold = (r) => {
-                    if (/pg17\.txt|17\.txt\.utf-8/.test(r.url()))
+                    if (r.method() === "GET" && /pg17\.txt|17\.txt\.utf-8/.test(r.url()))
                         setTimeout(() => r.continue(), 3000);
                     else
                         r.continue();
@@ -427,6 +427,8 @@ for (const [name, view] of [
                         const b = window.term.buffer.active;
                         return [b.getLine(b.baseY + b.cursorY).translateToString(true), b.cursorX];
                     });
+                    if (i % 5 === 0)
+                        console.log(`     (cursor line ${JSON.stringify(line)}, column ${x})`);
                     if (x === 1 && /^[\\|\/-]$/.test(line))
                         turns.add(line);
                     await sleep(100);
