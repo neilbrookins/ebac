@@ -2444,8 +2444,18 @@ the browser's own fetch in the browser.
     with a leading 0 (017) was read as octal (15) by the shell's
     arithmetic; and renaming a text added before names had -PG said it
     was renamed to trans.NNNN (replace_trans() set the loop's variable,
-    new). Not in the browser: Project Gutenberg's site doesn't let a web
-    page download from it (CORS), so P isn't offered there.
+    new). In the browser, through a relay of EBaC's own (November 17,
+    2026): a web page may read what another site sends only if that site
+    says so (CORS), and neither www.gutenberg.org nor its mirror does
+    (their replies, as the Internet Archive kept them before the outage
+    of November 16, and the mirror's now). web/relay/gutenberg-relay.js,
+    a Cloudflare Worker on the designer's account
+    (ebac-gutenberg.hybridcarssucklg.workers.dev), gets the same files
+    and passes them on with that header, for EBaC's page only, and only
+    an ebook's page and text. And, everywhere, when www.gutenberg.org
+    can't be reached, the text comes from its mirror,
+    gutenberg.pglaf.org/cache/epub/N/pgN.txt: the file
+    www.gutenberg.org/ebooks/N.txt.utf-8 leads to, the same byte for byte.
   - The shell importers retired (November 17, 2026; the designer's
     decision): add-thiagobodruk.sh, add-scrollmapper.sh, add-gutenberg.sh
     and importer.sh are gone. EBaC no longer starts them (its A runs the
