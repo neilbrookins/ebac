@@ -2,20 +2,61 @@
 
 Written by Neil G. Brookins.
 
-## Which way to install
+## Which way to use EBaC
 
-EBaC comes four ways. They're the same program, made from the same source, so each gets every improvement at the same time; they differ only in how you install and use it. Pick the first that fits:
+### Just want to try it? Open it in your web browser
 
-| | Way | Best for | You get | You need |
+**[neilbrookins.github.io/ebac](https://neilbrookins.github.io/ebac/)**
+
+That's all: nothing to install, no account, nothing to set up. It works on a phone, a tablet or a computer, with tapping, swiping and the mouse as well as the keyboard. You can add other translations, and your search history and the translations you add stay in that browser for next time. For most people, this is the best way to use EBaC.
+
+The other ways below are for when you want something the web browser can't give you: EBaC in your Home Assistant, Bible verses read aloud by voice, EBaC on your own server for your household, or EBaC in a terminal window on almost any computer, old or new. All of them are the same program, made from the same source, so each gets every improvement at the same time.
+
+### All the ways, best first
+
+1. **[In your web browser](#in-your-web-browser-nothing-to-install)** (recommended). EBaC runs inside the web page itself, on your own phone or computer: no installing, no server.
+2. **On a screen, from your own server**, with tapping, swiping and the mouse. EBaC runs on a computer of yours, and you use it from a web page on any phone, tablet or computer on your network. Pick one:
+   - **[The Home Assistant app](#installing-in-home-assistant)**, if you have Home Assistant with apps: EBaC in Home Assistant's sidebar.
+   - **[Docker, in a web page](#installing-with-docker)**, if you don't: the same web page as the app, on any computer that runs Docker.
+3. **[By voice, with Home Assistant](#by-voice-with-home-assistant)**. Say "John 3:16" to Home Assistant's voice assistant and hear the verse read aloud; then "next verse". There's no screen: this adds voice to way 2.
+4. **[In a terminal window, keyboard only](#in-a-terminal-window-keyboard-only)**. The program alone, on almost anything, from Linux, Windows and the Mac down to an MS-DOS PC. No tapping, no mouse, no voice.
+
+### How they compare
+
+| | 1. Web browser | 2. Home Assistant app, or Docker web page | 3. Voice (Home Assistant integration) | 4. Terminal window |
 |---|---|---|---|---|
-| 1 | **[The Home Assistant app](#installing-in-home-assistant)** | Anyone with Home Assistant | EBaC in Home Assistant's sidebar, on a phone, tablet or computer: tapping, swiping and clicking as well as the keyboard. Updates itself. Voice ("Genesis 1:1") with the EBaC integration. Each Home Assistant user has their own search history. | Home Assistant (with apps: Home Assistant OS) |
-| 2 | **[Docker, in a web page](#installing-with-docker)** | Anyone without Home Assistant | The same web page as the app, with tapping, swiping and clicking, opened in any browser, on a phone too. One command to install; one to update. | Docker, which is free: the steps show how to get it, with one command on Linux or a Raspberry Pi, or an app on Windows or a Mac |
-| 3 | **[Docker, in a terminal](#ebac-in-a-terminal-with-docker)** | Keyboard-only use, on a computer with Docker | EBaC in your terminal window, with no web page: keys only, no tapping or clicking. | Docker |
-| 4 | **[Built from source](#installing-on-linux)** | Computers without Docker, and vintage ones | EBaC in a terminal window, built with a few typed commands: keys only. Runs on almost anything, down to an MS-DOS PC. | A C compiler, `make` and ncurses (the steps say how to get them) |
+| **Installing** | None: open the page | The app: one click in Home Assistant. Docker: one command | A few steps in Home Assistant, after the app (or Docker) | Docker: one command. Built from source: a few typed commands |
+| **Where EBaC runs** | In your browser, on your own device | On your server (Home Assistant, or the computer running Docker); your browser shows its screen over the network | On your server, as in way 2 | On the computer itself (or in Docker on it) |
+| **Keyboard** | Yes | Yes | No: you talk | Yes, the only way in |
+| **Touch screen** (tap, swipe, pinch) | Yes | Yes | No | No |
+| **Mouse** (click, wheel) | Yes | Yes | No | No |
+| **Voice** | No | No (add way 3) | Yes: spoken questions, spoken answers | No |
+| **Adding translations** (A) | Yes, all three places | Yes, all three places | Yes, by voice (if you allow it) | Yes, all three places |
+| **Search history** | Kept in that browser, on that device | Kept on the server, for each user (each Home Assistant user, or each Docker login) | No (each voice device keeps its place) | Kept for each user of the computer |
+| **Several people** | Each person's own browser | Everyone in the household, from any device on the network, sharing the translations added | Everyone who can talk to Home Assistant | Each user of the computer |
+| **Updates** | Automatic: always the newest | The app: Home Assistant offers them. Docker: one command | Through Home Assistant | Docker: one command. Source: two commands |
+| **You need** | A web browser (an internet connection the first time, about 15 MB, and to add translations) | Home Assistant OS (or Supervised), for apps; or Docker, which is free | Home Assistant, the EBaC app (or the Docker container), and a voice assistant set up in Home Assistant | Docker; or a C compiler, `make` and ncurses |
+| **ncurses** (the library for terminal screens) | Not needed | Not needed: it's inside the app and the image | Not needed | Built from source: **yes, ncurses is needed** (the steps for each computer say how to get it; on a Mac it comes with Apple's tools, and on FreeBSD and OpenBSD it's part of the system). Docker: not needed |
 
-Ways 1 and 2 are the friendliest: the web page turns taps and swipes into EBaC's keys (tap a choice, swipe to page, tap a verse to open it). Ways 3 and 4 are the program alone, by keyboard.
+### In your web browser (nothing to install)
 
-For way 4, pick your computer:
+Open **[neilbrookins.github.io/ebac](https://neilbrookins.github.io/ebac/)**. The first visit downloads EBaC and the King James Version, about 15 megabytes; after that it starts at once. EBaC itself runs inside the page, compiled for web browsers ([web/README.md](web/README.md) says how), so nothing runs on a server but the files it's downloaded from.
+
+- **Touch:** tap a menu choice, a translation or a search result; swipe up and down to page; pinch to make the text larger or smaller.
+- **Mouse:** click as you would tap; on the main menu, the wheel makes the text larger or smaller. **F** and **f** on the main menu do the same from the keyboard.
+- **Translations:** **A** on the main menu adds them from thiagobodruk/bible (**T**), scrollmapper/bible_databases (**S**) or Project Gutenberg (**P**), as in every other way.
+- **Kept for next time**, in this browser's own storage: the translations you add, your search history, and the size of the text. A different browser, or another device, starts afresh. Clearing the browser's data for the site removes them.
+
+### By voice, with Home Assistant
+
+The **[EBaC integration](https://github.com/neilbrookins/ebac-ha-integration)** lets Home Assistant's voice assistant, Assist, read the Bible aloud: "John 3:16", "next verse", "Psalm 23", "search the Bible for faith hope charity", "result two". It needs EBaC running in Home Assistant: install **[the Home Assistant app](#installing-in-home-assistant)** first (or, with Home Assistant Container or Core, [the Docker container](#step-2-start-ebac)), then the integration, with the steps on its page. A voice assistant must be set up in Home Assistant, on a speaker or in the Home Assistant app on a phone.
+
+### In a terminal window, keyboard only
+
+EBaC by itself, in a terminal window, on almost any computer: arrow keys, Page Up and Page Down, and letters, with no web page, no touch, no mouse and no voice. Two ways:
+
+- **[Docker, in a terminal](#ebac-in-a-terminal-with-docker)**, on a computer with Docker: one command, nothing to build, and no ncurses to install.
+- **Built from source**, with a C compiler, `make` and **ncurses** (each computer's steps show how to install them). Pick your computer:
 
 | Your computer | Instructions |
 |---|---|
@@ -31,6 +72,8 @@ For way 4, pick your computer:
 | AT&T 3B1; SunOS 4 and Solaris 2; DEC Ultrix and OSF/1; HP-UX | [AT&T 3B1, Sun, DEC and HP UNIX](#att-3b1-sun-dec-and-hp-unix) |
 | MS-DOS | [MS-DOS](#ms-dos) |
 
+(ncurses is needed on every UNIX-like system in the list, the vintage UNIX ones too. The MM/1, VAX/VMS, the CoCo 3 and MS-DOS don't use it: EBaC draws their screens with its own code.)
+
 ## What EBaC is
 
 EBaC is a fast, text-mode Bible reader and concordance. It has two main jobs:
@@ -42,7 +85,13 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 
 ## Contents
 
-- [Which way to install](#which-way-to-install)
+- [Which way to use EBaC](#which-way-to-use-ebac)
+  - [Just want to try it? Open it in your web browser](#just-want-to-try-it-open-it-in-your-web-browser)
+  - [All the ways, best first](#all-the-ways-best-first)
+  - [How they compare](#how-they-compare)
+  - [In your web browser (nothing to install)](#in-your-web-browser-nothing-to-install)
+  - [By voice, with Home Assistant](#by-voice-with-home-assistant)
+  - [In a terminal window, keyboard only](#in-a-terminal-window-keyboard-only)
 - [What EBaC is](#what-ebac-is)
 - [Installing](#installing)
   - [Installing in Home Assistant](#installing-in-home-assistant)
@@ -84,9 +133,9 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
 
 ## Installing
 
-EBaC runs on these computers. Pick yours; at the end of its steps, a link skips the others and goes on to [Searching](#searching).
+Nothing here is needed to use EBaC [in your web browser](#in-your-web-browser-nothing-to-install). To install it, EBaC runs on these computers. Pick yours; at the end of its steps, a link skips the others and goes on to [Searching](#searching).
 
-EBaC needs nothing particular to one system: only a C compiler, `make`, the ncurses library, and a terminal window. So it should build on any Linux, BSD or other UNIX-like system that has them, beyond those below, even where it hasn't been tried. If you try one, please report how it went.
+Built from source, EBaC needs nothing particular to one system: only a C compiler, `make`, the ncurses library, and a terminal window. (The Home Assistant app and Docker need none of these: they come ready-made.) So it should build on any Linux, BSD or other UNIX-like system that has them, beyond those below, even where it hasn't been tried. If you try one, please report how it went.
 
 ### Installing in Home Assistant
 
