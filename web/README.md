@@ -37,8 +37,9 @@ the text (about 15 megabytes).
 - **The browser's storage** (IndexedDB): EBaC's folder and its home
   folder are kept there, so the search history, and the translations
   added with A, are there the next time.
-- **Adding translations**: A, then T (thiagobodruk/bible, downloaded
-  from GitHub), by the importer in C, in EBaC itself.
+- **Adding translations**: A, then T (thiagobodruk/bible) or S
+  (scrollmapper/bible_databases), downloaded from GitHub, by the importer
+  in C, in EBaC itself.
 
 ## Building
 
@@ -54,6 +55,6 @@ from `main`.
 
 ## Not yet
 
-- Adding translations from scrollmapper/bible_databases and Project
-  Gutenberg (their importers are still shell scripts, which a browser
-  can't run; being rewritten in C).
+- Adding texts from Project Gutenberg (its importer is still a shell
+  script, which a browser can't run; being rewritten in C; and its site
+  doesn't let other pages download from it).

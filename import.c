@@ -4,21 +4,41 @@
 */
 /*
 ** import.c -- the importer of translations, in C (see "The importers in
-** C" in readme.architecture): what importer.sh and add-thiagobodruk.sh do,
-** so that adding a translation builds for every platform EBaC's importers
-** run on, a web browser too, from one source. Only downloading differs by
-** platform (net.c).
+** C" in readme.architecture): what importer.sh and the shell importers of
+** each source did, so that adding a translation builds for every platform
+** EBaC runs on, a web browser too, from one source. Only downloading
+** differs by platform (net.c).
 **
-** Ported a step at a time, each checked byte for byte against the shell
-** importer's output (the folder it writes, and what it says). So far:
+** Ported a source at a time, each checked byte for byte against the shell
+** importer's output (the folder it writes, and what it says;
+** tests/importers.sh), and A's screens key by key (tests/importscreens.py).
+** So far thiagobodruk/bible and scrollmapper/bible_databases; not yet
+** Project Gutenberg (add-gutenberg.sh). A on EBaC's main menu runs it in
+** EBaC itself (import_in_ebac()); from the command line:
 **
-**   bible --import thiagobodruk [--source PLACE] [--agree]
-**         [--agreed-how TEXT] [--at-end] [NAME ...] [--remove NAME ...]
-**         [--license NAME] [--check NAME]
+**   bible --import SOURCE [--source PLACE] [--names-source PLACE]
+**         [--agree] [--agreed-how TEXT] [--at-end] [NAME ...]
+**         [--remove NAME ...]
+**   bible --import SOURCE --list
 **
-** as "sh add-thiagobodruk.sh" takes them. Not yet: the lists of languages
-** and translations to choose from (--list, --catalog, and A in EBaC),
-** scrollmapper/bible_databases, Project Gutenberg.
+** SOURCE: thiagobodruk or scrollmapper; with no NAME, the lists of
+** languages and translations, to choose from. For programs (ebac-admin,
+** which adds and removes translations for the EBaC integration's voice
+** commands), plain lines separated by tabs:
+**
+**   --catalog         every language ("language", code, English name, own
+**                     name, number of translations) and translation
+**                     ("translation", name, language code, title, 1 if
+**                     added), one per line
+**   --license NAME    its title, license and details page, a line each
+**                     ("Title:", "License:", "Details:")
+**   --check NAME      "added" or "not added"; then, if added and the source
+**                     has the same version, "same version", and the date
+**                     downloaded
+**   --at-end          adding: the translation goes at the end of 'trans',
+**                     not the top (so that EBaC doesn't start with it)
+**   --agreed-how TEXT with --agree: how it was agreed to, for its license
+**                     file ("by voice, from Kitchen")
 */
 
 #include <stdio.h>
@@ -107,6 +127,8 @@ typedef struct
         const char *program;    /* "add-thiagobodruk" */
         const char *source;     /* the default SOURCE */
         const char *mark;       /* OWN_MARK, "" for none */
+        const char *repo;       /* where, as usage() says it */
+        const char *example;    /* a short name, as usage() gives one */
         int (*all_translations)(void);
         void (*license_of)(const char *name);
         void (*version_of)(const char *name, char *version, int size);
@@ -1005,7 +1027,182 @@ static const Source thiagobodruk = {
         "add-thiagobodruk",
         "https://raw.githubusercontent.com/thiagobodruk/bible/master",
         "thiagobodruk",
+        "thiagobodruk/bible", "NIV-TB",
         tb_all_translations, tb_license_of, tb_version_of, tb_fetch_text
+};
+
+/* ------------------------------------------------------------------------
+** scrollmapper/bible_databases (add-scrollmapper.sh): its plain-text
+** Bibles, one file each, already in the layout add_to() reads ("### Book",
+** then "[1:1] In the beginning ...")
+*/
+#define SM_LIST "docs/main_readme/translation_list.md"
+#define SM_SUFFIX "-SM"
+#define CROSSWIRE "https://crosswire.org/sword/modules/"
+
+/* Every translation, from the list's lines such as
+   "- **SpaRV (es)**: SpaRV: La Santa Biblia Reina-Valera (1909)": each
+   short name ends in -SM (which source it came from: November 10, 2026,
+   the designer; the same name, KJV, is in more than one source). One added
+   before names had -SM (WLC, not WLC-SM) is listed too, under its old
+   name, so it shows as added and r removes it: a folder of that name,
+   without another importer's mark, not one of EBaC's own (a link). */
+static int sm_all_translations(void)
+{
+        char path[1200], name[1024], code[256];
+        static char line[LINE], title[LINE / 2 + 16], old_title[LINE / 2 + 32];
+        const char *p, *q;
+        FILE *f;
+        int i, n, listed;
+
+        sprintf(path, "%s/list.md", tmp);
+        if (fetch(SM_LIST, path) != 0 || (f = fopen(path, "r")) == NULL)
+                return (-1);
+        while (read_line(f, line, sizeof(line)))
+        {
+                /* (awk: /^- \*\*[^ \t]+ \([A-Za-z0-9-]+\)\*\*: /) */
+                if (strncmp(line, "- **", 4) != 0)
+                        continue;
+                for (p = line + 4; *p != '\0' && *p != ' ' && *p != '\t'; p++)
+                        ;
+                if (p == line + 4 || strncmp(p, " (", 2) != 0)
+                        continue;
+                for (q = p + 2; isalnum(UCHAR(*q)) || *q == '-'; q++)
+                        ;
+                if (q == p + 2 || strncmp(q, ")**: ", 5) != 0)
+                        continue;
+                /* name: from the fifth character to the first space */
+                p = strchr(line + 4, ' ');
+                sprintf(name, "%.*s", (int) (p - (line + 4)) < 1000 ? (int) (p - (line + 4)) : 1000,
+                        line + 4);
+                /* code: after the first " (", to the next ")"; in lower case */
+                p = strstr(line, " (") + 2;
+                q = strchr(p, ')');
+                sprintf(code, "%.*s", q != NULL && q - p < 250 ? (int) (q - p) : 250, p);
+                for (i = 0; code[i] != '\0'; i++)
+                        code[i] = (char) tolower(UCHAR(code[i]));
+                /* title: after the first "**: ", the short name again left out */
+                p = strstr(line, "**: ") + 4;
+                for (q = p; *q != '\0' && *q != ' ' && *q != '\t'; q++)
+                        ;
+                if (q > p + 1 && q[-1] == ':' && *q == ' ')
+                        p = q + 1;
+                sprintf(title, "%.*s", LINE / 2, p);
+                plain(title);
+                {
+                        char full[1100];
+
+                        sprintf(full, "%s%s", name, SM_SUFFIX);
+                        add_translation(full, code, title, name);
+                }
+        }
+        fclose(f);
+        if (nall == 0)
+        {
+                sprintf(problem, "found no translations in the list at %.900s", source);
+                return (-1);
+        }
+        n = nall;
+        for (i = 0; i < n; i++)
+        {
+                char folder[1300];
+
+                sprintf(path, "%s/%s/booklist", here, all[i].in_source);
+                sprintf(folder, "%s/%s", here, all[i].in_source);
+                listed = exists(path) && !is_link(folder) && !others_text(folder);
+                if (listed)
+                {
+                        sprintf(old_title, "%s (old name)", all[i].title);
+                        add_translation(all[i].in_source, all[i].code, old_title,
+                                        all[i].in_source);
+                }
+        }
+        problem[0] = '\0';     /* (others_text() says whose, of one not listed) */
+        return (0);
+}
+
+/* The license, from the translation's README.md in the source ("**License:**
+   GPL"; "not stated" if it says "Null" or nothing): the README is "# NAME:
+   TITLE", then "**License:** X" (or "**License**: X", or as LEB has it, the
+   license alone on the next line). The details are its page at CrossWire,
+   whose modules the texts are made from. */
+static void sm_license_of(const char *name)
+{
+        char path[1300], readme[1200];
+        static char line[LINE], next_line[LINE];
+        Translation *t = find(name);
+        FILE *f;
+        int title = FALSE, found = FALSE;
+
+        license_line[0] = '\0';
+        next_line[0] = '\0';
+        sprintf(path, "sources/%.200s/%.900s/README.md", t ? t->code : "", t ? t->in_source : "");
+        sprintf(readme, "%s/readme", tmp);
+        if (fetch(path, readme) == 0 && (f = fopen(readme, "r")) != NULL)
+        {
+                while (read_line(f, line, sizeof(line)))
+                {
+                        /* (awk: /^\*\*License:?\*\*:?/) */
+                        const char *p = line;
+
+                        if (strncmp(p, "**License", 9) == 0)
+                        {
+                                p += 9;
+                                if (*p == ':')
+                                        p++;
+                                if (strncmp(p, "**", 2) == 0)
+                                {
+                                        p += 2;
+                                        if (*p == ':')
+                                                p++;
+                                        sprintf(license_line, "%.1000s", p);
+                                        plain(license_line);
+                                        found = TRUE;
+                                        break;
+                                }
+                        }
+                        if (title && next_line[0] == '\0')
+                        {
+                                strcpy(next_line, line);
+                                plain(next_line);       /* (a blank line: still none) */
+                        }
+                        if (strncmp(line, "# ", 2) == 0)
+                                title = TRUE;
+                }
+                fclose(f);
+                if (!found && next_line[0] >= 'A' && next_line[0] <= 'Z')
+                        sprintf(license_line, "%.1000s", next_line);
+        }
+        if (license_line[0] == '\0' || strcmp(license_line, "Null") == 0 ||
+            strcmp(license_line, "null") == 0)
+                strcpy(license_line, "not stated");
+        sprintf(details_line, "%sModInfo.jsp?modName=%.900s", CROSSWIRE, t ? t->in_source : "");
+}
+
+static void sm_version_of(const char *name, char *version, int size)
+{
+        char path[1200];
+        Translation *t = find(name);
+
+        sprintf(path, "formats/txt/%.1000s.txt", t ? t->in_source : "");
+        version_at(path, version, size);
+}
+
+static int sm_fetch_text(const char *name, const char *text_path)
+{
+        char path[1200];
+        Translation *t = find(name);
+
+        sprintf(path, "formats/txt/%.1000s.txt", t ? t->in_source : "");
+        return (fetch(path, text_path));
+}
+
+static const Source scrollmapper = {
+        "add-scrollmapper",
+        "https://raw.githubusercontent.com/scrollmapper/bible_databases/master",
+        "",
+        "scrollmapper/bible_databases", "BSB-SM",
+        sm_all_translations, sm_license_of, sm_version_of, sm_fetch_text
 };
 
 /* ------------------------------------------------------------------------
@@ -1870,8 +2067,10 @@ static const char *names_source = NAMES_SOURCE;
 ** is, as before.
 */
 static const char *iana_names[][2] = {
-        { "hbo", "Ancient Hebrew" },
-        { "tsg", "Tausug" },
+        { "bea", "Beaver" },            /* (scrollmapper/bible_databases) */
+        { "hbo", "Ancient Hebrew" },    /* (scrollmapper/bible_databases) */
+        { "sml", "Central Sama" },      /* (scrollmapper/bible_databases) */
+        { "tsg", "Tausug" },            /* (scrollmapper/bible_databases) */
         { NULL, NULL }
 };
 
@@ -2786,17 +2985,22 @@ static int agree(Translation *tr, const char **how)
 */
 static void usage(FILE *f)
 {
-        fprintf(f, "usage: bible --import thiagobodruk [--agree] [--source PLACE] [NAME ...] [--remove NAME ...]\n");
-        fprintf(f, "Downloads Bible translations from thiagobodruk/bible and adds them to EBaC, or\n");
-        fprintf(f, "removes them.\n");
-        fprintf(f, "  NAME            short names of translations to add, such as NIV-TB\n");
+        const char *which = src->program + 4;   /* ("add-" left out) */
+
+        fprintf(f, "usage: bible --import %s [--list] [--agree] [--source PLACE] [NAME ...] [--remove NAME ...]\n", which);
+        fprintf(f, "Downloads Bible translations from %s,\n", src->repo);
+        fprintf(f, "and adds them to EBaC, or removes them.\n");
+        fprintf(f, "  NAME            short names of translations to add, such as %s\n", src->example);
         fprintf(f, "  --remove NAME   remove this translation (added before)\n");
         fprintf(f, "  --agree         agree to the license of each translation added (when\n");
         fprintf(f, "                  run with no one to answer, as from a script)\n");
-        fprintf(f, "  --license NAME, --check NAME, --at-end, --agreed-how TEXT:\n");
-        fprintf(f, "                  for programs (as add-scrollmapper.sh's)\n");
+        fprintf(f, "  --list          only list the translations\n");
+        fprintf(f, "  --catalog, --license NAME, --check NAME, --at-end, --agreed-how TEXT:\n");
+        fprintf(f, "                  for programs (see the comments at the top of import.c)\n");
         fprintf(f, "  --source PLACE  where the translations are: a web address, or a folder\n");
-        fprintf(f, "                  with a copy of thiagobodruk/bible (default: %s)\n", src->source);
+        fprintf(f, "                  with a copy of %s (default:\n", src->repo);
+        fprintf(f, "                  %s)\n", src->source);
+        fprintf(f, "  --names-source PLACE  where the names of languages are (Unicode's CLDR)\n");
 }
 
 static void cleanup(void)
@@ -2875,6 +3079,8 @@ static const Source *source_named(const char *name)
 {
         if (strcmp(name, "thiagobodruk") == 0)
                 return (&thiagobodruk);
+        if (strcmp(name, "scrollmapper") == 0)
+                return (&scrollmapper);
         return (NULL);
 }
 
@@ -2969,7 +3175,7 @@ int import_main(int argc, char **argv)
 
         if (argc < 2 || source_named(argv[1]) == NULL)
         {
-                fprintf(stderr, "usage: bible --import thiagobodruk ...\n");
+                fprintf(stderr, "usage: bible --import thiagobodruk|scrollmapper ...\n");
                 return (2);
         }
         src = source_named(argv[1]);

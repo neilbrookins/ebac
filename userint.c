@@ -155,13 +155,13 @@ static int screen_key P((void));
 #ifdef UNIXV
 /*
 ** A)dd: where to add a text from (November 2026; the designer's request).
-** Each place has an importer of its own, a shell script, run only when it
-** is chosen here, each known by its letter: T)hiagobodruk/bible (add-
-** thiagobodruk.sh, its XML Bibles, the first since November 8),
-** S)crollmapper/bible_databases (add-scrollmapper.sh; G for GitHub
-** before), both by language, and P)roject Gutenberg, by ebook number
-** (add-gutenberg.sh). A new place is another line here and another
-** script. Each importer adds, and removes, only its own texts; the short
+** Each place is known by its letter: T)hiagobodruk/bible (its XML Bibles,
+** the first since November 8), S)crollmapper/bible_databases (G for
+** GitHub before), both by language, and P)roject Gutenberg, by ebook
+** number. The first two are the importer in C (import.c), in EBaC itself;
+** Project Gutenberg's is still a shell script (add-gutenberg.sh), run only
+** when it is chosen here. A new place is another line here, and another
+** source in import.c. Each importer adds, and removes, only its own texts; the short
 ** name of a text from thiagobodruk/bible ends in "-TB" (KJVA-TB), and of
 ** one from Project Gutenberg in "-PG" (DRC-PG), so that the same
 ** translation from each place can be kept side by side.
@@ -234,7 +234,7 @@ static void add_menu(void)
                 }
                 if ((key == 's' || key == '2') && scrollmapper[0] != '\0')
                 {
-                        run_importer(scrollmapper, "scrollmapper importer");
+                        add_in_ebac("scrollmapper");
                         return;
                 }
                 if ((key == 'p' || key == '3') && gutenberg[0] != '\0')
@@ -2668,9 +2668,10 @@ int main(int argc, char **argv)
         if (argc > 1)
                 start_trans = argv[1];  /* "bible BSB": start with BSB */
 #ifdef UNIXV
-        /* (thiagobodruk/bible: the importer in C, always there) */
+        /* (thiagobodruk/bible and scrollmapper/bible_databases: the
+           importer in C, always there) */
         strcpy(thiagobodruk, "(in EBaC)");
-        find_importer(scrollmapper, sizeof(scrollmapper), "add-scrollmapper.sh");
+        strcpy(scrollmapper, "(in EBaC)");
         find_importer(gutenberg, sizeof(gutenberg), "add-gutenberg.sh");
 #endif
         initialize();

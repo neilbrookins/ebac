@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """
-A on EBaC's main menu, then T (thiagobodruk/bible): the screens of the
-importer in C (in EBaC itself) against those of the shell importer it
-replaces (add-thiagobodruk.sh, which EBaC ran in its place), key by key, as
-the terminal shows them, at a phone's size and at 80 columns.
+A on EBaC's main menu, then T (thiagobodruk/bible) or S
+(scrollmapper/bible_databases): the screens of the importer in C (in EBaC
+itself) against those of the shell importer it replaces (add-
+thiagobodruk.sh, add-scrollmapper.sh, which EBaC ran in its place), key by
+key, as the terminal shows them, at a phone's size and at 80 columns.
 
 Each EBaC runs in a folder of its own: the AV, and for the old one its
-importer scripts, made to take the source from a copy (its SOURCE and
-NAMES_SOURCE lines changed); the new one is given the copies by
-EBAC_IMPORT_SOURCE and EBAC_NAMES_SOURCE.
+importer scripts, made to take the source from a copy (their SOURCE,
+NAMES_SOURCE and REGISTRY_SOURCE lines changed); the new one is given the
+copies by EBAC_IMPORT_SOURCE and EBAC_NAMES_SOURCE (IANA's names it keeps).
 
 Usage:
     python3 tests/importscreens.py OLD_BIBLE NEW_BIBLE SOURCE_COPY NAMES_COPY
+                                   [thiagobodruk|scrollmapper [REGISTRY_COPY]]
 OLD_BIBLE: EBaC as built before (with its index program beside it).
+REGISTRY_COPY: a folder with IANA's language-subtag-registry, for the old
+importer (scrollmapper/bible_databases has codes Unicode has no names for).
 """
 import os
 import re
@@ -27,10 +31,11 @@ import pty, select, time, fcntl, termios, struct, codecs  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# (keys, then what the screen must show before going on)
+# (keys, then what the screen must show before going on; L: the source's
+# letter)
 STEPS = [
     ("a", "Where from?"),
-    ("t", "Choose a language"),
+    ("L", "Choose a language"),
     ("n\r", "Choose a language"),
     ("p\r", "Choose a language"),
     ("99\r", "Not in the list: 99"),
@@ -44,14 +49,14 @@ STEPS = [
     ("y\r", "Press any key to go back to EBaC."),
     (" ", "Main Menu"),
     ("a", "Where from?"),
-    ("t", "Choose a language"),
+    ("L", "Choose a language"),
     ("1\r", "Add or remove translations"),
     ("r3\r", "Press any key to go back to EBaC."),
     (" ", "Main Menu"),
 ]
 
 
-def run(binary, root, home, rows, cols, env_extra):
+def run(binary, root, home, rows, cols, env_extra, letter):
     env = dict(os.environ, TERM="xterm", HOME=home, BIBLEROOT=root, LC_ALL="C", **env_extra)
     pid, fd = pty.fork()
     if pid == 0:
@@ -86,6 +91,7 @@ def run(binary, root, home, rows, cols, env_extra):
     screens = []
     read_until("Main Menu")
     for keys, wanted in STEPS:
+        keys = letter if keys == "L" else keys
         os.write(fd, keys.encode())
         ok = read_until(wanted)
         screens.append((keys, ok, dump()))
@@ -98,6 +104,9 @@ def main():
     if len(sys.argv) < 5:
         sys.exit(__doc__)
     old, new, src, names = (os.path.abspath(a) for a in sys.argv[1:5])
+    source = sys.argv[5] if len(sys.argv) > 5 else "thiagobodruk"
+    registry = os.path.abspath(sys.argv[6]) if len(sys.argv) > 6 else None
+    letter = {"thiagobodruk": "t", "scrollmapper": "s"}[source]
     tmp = tempfile.mkdtemp(prefix="ebac-importscreens-")
     fails = 0
     try:
@@ -117,18 +126,21 @@ def main():
                 roots[which] = (root, home)
             oldroot = roots["old"][0]
             olddir = os.path.dirname(old)
-            for script in ("add-thiagobodruk.sh", "importer.sh"):
+            for script in ("add-thiagobodruk.sh", "add-scrollmapper.sh", "importer.sh"):
                 with open(os.path.join(olddir, script)) as f:
                     text = f.read()
-                text = re.sub(r"^SOURCE=.*$", "SOURCE=" + src, text, flags=re.M)
+                if script == "add-%s.sh" % source:
+                    text = re.sub(r"^SOURCE=.*$", "SOURCE=" + src, text, flags=re.M)
                 text = re.sub(r"^NAMES_SOURCE=.*$", "NAMES_SOURCE=" + names, text, flags=re.M)
+                if registry:
+                    text = re.sub(r"^REGISTRY_SOURCE=.*$", "REGISTRY_SOURCE=" + registry, text, flags=re.M)
                 with open(os.path.join(oldroot, script), "w") as f:
                     f.write(text)
             shutil.copy(os.path.join(olddir, "index"), oldroot)
             shutil.copy(old, os.path.join(oldroot, "bible"))
-            a = run(os.path.join(oldroot, "bible"), oldroot, roots["old"][1], rows, cols, {})
+            a = run(os.path.join(oldroot, "bible"), oldroot, roots["old"][1], rows, cols, {}, letter)
             b = run(new, roots["new"][0], roots["new"][1], rows, cols,
-                    {"EBAC_IMPORT_SOURCE": src, "EBAC_NAMES_SOURCE": names})
+                    {"EBAC_IMPORT_SOURCE": src, "EBAC_NAMES_SOURCE": names}, letter)
             for (keys, ok_a, sa), (_, ok_b, sb) in zip(a, b):
                 same = sa == sb
                 label = "%dx%d %r" % (rows, cols, keys)

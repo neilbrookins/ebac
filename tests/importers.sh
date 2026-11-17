@@ -6,10 +6,14 @@
 # what each said. See "The importers in C" in readme.architecture.
 #
 #   sh tests/importers.sh thiagobodruk SOURCE_FOLDER [NAME ...]
+#   sh tests/importers.sh scrollmapper SOURCE_FOLDER [NAME ...]
 #
-# SOURCE_FOLDER: a copy of thiagobodruk/bible (json/index.json and xml/).
-# With no NAME, every translation in its list. Run from EBaC's folder,
-# after make (bible and index).
+# SOURCE_FOLDER: a copy of thiagobodruk/bible (json/index.json and xml/),
+# or of scrollmapper/bible_databases (docs/main_readme/translation_list.md,
+# sources/*/*/README.md and formats/txt/). With no NAME, every translation
+# in its list. EBAC_NAMES_SOURCE: a copy of Unicode's names of languages
+# (cldr-localenames-full/main), for that list, if not from the Internet.
+# Run from EBaC's folder, after make (bible and index).
 set -u
 which=$1
 source=$(cd "$2" && pwd)
@@ -20,6 +24,7 @@ trap 'rm -rf "$work"' EXIT
 
 case $which in
 thiagobodruk) script=add-thiagobodruk.sh ;;
+scrollmapper) script=add-scrollmapper.sh ;;
 *) echo "importers.sh: no such source: $which" >&2; exit 2 ;;
 esac
 
@@ -32,7 +37,8 @@ done
 cp "$repo/$script" "$repo/importer.sh" "$repo/index" "$work/sh/"
 
 if [ $# -eq 0 ]; then
-        set -- $(sh "$work/sh/$script" --source "$source" --catalog 2>/dev/null |
+        set -- $(sh "$work/sh/$script" --source "$source" \
+                ${EBAC_NAMES_SOURCE:+--names-source "$EBAC_NAMES_SOURCE"} --catalog 2>/dev/null |
                  awk -F '\t' '$1 == "translation" { print $2 }')
 fi
 

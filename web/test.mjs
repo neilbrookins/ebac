@@ -2,7 +2,8 @@
 // built site (web/build/site), opens it at a desktop's size and a phone's,
 // and checks that the main menu comes, a verse can be read (V, John 3:16),
 // a search finds (S, jesus wept), and a resize changes EBaC's width; and
-// that A adds a translation (from GitHub) that is kept, and removes it.
+// that A adds a translation (from GitHub) that is kept, and removes it,
+// and lists scrollmapper/bible_databases's languages.
 // Prints each screen it checks. Exits 1 if any check fails.
 //
 //   node web/test.mjs web/build/site     (puppeteer-core; CHROME: the browser)
@@ -276,6 +277,14 @@ for (const [name, view] of [
                 }));
                 console.log(`${left === 0 ? "ok  " : "FAIL"} and its files are gone from the browser's storage (${left} left)`);
                 if (left !== 0) failed++;
+                // A, S: scrollmapper/bible_databases's languages, from GitHub;
+                // Enter alone, back to EBaC
+                await keys(page, "a");
+                await check(page, "A: where from? (S too)", "S)crollmapper/bible_databases");
+                await keys(page, "s");
+                await check(page, "S: its languages (from GitHub)", "Ancient Hebrew", 60000);
+                await keys(page, "\r");
+                await check(page, "Enter: back to EBaC", "Main Menu");
             }
         }
     }

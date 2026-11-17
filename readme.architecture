@@ -2427,6 +2427,12 @@ the browser's own fetch in the browser.
     script, its screens the same as the script's, key by key, at a
     phone's size and at 80 columns (tests/importscreens.py). The index
     is built in the same program (indexlib.c: index.c as a function).
+  - scrollmapper/bible_databases, in C too (bible --import
+    scrollmapper): every one of its 140 translations the same, byte for
+    byte, as add-scrollmapper.sh wrote it, and A then S's screens the
+    same as the script's. Its list has four language codes Unicode has
+    no English name for (bea, hbo, sml, tsg): IANA's names for them are
+    kept in import.c, as the browser may not download IANA's registry.
   - In the browser, EBaC's folder of translations is kept in the
     browser's storage as well, so a translation added is there the next
     time, and one removed frees its space. The translations that come
