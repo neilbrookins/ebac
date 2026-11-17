@@ -12,4 +12,12 @@ extern int net_get P((const char *url, const char *path));
    bytes): 0, or -1 (version "") if it can't be had */
 extern int net_version P((const char *url, char *version, int size));
 
+/* In a web browser, the page draws what EBaC wrote only when EBaC waits:
+   while it works (writing a translation's books, building its index),
+   nothing new shows, and the page doesn't answer. let_page_draw(TRUE)
+   waits a moment for it, so what was just written shows now;
+   let_page_draw(FALSE), called often in a long step, does so at most
+   ten times a second. Elsewhere, nothing. */
+extern void let_page_draw P((int now));
+
 #endif

@@ -7,4 +7,9 @@
    quiet: without "Reading from book: ..." for each book. */
 extern int make_index P((int quiet));
 
+/* If set, called as each book is read and as the index is written, so
+   that a program building it can show what it has written meanwhile (in a
+   web browser: import.c) */
+extern void (*index_each_step) P((void));
+
 #endif

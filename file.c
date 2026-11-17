@@ -355,6 +355,18 @@ int ugetchar(void)
 }
 #endif
 
+#ifdef UNIXV
+/* (bible.h) */
+void discard_typeahead(void)
+{
+#ifdef USE_NCURSES
+        npending = 0;
+#endif
+        while (read_key_byte(0) >= 0)
+                ;
+}
+#endif
+
 /*
 Purpose: the function fclose is called many times in this application
          and we always want to check for error status. This saves space
@@ -778,8 +790,16 @@ int use_translation(char *name)
 	}
 	if (!index_format_ok(name))
 		return (FALSE);
-	strcpy(etla, name);
-	open_new_trans();
+	/* (as C)hange does, if one is open already: its index files closed,
+	   and the book read from forgotten, so that the new one's are read,
+	   not the old one's, as they were after A added one) */
+	if (cvarray_file != NULL)
+		open_translation(name);
+	else
+	{
+		strcpy(etla, name);
+		open_new_trans();
+	}
 	return (TRUE);
 }
 #endif

@@ -78,6 +78,9 @@ static int notes_state = 0;  /* (disable_newverse in file.c): 0, 1, or 2 mean: e
 
 /* a failure (a file that can't be opened, memory run out) ends make_index() */
 static jmp_buf index_failed;
+
+/* (index.h: called now and then, if set) */
+void (*index_each_step) P((void)) = NULL;
 static void fail(void);
 
 /* functions in this file */
@@ -430,6 +433,12 @@ static void inorder_traversal(struct tree *node)
     if (node->left != NULL)
         inorder_traversal(node->left); /* resursive */
     visit_node(node);
+    {
+        static long visited = 0;
+
+        if (index_each_step != NULL && (++visited & 1023) == 0)
+            index_each_step();
+    }
     if (node->right != NULL)
         inorder_traversal(node->right); /* resursive */
 }
@@ -666,6 +675,8 @@ while (fgets(book_name, sizeof(book_name), book_list) != NULL)
   last_c = last_v = -1;                 /* (a new book) */
   if (!quiet)
         printf("Reading from book: %s\n", book_name);
+  if (index_each_step != NULL)
+        index_each_step();
   for(;;){
         read_word(book_file);
         if (feof(book_file))

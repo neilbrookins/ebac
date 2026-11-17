@@ -1358,6 +1358,12 @@ static void hyphen_rows(const char *t, Str *out)
         str_adds(out, rest);
 }
 
+/* (make_index()'s index_each_step: see let_page_draw() in net.h) */
+static void page_draws(void)
+{
+        let_page_draw(FALSE);
+}
+
 static int add_to(Translation *tr, const char *version_now, const char *agreed)
 {
         char folder[1200], text_path[1200], path[1400], date[32];
@@ -1382,6 +1388,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
                 return (-1);
         printf("%s: downloading...\n", tr->name);
         fflush(stdout);
+        let_page_draw(TRUE);
         sprintf(text_path, "%s/text", tmp);
         if (src->fetch_text(tr->name, text_path) != 0)
                 return (-1);
@@ -1399,6 +1406,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
 
                 while (read_line(f, line, sizeof(line)))
                 {
+                        let_page_draw(FALSE);   /* (in a browser: see net.h) */
                         nr++;
                         if (strncmp(line, "### ", 4) == 0)
                         {
@@ -1491,6 +1499,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
 
         printf("%s: writing %d books into the folder %s...\n", tr->name, kept, tr->name);
         fflush(stdout);
+        let_page_draw(TRUE);
         remove_all(folder);
         if (mkdir(folder, 0777) != 0)
         {
@@ -1515,6 +1524,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
         b = 0;
         while (read_line(f, line, sizeof(line)))
         {
+                let_page_draw(FALSE);   /* (in a browser: see net.h) */
                 if (strncmp(line, "### ", 4) == 0)
                 {
                         char *h = line + 4, *tab = strchr(h, '\t'), code[1024];
@@ -1585,6 +1595,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
 
         printf("%s: building the concordance index...\n", tr->name);
         fflush(stdout);
+        let_page_draw(TRUE);
         {
                 char back[1100];
                 int built;
@@ -1595,7 +1606,9 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
                         ok = -1;
                         goto done;
                 }
+                index_each_step = page_draws;
                 built = make_index(TRUE);
+                index_each_step = NULL;
                 if (chdir(back) != 0 || built != 0)
                 {
                         strcpy(problem, "building the index failed");
@@ -1690,6 +1703,7 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
 
                 while (read_line(f, line, sizeof(line)))
                 {
+                        let_page_draw(FALSE);   /* (in a browser: see net.h) */
                         char *p;
                         size_t n;
 
@@ -2041,7 +2055,13 @@ static void press_any_key(void)
         typing_mode("anykey");
         fflush(stdout);
         if (in_ebac)
+        {
+                /* (all of it shown first, in a browser; and a key pressed,
+                   or a tap, while it worked doesn't pass over it unread) */
+                let_page_draw(TRUE);
+                discard_typeahead();
                 ugetchar();
+        }
         else
         {
                 char line[256];
@@ -3137,7 +3157,10 @@ int import_in_ebac(const char *which, const char *root, char *start_with)
                 names_source = getenv("EBAC_NAMES_SOURCE");
         clear_screen();
         if (src->all_translations() != 0)
+        {
                 printf("%s: %s\n", src->program, problem);
+                failed++;       /* (said, and kept on the screen to be read) */
+        }
         else
         {
                 languages();

@@ -19,6 +19,8 @@
 ** net_version(URL)      the file's fingerprint, its ETag, without the file
 ** Each returns 0 or -1; on -1, net_problem says why, as a sentence's end
 ** ("couldn't download URL (404)").
+** let_page_draw(NOW)    in a browser, a moment for the page to draw what
+**                       was written (see net.h)
 */
 
 #include <stdio.h>
@@ -63,6 +65,18 @@ EM_ASYNC_JS(int, js_fetch, (const char *url, const char *path, int head,
                 return 0;
         }
 });
+
+void let_page_draw(int now)
+{
+        static double last = 0;
+        double t = emscripten_get_now();
+
+        if (now || t - last >= 100)
+        {
+                emscripten_sleep(0);
+                last = emscripten_get_now();
+        }
+}
 
 int net_get(const char *url, const char *path)
 {
@@ -299,4 +313,10 @@ int net_version(const char *url, char *version, int size)
         return (-1);
 }
 #endif /* UNIXV */
+
+/* (a terminal shows what is written at once) */
+void let_page_draw(int now)
+{
+        (void) now;
+}
 #endif /* __EMSCRIPTEN__ */

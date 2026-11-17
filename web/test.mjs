@@ -218,15 +218,22 @@ for (const [name, view] of [
             await check(page, "back to the main menu", "Main Menu");
 
             // A, T: a translation added (downloaded, from thiagobodruk/bible
-            // on GitHub), kept in the browser's storage, so it is there when
-            // EBaC starts again; then removed, and gone the next time.
-            // (Once: the phone's page has the same storage.)
-            if (!view.hasTouch) {
-                const restart = async () => {
-                    await keys(page, "e");
-                    await sleep(1000);
-                    await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.keyboard.press("Enter")]);
-                };
+            // on GitHub). Each step's line shows as it starts, not all at
+            // the end (the page draws while EBaC works); a key or a tap
+            // while it works doesn't pass over "Press any key"; then EBaC
+            // shows it at once (V, not the translation shown before).
+            const view316 = async (name, text) => {
+                await keys(page, "v");
+                await keys(page, "johannes\r");
+                await keys(page, "3\r");
+                await keys(page, "16\r");
+                await check(page, name, text);
+                await keys(page, "x");
+                await sleep(500);
+                await keys(page, "x");
+                await check(page, "back to the main menu", "Main Menu");
+            };
+            const addAfrikaans = async () => {
                 await keys(page, "a");
                 await check(page, "A: where from?", "Where from?");
                 await keys(page, "t");
@@ -236,21 +243,37 @@ for (const [name, view] of [
                 await keys(page, "1\r");
                 await check(page, "1: its license", "Do you agree to these terms (y/n)?");
                 await keys(page, "y\r");
-                await check(page, "y: downloaded, written, indexed", "Press any key to go back to EBaC.", 180000);
+                // (what the screen shows meanwhile, every tenth of a second)
+                let seen = "", end = Date.now() + 180000, tapped = false;
+                while (Date.now() < end) {
+                    const now = await screen(page);
+                    if (now.includes("Press any key to go back to EBaC.")) break;
+                    if (/writing \d+ books/.test(now) && !now.includes("is ready") && !seen)
+                        seen = "writing";
+                    if (/building the concordance index/.test(now) && !now.includes("is ready"))
+                        seen = "building";
+                    // a key, and on the phone a tap, while it works
+                    if (seen && !tapped) {
+                        tapped = true;
+                        await page.keyboard.press("Enter");
+                        if (view.hasTouch) await page.touchscreen.tap(view.width / 2, view.height / 2);
+                    }
+                    await sleep(100);
+                }
+                const shown = seen === "building";
+                console.log(`${shown ? "ok  " : "FAIL"} each step shown as it starts (last seen before the end: ${seen || "none"})`);
+                if (!shown) failed++;
+                await check(page, "y: downloaded, written, indexed", "Press any key to go back to EBaC.", 1000);
                 await check(page, "the index was built", "is ready");
+                await sleep(2000);
+                const held = (await screen(page)).includes("Press any key to go back to EBaC.");
+                console.log(`${held ? "ok  " : "FAIL"} "Press any key" waits, though ${view.hasTouch ? "Enter and a tap came" : "Enter came"} while it worked`);
+                if (!held) failed++;
                 await keys(page, " ");
                 await check(page, "back to EBaC, with it", "Selected translation: AFR53-TB");
-                await restart();
-                await check(page, "EBaC started again: it is still there", "Selected translation: AFR53-TB");
-                await keys(page, "v");
-                await keys(page, "johannes\r");
-                await keys(page, "3\r");
-                await keys(page, "16\r");
-                await check(page, "V: John 3:16 in it (Johannes)", "Want so lief het God");
-                await keys(page, "x");
-                await sleep(500);
-                await keys(page, "x");
-                await check(page, "back to the main menu", "Main Menu");
+                await view316("V at once: John 3:16 in it (Johannes)", "Want so lief het God");
+            };
+            const removeAfrikaans = async (back) => {
                 await keys(page, "a");
                 await keys(page, "t");
                 await check(page, "A, T: the languages", "Choose a language", 60000);
@@ -259,7 +282,26 @@ for (const [name, view] of [
                 await keys(page, "r1\r");
                 await check(page, "r1: removed", "AFR53-TB: removed.");
                 await keys(page, " ");
-                await check(page, "back to EBaC, with the AV", "Selected translation: AV");
+                await check(page, "back to EBaC, with the AV", back);
+            };
+            // (on the phone: added and removed, its page shares the storage)
+            if (view.hasTouch) {
+                await addAfrikaans();
+                await removeAfrikaans("Selected translation: AV");
+            }
+            // kept in the browser's storage, so it is there when EBaC starts
+            // again; then removed, and gone the next time
+            if (!view.hasTouch) {
+                const restart = async () => {
+                    await keys(page, "e");
+                    await sleep(1000);
+                    await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.keyboard.press("Enter")]);
+                };
+                await addAfrikaans();
+                await restart();
+                await check(page, "EBaC started again: it is still there", "Selected translation: AFR53-TB");
+                await view316("V: John 3:16 in it (Johannes)", "Want so lief het God");
+                await removeAfrikaans("Selected translation: AV");
                 await restart();
                 await check(page, "EBaC started again: still the AV", "Selected translation: AV");
                 const left = await page.evaluate(() => new Promise((resolve) => {

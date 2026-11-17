@@ -166,6 +166,9 @@ extern int interactive;
 #ifdef UNIXV
 int use_translation P((char *name));
 char *ebac_root P((void));
+/* the keys typed before now, not yet read, let go of (so that keys
+   pressed while EBaC was busy don't answer the question it asks next) */
+void discard_typeahead P((void));
 #endif
 #ifdef RAMDISK
 struct TEMPFILE *find_word P((char *word, int positions));
