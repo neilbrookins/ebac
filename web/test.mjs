@@ -165,21 +165,24 @@ for (const [name, view] of [
             console.log(`${ok2 ? "ok  " : "FAIL"} f: font back to ${size2}, ${cols2} columns, kept ${kept2}`);
             if (!ok2) failed++;
 
-            // the wheel, on the main menu: a step a notch, up larger
-            await page.mouse.move(view.width / 2, view.height / 2);
-            await page.mouse.wheel({ deltaY: -40 });       // part of a notch: none
-            await sleep(500);
-            const [w0] = await font();
-            await page.mouse.wheel({ deltaY: -60 });       // the rest: a step
-            await sleep(1000);
-            const [w1] = await font();
-            await page.mouse.wheel({ deltaY: 500 });       // a fast turn: a step only
-            await sleep(1000);
-            const [w2] = await font();
-            const ok4 = w0 === size0 && w1 === size0 + 1 && w2 === size0;
-            console.log(`${ok4 ? "ok  " : "FAIL"} the wheel: font ${w0}, ${w1}, ${w2}`);
-            if (!ok4) failed++;
-            await check(page, "the main menu, after the wheel", "Main Menu");
+            // the wheel, on the main menu: a step a notch, up larger (with
+            // a mouse: not the phone's, which has none)
+            if (!view.hasTouch) {
+                await page.mouse.move(view.width / 2, view.height / 2);
+                await page.mouse.wheel({ deltaY: -40 });       // part of a notch: none
+                await sleep(500);
+                const [w0] = await font();
+                await page.mouse.wheel({ deltaY: -60 });       // the rest: a step
+                await sleep(1000);
+                const [w1] = await font();
+                await page.mouse.wheel({ deltaY: 500 });       // a fast turn: a step only
+                await sleep(1000);
+                const [w2] = await font();
+                const ok4 = w0 === size0 && w1 === size0 + 1 && w2 === size0;
+                console.log(`${ok4 ? "ok  " : "FAIL"} the wheel: font ${w0}, ${w1}, ${w2}`);
+                if (!ok4) failed++;
+                await check(page, "the main menu, after the wheel", "Main Menu");
+            }
 
             // a pinch (two fingers apart): larger, a step or a few, not more
             if (view.hasTouch) {
@@ -392,7 +395,7 @@ for (const [name, view] of [
                 // A, S: scrollmapper/bible_databases's languages, from GitHub;
                 // Enter alone, back to EBaC
                 await keys(page, "a");
-                await check(page, "A: where from? (S too)", "S)crollmapper/bible_databases");
+                await check(page, "A: where from? (S too)", "S)crollMapper/bible_databases");
                 await keys(page, "s");
                 await check(page, "S: its languages (from GitHub)", "Ancient Hebrew", 60000);
                 await keys(page, "\r");
