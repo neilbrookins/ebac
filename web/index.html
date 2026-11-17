@@ -39,15 +39,15 @@
   #terminal-container[style*="height"] { flex: none; }
   /* the offer of a shortcut on the home screen, above the terminal (the
      terminal fits to what is left) */
-  #install { display: none; flex: none; align-items: center; gap: 0.6em;
+  #install, #update { display: none; flex: none; align-items: center; gap: 0.6em;
              padding: 0.45em 0.6em; background: #26313d; color: #fff;
              font: 15px/1.3 sans-serif; border-bottom: 1px solid #3d4b5a; }
-  #install img { width: 32px; height: 32px; border-radius: 7px; flex: none; }
-  #install .text { flex: 1 1 auto; }
-  #install button { font: bold 15px sans-serif; border: 0; border-radius: 5px;
+  #install img, #update img { width: 32px; height: 32px; border-radius: 7px; flex: none; }
+  #install .text, #update .text { flex: 1 1 auto; }
+  #install button, #update button { font: bold 15px sans-serif; border: 0; border-radius: 5px;
                     padding: 0.45em 0.8em; cursor: pointer; flex: none; }
-  #install .add { background: #ffd54f; color: #000; }
-  #install .close { background: transparent; color: #fff; font-size: 20px;
+  #install .add, #update .add { background: #ffd54f; color: #000; }
+  #install .close, #update .close { background: transparent; color: #fff; font-size: 20px;
                     padding: 0.2em 0.4em; }
   #terminal-container .terminal { padding: 5px; height: calc(100% - 10px); }
   #loading { position: fixed; top: 1em; left: 1em; color: #fff;
@@ -69,6 +69,12 @@
   <span class="text"></span>
   <button class="add" type="button">Install</button>
   <button class="close" type="button" aria-label="Close">&#x2715;</button>
+</div>
+<div id="update" role="region" aria-label="A newer EBaC">
+  <img src="icons/icon-180.png" alt="">
+  <span class="text">A newer EBaC is ready.</span>
+  <button class="add" type="button">Update</button>
+  <button class="close" type="button" aria-label="Not now">&#x2715;</button>
 </div>
 <div id="terminal-container"></div>
 <script src="xterm.js"></script>
@@ -282,9 +288,64 @@
       siteTranslations(ebac.FS);
       document.getElementById("loading").remove();
       save();
+      keepUpToDate();
     },
     onExit: ebacEnded,
   });
+
+  /*
+  ** Kept for next time, and kept up to date (sw.js): the page's files,
+  ** kept in the browser by its service worker, so that EBaC opens at once,
+  ** and with no Internet at all, from the files it last had. A newer EBaC
+  ** is looked for when the page opens, and whenever EBaC is brought back
+  ** to the screen (a home-screen app, say, left running for days), in the
+  ** background: no one waits for it, and with no Internet nothing happens.
+  ** Once it is downloaded, a bar above the terminal offers it: Update
+  ** (EBaC's files saved, then the page reloaded, as the newer one), or
+  ** not now (offered again the next time). Looked for only once EBaC has
+  ** started, so a first visit isn't slowed by it.
+  */
+  const updateBar = document.getElementById("update");
+  let updating = false;
+  function offerUpdate(waiting) {
+    if (updating || !navigator.serviceWorker.controller) return;  // (a first visit: nothing to update)
+    updateBar.style.display = "flex";
+    window.dispatchEvent(new Event("resize"));
+    updateBar.querySelector(".add").onclick = async () => {
+      updating = true;
+      updateBar.querySelector(".text").textContent = "Updating EBaC\u2026";
+      await window.ebacSaved();
+      waiting.postMessage("update");
+    };
+  }
+  updateBar.querySelector(".close").addEventListener("click", () => {
+    updateBar.style.display = "none";
+    window.dispatchEvent(new Event("resize"));
+  });
+  window.ebacUpdateBar = () => updateBar.style.display === "flex";   // (test.mjs)
+  function keepUpToDate() {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (updating) location.reload();
+    });
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      if (reg.waiting) offerUpdate(reg.waiting);
+      reg.addEventListener("updatefound", () => {
+        const next = reg.installing;
+        next.addEventListener("statechange", () => {
+          if (next.state === "installed") offerUpdate(next);
+        });
+      });
+      const look = () => reg.update()
+        .then(() => { if (reg.waiting) offerUpdate(reg.waiting); })
+        .catch(() => { /* no Internet: as it is */ });
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") look();
+      });
+      setInterval(look, 6 * 60 * 60 * 1000);      // (and every 6 hours left open)
+      window.ebacLookForUpdate = look;            // (test.mjs)
+    }).catch((err) => console.warn("EBaC: not kept for use offline:", err));
+  }
 </script>
 </body>
 </html>

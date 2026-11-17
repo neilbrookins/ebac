@@ -17,11 +17,17 @@ const site = path.resolve(process.argv[2] || "web/build/site");
 const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",
                 ".css": "text/css", ".wasm": "application/wasm", ".data": "application/octet-stream",
                 ".png": "image/png", ".webmanifest": "application/manifest+json" };
+// (offline: as with no Internet, every request goes unanswered; newer: a
+// newer EBaC published, as far as the service worker can tell)
+let offline = false, newer = "";
 const server = http.createServer((req, res) => {
+    if (offline) return req.socket.destroy();
     const p = path.join(site, decodeURIComponent(new URL(req.url, "http://x").pathname));
     const file = p.endsWith("/") ? path.join(p, "index.html") : p;
     if (!file.startsWith(site) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { "Content-Type": types[path.extname(file)] || "application/octet-stream" });
+    if (path.basename(file) === "sw.js" && newer)
+        return res.end(fs.readFileSync(file, "utf8").replace(/const VERSION = "([^"]*)"/, `const VERSION = "$1${newer}"`));
     fs.createReadStream(file).pipe(res);
 }).listen(8097);
 
@@ -538,6 +544,64 @@ for (const [name, view] of [
     await check(iphone, "iPhone, again: the main menu", "Main Menu");
     report(!(await iphone.evaluate(() => window.ebacInstallBar())), "iPhone, again: no bar");
     await iphone.close();
+}
+
+// Kept for next time, and kept up to date (sw.js): EBaC opens with no
+// Internet at all, from the files kept; a newer one is offered, in a bar,
+// and Update makes it the one; with no Internet, looking for one neither
+// waits nor shows anything.
+{
+    console.log("\n== kept for next time, and kept up to date");
+    const report = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) failed++; };
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 900 });
+    await page.goto("http://localhost:8097/", { waitUntil: "load" });
+    await check(page, "the main menu", "Main Menu");
+    const kept = await page.evaluate(async () => {
+        const reg = await navigator.serviceWorker.ready;
+        for (let i = 0; i < 100 && !navigator.serviceWorker.controller; i++)
+            await new Promise((r) => setTimeout(r, 100));
+        const names = await caches.keys();
+        const files = names.length ? (await (await caches.open(names[0])).keys()).length : 0;
+        return { active: !!reg.active, controlled: !!navigator.serviceWorker.controller, names, files };
+    });
+    report(kept.active && kept.controlled && kept.files > 5,
+           `the files kept: ${kept.files} (${kept.names.join(", ")})`);
+
+    offline = true;
+    const t0 = Date.now();
+    await page.reload({ waitUntil: "load" });
+    const opened = await check(page, "no Internet: EBaC opens anyway, from the files kept", "Main Menu");
+    report(opened && Date.now() - t0 < 15000, `  in ${((Date.now() - t0) / 1000).toFixed(1)} seconds`);
+    await page.evaluate(() => window.ebacLookForUpdate && window.ebacLookForUpdate());
+    await sleep(2000);
+    report(!(await page.evaluate(() => window.ebacUpdateBar())), "no Internet: looking for a newer one shows nothing");
+    await keys(page, "v");
+    await keys(page, "john 3:16\r");
+    await check(page, "no Internet: V, John 3:16", "For God so loved the world");
+    offline = false;
+
+    newer = "-newer";
+    await page.evaluate(() => window.ebacLookForUpdate());
+    let offered = false;
+    for (let i = 0; i < 60 && !offered; i++) {
+        await sleep(500);
+        offered = await page.evaluate(() => window.ebacUpdateBar());
+    }
+    report(offered, "a newer EBaC: offered (\"A newer EBaC is ready.\")");
+    if (offered) {
+        await Promise.all([page.waitForNavigation({ waitUntil: "load", timeout: 60000 }).catch(() => null),
+                           page.click("#update .add")]);
+        await check(page, "Update: the newer one, at the main menu", "Main Menu");
+        const now = await page.evaluate(async () => {
+            const names = await caches.keys();
+            return { names, bar: window.ebacUpdateBar() };
+        });
+        report(now.names.length === 1 && now.names[0].endsWith("-newer") && !now.bar,
+               `Update: the newer one's files kept, the older let go (${now.names.join(", ")})`);
+    }
+    newer = "";
+    await page.close();
 }
 
 await browser.close();

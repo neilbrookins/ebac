@@ -64,4 +64,13 @@ cp web/icons/*.png "$SITE/icons/"
 cp "$NM/@xterm/xterm/lib/xterm.js" "$NM/@xterm/xterm/css/xterm.css" "$SITE/"
 cp "$NM/@xterm/addon-fit/lib/addon-fit.js" "$SITE/"
 cp "$NM/xterm-pty/index.mjs" "$SITE/xterm-pty.mjs"
+
+# The service worker (web/sw.js): the site's files, to keep in the
+# browser, and its version: the commit, and a fingerprint of them all, so
+# that any change is a newer EBaC to offer.
+FILES=$(cd "$SITE" && find . -type f | sed 's#^\./##' | sort)
+PRINT=$(cd "$SITE" && cat $FILES | sha256sum | cut -c1-12)
+LIST=$(printf '"./"'; for f in $FILES; do printf ', "%s"' "$f"; done)
+sed -e "s#@VERSION@#$(echo "$COMMIT" | cut -d, -f1)-$PRINT#" \
+    -e "s#@FILES@#[$LIST]#" web/sw.js > "$SITE/sw.js"
 ls -l "$SITE"
