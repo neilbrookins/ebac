@@ -576,9 +576,8 @@ for (const [name, view] of [
     await page.evaluate(() => window.ebacLookForUpdate && window.ebacLookForUpdate());
     await sleep(2000);
     report(!(await page.evaluate(() => window.ebacUpdateBar())), "no Internet: looking for a newer one shows nothing");
-    await keys(page, "v");
-    await keys(page, "john 3:16\r");
-    await check(page, "no Internet: V, John 3:16", "For God so loved the world");
+    await keys(page, "c");
+    await check(page, "no Internet: C, the translations kept (AV among them)", "AV");
     offline = false;
 
     newer = "-newer";
