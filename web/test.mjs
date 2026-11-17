@@ -410,7 +410,31 @@ for (const [name, view] of [
                 await check(page, "A: where from? (P too)", "P)roject Gutenberg");
                 await keys(page, "p");
                 await check(page, "P: its ebook number", "Ebook number (Enter alone: back):");
+                // the text's download held back 3 seconds: meanwhile the
+                // spinner turns where the cursor is (\ | / -), then is gone
+                await page.setRequestInterception(true);
+                const hold = (r) => {
+                    if (/pg17\.txt|17\.txt\.utf-8/.test(r.url()))
+                        setTimeout(() => r.continue(), 3000);
+                    else
+                        r.continue();
+                };
+                page.on("request", hold);
                 await keys(page, "17\r");
+                const turns = new Set();
+                for (let i = 0; i < 30; i++) {
+                    const [line, x] = await page.evaluate(() => {
+                        const b = window.term.buffer.active;
+                        return [b.getLine(b.baseY + b.cursorY).translateToString(true), b.cursorX];
+                    });
+                    if (x === 1 && /^[\\|\/-]$/.test(line))
+                        turns.add(line);
+                    await sleep(100);
+                }
+                console.log(`${turns.size >= 3 ? "ok  " : "FAIL"} a held download: the spinner turns (${[...turns].join(" ")})`);
+                if (turns.size < 3) failed++;
+                page.off("request", hold);
+                await page.setRequestInterception(false);
                 await check(page, "17: its license", "Do you agree to these terms (y/n)?", 180000);
                 await keys(page, "y\r");
                 await check(page, "y: downloaded (through the relay), written, indexed",
