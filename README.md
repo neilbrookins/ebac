@@ -46,6 +46,8 @@ Open **[neilbrookins.github.io/ebac](https://neilbrookins.github.io/ebac/)**. Th
 - **Mouse:** click as you would tap; on the main menu, the wheel makes the text larger or smaller. **F** and **f** on the main menu do the same from the keyboard.
 - **Translations:** **A** on the main menu adds them from thiagobodruk/bible (**T**), scrollmapper/bible_databases (**S**) or Project Gutenberg (**P**), as in every other way.
 - **Kept for next time**, in this browser's own storage: the translations you add, your search history, and the size of the text. A different browser, or another device, starts afresh. Clearing the browser's data for the site removes them.
+- **Works with no Internet**: after the first visit, EBaC opens at once from the copy your browser keeps, even in airplane mode (adding a translation still needs the Internet).
+- **Kept up to date**: when a newer EBaC has been published, it downloads in the background and a bar above EBaC says "A newer EBaC is ready". Tap **Update** to switch to it, or ✕ for not now. It's looked for each time you open EBaC or come back to it, but never holds you up, and with no Internet nothing happens.
 - **Keep it on your phone's home screen**, to open it again without the link: on the first visit, a bar above EBaC offers it. On Android, tap **Install** (or, in Chrome's **⋮** menu, **Add to home screen** or **Install app**). On an iPhone or iPad, tap **Share**, then **Add to Home Screen**. Either way you get EBaC's icon, the same red Bible as the Home Assistant app's, and EBaC opens from it full screen, without the browser's address bar. (On an iPhone or iPad, EBaC opened from the icon keeps its own translations and search history, apart from Safari's.)
 
 ### By voice, with Home Assistant

@@ -42,6 +42,17 @@ downloads EBaC and the text (about 15 megabytes).
   Chrome to (Chrome's own offer is held back for it); on an iPhone or
   iPad, it says how (Share, then Add to Home Screen), as Apple's browsers
   let no page ask. Not shown when EBaC was opened from its icon.
+- **Offline, and updates**: a service worker (`sw.js`; `build.sh` fills
+  in its version, the commit and a fingerprint of every file, and the
+  list of files) keeps the site's files in the browser, so EBaC opens at
+  once, from them, with or without the Internet. The browser looks for a
+  changed `sw.js` when the page opens, and the page asks it to whenever
+  EBaC comes back to the screen (a home-screen app can stay running for
+  days) and every 6 hours: in the background, never waited for. A newer
+  one downloads its files beside the old, and a bar ("A newer EBaC is
+  ready") offers it: **Update** saves EBaC's files, lets the newer one
+  take over, and reloads the page; ✕, not now. Only the site's own files
+  are kept: translations (GitHub, the relay) come from the network.
 - **The files**: the AV and its concordance index, built natively by
   `index` as for every build, packed into `ebac.data`, and copied into
   EBaC's folder (`BIBLEROOT=/ebac`) the first time, and again when the
