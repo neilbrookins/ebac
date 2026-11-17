@@ -2497,3 +2497,15 @@ the browser's own fetch in the browser.
     browsers (Emscripten). In the Add menu, T)hiagoBodruk and
     S)crollMapper are capitalised, so the letter to press shows as a
     capital, as P)roject Gutenberg's does (the designer's choice).
+  - A spinner while a download waits (November 17, 2026; the designer's
+    decision, after a slow download of Project Gutenberg's 1581 through
+    the relay looked stuck): \ | / - turning in one place where the
+    cursor is, each written over the last with a backspace, as many of
+    Solaris's programs did, then erased. In net_get() only, the one
+    long wait with nothing to show; the same in every build: in the
+    browser, the download is started (js_start) and EBaC sleeps 150 ms
+    at a time until it is done (Asyncify lets fetch() go on); on UNIX,
+    select() waits on curl's (or wget's) output 150 ms at a time. Only
+    after the first 300 ms, so a quick download shows none, and only on
+    a terminal (isatty), so output going elsewhere (voice, a pipe) gets
+    none.

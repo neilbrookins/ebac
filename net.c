@@ -21,6 +21,13 @@
 ** ("couldn't download URL (404)").
 ** let_page_draw(NOW)    in a browser, a moment for the page to draw what
 **                       was written (see net.h)
+**
+** While net_get() waits for a download, a spinner turns where the cursor
+** is: \ | / - in one place, each written over the last, as on Solaris (the
+** designer, November 17, 2026), so a slow download doesn't look stuck;
+** erased when it is done. Only on a terminal (not when EBaC's output goes
+** elsewhere, as for voice), and only after the first SPIN_AFTER
+** milliseconds, so a quick download shows none.
 */
 
 #include <stdio.h>
@@ -30,6 +37,36 @@
 #include "net.h"
 
 char net_problem[512];
+
+#define SPIN_EVERY 150          /* milliseconds a turn */
+#define SPIN_AFTER 300          /* milliseconds before the first */
+
+static int spinning = 0;        /* turns shown so far */
+
+/* the spinner a turn on (ON: whether there is a terminal to show it) */
+static void spin(int on)
+{
+        static const char turns[] = "\\|/-";
+
+        if (!on)
+                return;
+        if (spinning > 0)
+                putchar('\b');
+        putchar(turns[spinning % 4]);
+        spinning++;
+        fflush(stdout);
+}
+
+/* the spinner erased, if shown */
+static void spin_end(void)
+{
+        if (spinning > 0)
+        {
+                fputs("\b \b", stdout);
+                fflush(stdout);
+        }
+        spinning = 0;
+}
 
 static void problem(const char *what, const char *url, const char *why)
 {
@@ -48,6 +85,8 @@ static void problem(const char *what, const char *url, const char *why)
 ** there was no answer at all (no Internet; a site that doesn't let pages
 ** read it gives none either, as the browser sees it). method "HEAD" writes
 ** no file, and gives the ETag in etag (if the site lets it be read).
+** (net_get() starts its downloads with js_start(), below, to turn the
+** spinner as it waits.)
 */
 EM_ASYNC_JS(int, js_fetch, (const char *url, const char *path, int head,
                             char *etag, int etag_size), {
@@ -66,6 +105,39 @@ EM_ASYNC_JS(int, js_fetch, (const char *url, const char *path, int head,
         }
 });
 
+/*
+** A download started, to wait for while the spinner turns (fetch() goes on
+** while EBaC sleeps, Asyncify letting the page run): its number, for
+** js_done() (whether it is over) and js_status() (its HTTP status, 200, or
+** 0 if there was no answer at all; then forgotten).
+*/
+EM_JS(int, js_start, (const char *url, const char *path), {
+        const job = { done: false, status: 0 };
+        const u = UTF8ToString(url), p = UTF8ToString(path);
+        (async () => {
+                try {
+                        const r = await fetch(u, { cache: "no-store" });
+                        if (r.ok)
+                                FS.writeFile(p, new Uint8Array(await r.arrayBuffer()));
+                        job.status = r.status;
+                } catch (e) {
+                        job.status = 0;
+                }
+                job.done = true;
+        })();
+        const jobs = (globalThis.ebacDownloads = globalThis.ebacDownloads || []);
+        jobs.push(job);
+        return jobs.length - 1;
+});
+EM_JS(int, js_done, (int id), {
+        return globalThis.ebacDownloads[id].done ? 1 : 0;
+});
+EM_JS(int, js_status, (int id), {
+        const status = globalThis.ebacDownloads[id].status;
+        globalThis.ebacDownloads[id] = null;
+        return status;
+});
+
 void let_page_draw(int now)
 {
         static double last = 0;
@@ -81,7 +153,18 @@ void let_page_draw(int now)
 int net_get(const char *url, const char *path)
 {
         char status[16];
-        int code = js_fetch(url, path, 0, NULL, 0);
+        int id = js_start(url, path), code, waited = 0;
+
+        /* (the browser's page is always EBaC's terminal) */
+        while (!js_done(id))
+        {
+                emscripten_sleep(SPIN_EVERY);
+                waited += SPIN_EVERY;
+                if (waited >= SPIN_AFTER)
+                        spin(TRUE);
+        }
+        spin_end();
+        code = js_status(id);
 
         if (code >= 200 && code < 300)
                 return (0);
@@ -132,6 +215,8 @@ int net_head(const char *url, char *etag, char *length, char *modified, int size
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <sys/time.h>
+#include <sys/select.h>
 
 /* Whether PROGRAM is on the PATH. */
 static int on_path(const char *program)
@@ -164,11 +249,13 @@ static int on_path(const char *program)
 ** Run ARGV (no shell), its standard output into out (up to size - 1
 ** bytes; NULL to throw it away), its errors thrown away; or, with errors
 ** TRUE, its errors into out and its output thrown away. Returns its exit
-** status, or -1 if it couldn't be run.
+** status, or -1 if it couldn't be run. With SPINNING TRUE, the spinner
+** turns while it says nothing (a download: curl says its status only at
+** the end), on a terminal.
 */
-static int run(char **argv, char *out, int size, int errors)
+static int run(char **argv, char *out, int size, int errors, int spinning_on)
 {
-        int fds[2], status, n = 0, got;
+        int fds[2], status, n = 0, got, waited = 0, tty;
         pid_t pid;
 
         if (pipe(fds) != 0)
@@ -193,10 +280,33 @@ static int run(char **argv, char *out, int size, int errors)
                 _exit(127);
         }
         close(fds[1]);
+        tty = spinning_on && isatty(1);
         for (;;)
         {
                 char junk[256];
 
+                if (spinning_on)
+                {
+                        fd_set ready;
+                        struct timeval wait;
+
+                        FD_ZERO(&ready);
+                        FD_SET(fds[0], &ready);
+                        wait.tv_sec = 0;
+                        wait.tv_usec = SPIN_EVERY * 1000L;
+                        got = select(fds[0] + 1, &ready, NULL, NULL, &wait);
+                        if (got == 0)
+                        {
+                                waited += SPIN_EVERY;
+                                if (waited >= SPIN_AFTER)
+                                        spin(tty);
+                                continue;
+                        }
+                        if (got < 0 && errno != EINTR)
+                                spinning_on = FALSE;    /* (just wait) */
+                        if (got < 0)
+                                continue;
+                }
                 if (out != NULL && n < size - 1)
                         got = (int) read(fds[0], out + n, (size_t) (size - 1 - n));
                 else
@@ -208,6 +318,7 @@ static int run(char **argv, char *out, int size, int errors)
                 if (out != NULL && n < size - 1)
                         n += got;
         }
+        spin_end();
         if (out != NULL)
                 out[n] = '\0';
         close(fds[0]);
@@ -229,7 +340,7 @@ int net_get(const char *url, const char *path)
                 argv[3] = "600"; argv[4] = "-o"; argv[5] = (char *) path;
                 argv[6] = "-w"; argv[7] = "%{http_code}"; argv[8] = (char *) url;
                 argv[9] = NULL;
-                status = run(argv, code, sizeof(code), FALSE);
+                status = run(argv, code, sizeof(code), FALSE, TRUE);
                 if (status == 0 && atoi(code) >= 400)
                 {
                         problem("couldn't download", url, code);
@@ -253,7 +364,7 @@ int net_get(const char *url, const char *path)
         {
                 argv[0] = "wget"; argv[1] = "-q"; argv[2] = "-O";
                 argv[3] = (char *) path; argv[4] = (char *) url; argv[5] = NULL;
-                if (run(argv, NULL, 0, FALSE) != 0)
+                if (run(argv, NULL, 0, FALSE, TRUE) != 0)
                 {
                         problem("couldn't download", url, NULL);
                         return (-1);
@@ -280,7 +391,7 @@ int net_version(const char *url, char *version, int size)
         {
                 argv[0] = "curl"; argv[1] = "-sSIL"; argv[2] = "--max-time";
                 argv[3] = "60"; argv[4] = (char *) url; argv[5] = NULL;
-                run(argv, headers, sizeof(headers), FALSE);
+                run(argv, headers, sizeof(headers), FALSE, FALSE);
         }
         else if (on_path("wget"))
         {
@@ -288,7 +399,7 @@ int net_version(const char *url, char *version, int size)
                 argv[0] = "wget"; argv[1] = "-q"; argv[2] = "--spider";
                 argv[3] = "--server-response"; argv[4] = (char *) url;
                 argv[5] = NULL;
-                run(argv, headers, sizeof(headers), TRUE);
+                run(argv, headers, sizeof(headers), TRUE, FALSE);
         }
         else
                 return (-1);
@@ -335,13 +446,13 @@ int net_head(const char *url, char *etag, char *length, char *modified, int size
         {
                 argv[0] = "curl"; argv[1] = "-sSIL"; argv[2] = "--max-time";
                 argv[3] = "60"; argv[4] = (char *) url; argv[5] = NULL;
-                status = run(argv, headers, sizeof(headers), FALSE);
+                status = run(argv, headers, sizeof(headers), FALSE, FALSE);
         }
         else if (on_path("wget"))
         {
                 argv[0] = "wget"; argv[1] = "--spider"; argv[2] = "--server-response";
                 argv[3] = (char *) url; argv[4] = NULL;
-                status = run(argv, headers, sizeof(headers), TRUE);
+                status = run(argv, headers, sizeof(headers), TRUE, FALSE);
         }
         else
                 return (-1);

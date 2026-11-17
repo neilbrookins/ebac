@@ -67,13 +67,13 @@ EBaC by itself, in a terminal window, on almost any computer: arrow keys, Page U
 | Apple Mac | [Installing on macOS](#installing-on-macos) |
 | Solaris 11 | [Installing on Solaris 11](#installing-on-solaris-11) |
 | FreeBSD, OpenBSD or NetBSD | [Installing on FreeBSD, OpenBSD or NetBSD](#installing-on-freebsd-openbsd-or-netbsd) |
-| MM/1 (OS-9 68000) | [MM/1](#mm1-os-9-68000) |
-| VAX/VMS | [VAX/VMS](#vaxvms) |
-| Tandy Color Computer 3 (OS-9 6809) | [Version 2 on the Tandy CoCo 3](#version-2-on-the-tandy-coco-3-untested) |
-| AT&T 3B1; SunOS 4 and Solaris 2; DEC Ultrix and OSF/1; HP-UX | [AT&T 3B1, Sun, DEC and HP UNIX](#att-3b1-sun-dec-and-hp-unix) |
+| MM/1, from Interactive Media Systems (OS-9 68000) | [MM/1](#mm1-os-9-68000) |
+| OpenVMS (VAX/VMS, its older name) | [OpenVMS](#openvms-formerly-vaxvms) |
+| Tandy TRS-80 Color Computer 3 (CoCo 3; OS-9 6809) | [Version 2 on the Tandy Color Computer 3](#version-2-on-the-tandy-color-computer-3-coco-3-untested) |
+| AT&T 3B1 (the UNIX PC); SunOS 4 and Solaris 2; Ultrix and OSF/1 from Digital Equipment Corporation (DEC, later Compaq, then HP); HP-UX | [AT&T 3B1, Sun, DEC and HP UNIX](#att-3b1-sun-dec-and-hp-unix) |
 | MS-DOS | [MS-DOS](#ms-dos) |
 
-(ncurses is needed on every UNIX-like system in the list, the vintage UNIX ones too. The MM/1, VAX/VMS, the CoCo 3 and MS-DOS don't use it: EBaC draws their screens with its own code.)
+(ncurses is needed on every UNIX-like system in the list, the vintage UNIX ones too. The MM/1, OpenVMS, the Color Computer 3 and MS-DOS don't use it: EBaC draws their screens with its own code.)
 
 ## What EBaC is
 
@@ -114,8 +114,8 @@ Unlike a printed concordance, EBaC shows complete verses. It indexes every word,
   - [Installing on FreeBSD, OpenBSD or NetBSD](#installing-on-freebsd-openbsd-or-netbsd)
   - [Installing on vintage computers](#installing-on-vintage-computers)
     - [MM/1 (OS-9 68000)](#mm1-os-9-68000)
-    - [VAX/VMS](#vaxvms)
-    - [Version 2 on the Tandy CoCo 3 (untested)](#version-2-on-the-tandy-coco-3-untested)
+    - [OpenVMS (formerly VAX/VMS)](#openvms-formerly-vaxvms)
+    - [Version 2 on the Tandy Color Computer 3 (CoCo 3; untested)](#version-2-on-the-tandy-color-computer-3-coco-3-untested)
     - [AT&T 3B1, Sun, DEC and HP UNIX](#att-3b1-sun-dec-and-hp-unix)
     - [MS-DOS](#ms-dos)
 - [Searching](#searching)
@@ -460,7 +460,7 @@ Then step 2 as on Linux, `gmake` for step 3, and step 4, `sh ~/ebac/set-bibleroo
 
 ### Installing on vintage computers
 
-EBaC began on the MM/1 in 1992 and was ported, in turn, to VAX/VMS, the Tandy CoCo 3, the AT&T 3B1, MS-DOS, and the UNIX systems of Sun, DEC and HP (see [History](#history)). The [install steps](#first-time-install-do-this-only-once) download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
+EBaC began on the MM/1 in 1992 and was ported, in turn, to VAX/VMS (now called OpenVMS), the Tandy Color Computer 3 (the CoCo 3), the AT&T 3B1, MS-DOS, and the UNIX systems of Sun, Digital Equipment Corporation (DEC) and HP (see [History](#history)). The [install steps](#first-time-install-do-this-only-once) download only the latest version. **To build for a vintage system, or to read the history, download the full history** (a separate folder, `ebac-full`, so it doesn't disturb a Linux install), then switch to the original release:
 
 ```sh
 git clone https://github.com/neilbrookins/ebac.git ebac-full
@@ -474,13 +474,15 @@ Version 2.0 is written in ANSI C (C89, and also valid C99, C17 and C23). The OS-
 
 #### MM/1 (OS-9 68000)
 
-EBaC's first computer. Build it with `CFLAGS= -DNORAMDISK -DOSK` (1.3.0's makefile used gcc, on the MM/1's Philips 68070). The text files need OS-9's line endings, a carriage return, as on the CoCo; the index files are the same on every computer, so ones built on Linux can be copied over.
+EBaC's first computer: the MM/1 ("Multi-Media One"), sold by Interactive Media Systems from 1991, a computer inspired by the Color Computer, with a Philips 68070 processor (the one in Philips' CD-i players) and the OS-9/68000 operating system. Wikipedia has no article on it; [CoCopedia](https://www.cocopedia.com/wiki/MM1), the Color Computer's own wiki, does. Build it with `CFLAGS= -DNORAMDISK -DOSK` (1.3.0's makefile used gcc, on the MM/1's Philips 68070). The text files need OS-9's line endings, a carriage return, as on the CoCo; the index files are the same on every computer, so ones built on Linux can be copied over.
 
-#### VAX/VMS
+#### OpenVMS (formerly VAX/VMS)
 
-Build it with MMS, using [`descrip.mms`](descrip.mms) and [`options_file.opt`](options_file.opt) in place of the makefile (`-DVMS` is set by VMS's C compiler itself). VMS-specific input and output are in [`vmsio.c`](vmsio.c).
+OpenVMS is the operating system first called VAX/VMS, made by Digital Equipment Corporation (DEC) for its VAX computers; DEC renamed it OpenVMS in 1992. DEC was bought by Compaq in 1998, and Compaq by HP in 2002; since 2014, OpenVMS has been developed by VMS Software Inc. ([Wikipedia](https://en.wikipedia.org/wiki/OpenVMS)). EBaC ran on VAX/VMS. Build it with MMS, using [`descrip.mms`](descrip.mms) and [`options_file.opt`](options_file.opt) in place of the makefile (`-DVMS` is set by VMS's C compiler itself). VMS-specific input and output are in [`vmsio.c`](vmsio.c).
 
-#### Version 2 on the Tandy CoCo 3 (untested)
+#### Version 2 on the Tandy Color Computer 3 (CoCo 3; untested)
+
+The Tandy TRS-80 Color Computer 3, sold by Radio Shack from 1986, is the last of Tandy's Color Computers, which their users call the CoCo (and this one the CoCo 3); Tandy itself always spelled out "Color Computer" ([Wikipedia](https://en.wikipedia.org/wiki/TRS-80_Color_Computer)). EBaC ran on it under OS-9 Level II, on its Motorola 6809 processor. Below, "CoCo" means the Color Computer 3.
 
 The CoCo's Microware C compiler only takes the older K&R C, and the CoCo hasn't the memory to build the concordance index. On a Linux computer, `make coco` prepares everything it needs:
 
@@ -500,7 +502,7 @@ To make this possible, the source avoids what K&R compilers lack: declarations p
 
 #### AT&T 3B1, Sun, DEC and HP UNIX
 
-EBaC ran on the AT&T 3B1 (UNIX System V), Suns (SunOS 4.x and Solaris 2.x, back to Solaris 2.4), DEC's Ultrix and OSF/1, and the HP 9000 (HP-UX 10.x), built with 1.3.0's makefile as it is, which uses termcap (`-ltermcap`). Version 2 needs an ANSI C compiler (gcc, or a system's own, such as HP's `c89`) and ncurses; SunOS 4's own `cc` is K&R C, so there use gcc, or the K&R conversion made for the [CoCo](#version-2-on-the-tandy-coco-3-untested).
+EBaC ran on the AT&T 3B1 (UNIX System V; also called the [AT&T UNIX PC](https://en.wikipedia.org/wiki/AT%26T_UNIX_PC)), Suns (SunOS 4.x and Solaris 2.x, back to Solaris 2.4), [Digital Equipment Corporation](https://en.wikipedia.org/wiki/Digital_Equipment_Corporation)'s (DEC's, later Compaq's, then HP's) Ultrix and OSF/1, and the HP 9000 (HP-UX 10.x), built with 1.3.0's makefile as it is, which uses termcap (`-ltermcap`). Version 2 needs an ANSI C compiler (gcc, or a system's own, such as HP's `c89`) and ncurses; SunOS 4's own `cc` is K&R C, so there use gcc, or the K&R conversion made for the [Color Computer 3](#version-2-on-the-tandy-color-computer-3-coco-3-untested).
 
 #### MS-DOS
 
@@ -704,7 +706,7 @@ The original [`README`](README) describes the file layout in more detail.
 
 ## History
 
-EBaC was begun in 1992 on the MM/1 (OS-9 68000), at first searching for a single word; searches combining several words with operators came in 1993. It was then ported, in turn, to VAX/VMS, the Tandy Color Computer 3 (OS-9 6809, 512K), the AT&T 3B1 (UNIX System V), MS-DOS and Windows (with Cygwin), then the UNIX systems of the 1990s: Sun's SunOS 4 and Solaris 2, DEC's Ultrix and OSF/1, and HP-UX on the HP 9000; the Information screen (**I** at the main menu) lists them in that order. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009. Since 2026 it runs on Linux, macOS and Windows (WSL), and, last, as a [Home Assistant app](https://github.com/neilbrookins/ebac-ha-app): the one with the most features, as its touch screen and mouse support (tapping and swiping) are its own.
+EBaC was begun in 1992 on the MM/1 (OS-9 68000), at first searching for a single word; searches combining several words with operators came in 1993. It was then ported, in turn, to VAX/VMS (now called OpenVMS), the Tandy Color Computer 3 (the CoCo 3; OS-9 6809, 512K), the AT&T 3B1 (UNIX System V), MS-DOS and Windows (with Cygwin), then the UNIX systems of the 1990s: Sun's SunOS 4 and Solaris 2, Digital Equipment Corporation's (DEC's) Ultrix and OSF/1, and HP-UX on the HP 9000; the Information screen (**I** at the main menu) lists them in that order. Version 1.3.0 was published on [SourceForge](https://sourceforge.net/projects/ebac/) in 2009. Since 2026 it runs on Linux, macOS and Windows (WSL), as a [Home Assistant app](https://github.com/neilbrookins/ebac-ha-app), with a touch screen and the mouse as well as the keyboard, and in Docker; by voice, with the [Home Assistant integration](https://github.com/neilbrookins/ebac-ha-integration); and, last, [in a web browser](#in-your-web-browser-nothing-to-install), with nothing to install.
 
 This repository starts with that release, unchanged, as its first commit and tagged **`v1.3.0`**. Each step needed to bring it up to date is a separate commit after it, with an explanation.
 
