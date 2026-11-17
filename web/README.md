@@ -55,6 +55,6 @@ from `main`.
 
 ## Not yet
 
-- Adding texts from Project Gutenberg (its importer is still a shell
-  script, which a browser can't run; being rewritten in C; and its site
-  doesn't let other pages download from it).
+- Adding texts from Project Gutenberg: its importer is in C now, as the
+  others are, but its site doesn't let other pages download from it
+  (CORS), so P isn't offered here.

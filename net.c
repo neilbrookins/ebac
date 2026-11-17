@@ -104,6 +104,27 @@ int net_version(const char *url, char *version, int size)
         return (version[0] != '\0' ? 0 : -1);
 }
 
+/* (the browser lets a page read Content-Length and Last-Modified of any
+   site it may read at all; ETag only if the site says so) */
+EM_ASYNC_JS(int, js_head, (const char *url, char *etag, char *length, char *modified,
+                           int size), {
+        try {
+                const r = await fetch(UTF8ToString(url), { method: "HEAD", cache: "no-store" });
+                stringToUTF8(r.headers.get("ETag") || "", etag, size);
+                stringToUTF8(r.headers.get("Content-Length") || "", length, size);
+                stringToUTF8(r.headers.get("Last-Modified") || "", modified, size);
+                return r.status;
+        } catch (e) {
+                return 0;
+        }
+});
+
+int net_head(const char *url, char *etag, char *length, char *modified, int size)
+{
+        etag[0] = length[0] = modified[0] = '\0';
+        return (js_head(url, etag, length, modified, size) > 0 ? 0 : -1);
+}
+
 #else
 #ifdef UNIXV
 /* ------------------------------------------------------------------- UNIX */
@@ -296,6 +317,74 @@ int net_version(const char *url, char *version, int size)
         return (version[0] != '\0' ? 0 : -1);
 }
 
+/*
+** What the server says of the file (add-gutenberg.sh's version_of): its
+** headers, as curl -sSIL (or wget's spider) gives them, without carriage
+** returns, spaces at the start of each line left out; each answer
+** ("HTTP/...") starting afresh. The ETag and Content-Length are the
+** second word of their lines; Last-Modified, all after its colon.
+*/
+int net_head(const char *url, char *etag, char *length, char *modified, int size)
+{
+        static char headers[16384];
+        char *argv[8], *line, *next, *p, word[64];
+        int i, status;
+
+        etag[0] = length[0] = modified[0] = '\0';
+        if (on_path("curl"))
+        {
+                argv[0] = "curl"; argv[1] = "-sSIL"; argv[2] = "--max-time";
+                argv[3] = "60"; argv[4] = (char *) url; argv[5] = NULL;
+                status = run(argv, headers, sizeof(headers), FALSE);
+        }
+        else if (on_path("wget"))
+        {
+                argv[0] = "wget"; argv[1] = "--spider"; argv[2] = "--server-response";
+                argv[3] = (char *) url; argv[4] = NULL;
+                status = run(argv, headers, sizeof(headers), TRUE);
+        }
+        else
+                return (-1);
+        for (line = headers; line != NULL && *line != '\0'; line = next)
+        {
+                next = strchr(line, '\n');
+                if (next != NULL)
+                        *next++ = '\0';
+                for (p = line; *p != '\0'; p++)        /* (tr -d '\r') */
+                        if (*p == '\r')
+                        {
+                                memmove(p, p + 1, strlen(p));
+                                p--;
+                        }
+                while (*line == ' ' || *line == '\t')
+                        line++;
+                if (strncmp(line, "HTTP/", 5) == 0)
+                {
+                        etag[0] = length[0] = modified[0] = '\0';
+                        continue;
+                }
+                /* (its first word, in lower case; and the second) */
+                for (i = 0; line[i] != '\0' && line[i] != ' ' && line[i] != '\t' && i < 63; i++)
+                        word[i] = (char) tolower(UCHAR(line[i]));
+                word[i] = '\0';
+                p = line + strcspn(line, " \t");
+                while (*p == ' ' || *p == '\t')
+                        p++;
+                if (strcmp(word, "etag:") == 0)
+                        sprintf(etag, "%.*s", size - 1 < (int) strcspn(p, " \t") ? size - 1 : (int) strcspn(p, " \t"), p);
+                else if (strcmp(word, "content-length:") == 0)
+                        sprintf(length, "%.*s", size - 1 < (int) strcspn(p, " \t") ? size - 1 : (int) strcspn(p, " \t"), p);
+                else if (strcmp(word, "last-modified:") == 0)
+                {
+                        p = strchr(line, ':') + 1;
+                        while (*p == ' ' || *p == '\t')
+                                p++;
+                        sprintf(modified, "%.*s", size - 1, p);
+                }
+        }
+        return (status == 0 ? 0 : -1);
+}
+
 #else
 /* ------------------------------------------------------------ the others */
 int net_get(const char *url, const char *path)
@@ -310,6 +399,14 @@ int net_version(const char *url, char *version, int size)
         (void) url;
         (void) size;
         version[0] = '\0';
+        return (-1);
+}
+
+int net_head(const char *url, char *etag, char *length, char *modified, int size)
+{
+        (void) url;
+        (void) size;
+        etag[0] = length[0] = modified[0] = '\0';
         return (-1);
 }
 #endif /* UNIXV */

@@ -103,10 +103,11 @@ bible: $(RFILES)
 
 # The importer of translations, in C (import.c; "bible --import"), with
 # its downloading (net.c) and the index built in the same program
-# (indexlib.c: index.c without its main()): see readme.architecture.
+# (indexlib.c: index.c without its main()); import.c includes gutenberg.c
+# (Project Gutenberg's texts): see readme.architecture.
 IMPORTSRC= import.c net.c indexlib.c
 indexlib.o: indexlib.c index.c index.h both.h utf8.h
-import.o: import.c import.h net.h index.h both.h
+import.o: import.c gutenberg.c import.h net.h index.h both.h
 net.o: net.c net.h both.h
 
 # this program needs over 7.5 meg RAM to run.

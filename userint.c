@@ -11,8 +11,6 @@
 
 #ifdef UNIXV
 #       include <sys/utsname.h>  /* uname(), for the Information screen */
-#       include <errno.h>
-#       include <fcntl.h>       /* fcntl(), for run_importer() */
 #endif
 
 /*
@@ -35,11 +33,10 @@ static char program_path[512] = "";
 
 #ifdef UNIXV
 /*
-** The importers of translations, shell scripts in BIBLEROOT, each "" if it
-** isn't there: thiagobodruk/bible's (add-thiagobodruk.sh), the one for
-** scrollmapper/bible_databases (add-scrollmapper.sh), and Project Gutenberg's
-** (add-gutenberg.sh). The main menu offers A)dd a translation when any is
-** there, and A)dd offers each (see add_menu()).
+** The places translations are added from, each "" if it isn't offered:
+** thiagobodruk/bible, scrollmapper/bible_databases and Project Gutenberg,
+** by the importer in C (import.c). The main menu offers A)dd a
+** translation when any is, and A)dd offers each (see add_menu()).
 */
 static char thiagobodruk[600] = "";
 static char scrollmapper[600] = "";
@@ -143,11 +140,6 @@ static void view_match_list P((long int *verse_list));
 static void prog_info P((void));
 static void prog_diagnostics P((void));
 static void set_program_path P((char *argv0));
-#ifdef UNIXV
-static int on_path P((char *name));
-static void find_importer P((char *found, int size, char *name));
-static void run_importer P((char *script, char *what));
-#endif
 static int tag_label P((int tag));
 static int key_to_tag P((int key));
 static int screen_key P((void));
@@ -158,10 +150,8 @@ static int screen_key P((void));
 ** Each place is known by its letter: T)hiagobodruk/bible (its XML Bibles,
 ** the first since November 8), S)crollmapper/bible_databases (G for
 ** GitHub before), both by language, and P)roject Gutenberg, by ebook
-** number. The first two are the importer in C (import.c), in EBaC itself;
-** Project Gutenberg's is still a shell script (add-gutenberg.sh), run only
-** when it is chosen here. A new place is another line here, and another
-** source in import.c. Each importer adds, and removes, only its own texts; the short
+** number: the importer in C (import.c, gutenberg.c), in EBaC itself. A
+** new place is another line here, and another source in import.c. Each importer adds, and removes, only its own texts; the short
 ** name of a text from thiagobodruk/bible ends in "-TB" (KJVA-TB), and of
 ** one from Project Gutenberg in "-PG" (DRC-PG), so that the same
 ** translation from each place can be kept side by side.
@@ -239,7 +229,7 @@ static void add_menu(void)
                 }
                 if ((key == 'p' || key == '3') && gutenberg[0] != '\0')
                 {
-                        run_importer(gutenberg, "Project Gutenberg importer");
+                        add_in_ebac("gutenberg");
                         return;
                 }
                 if (key == 'x' || key == 0x1b || key == '\r')
@@ -2544,109 +2534,6 @@ static void set_program_path(char *argv0)
                 strcpy(program_path, argv0);
 }
 
-#ifdef UNIXV
-/* Purpose: TRUE if a program of this name is in a folder listed in PATH. */
-static int on_path(char *name)
-{
-        char dir[512];
-        char *p = getenv("PATH");
-        int len;
-
-        while (p != NULL && *p != '\0')
-        {
-                for (len = 0; p[len] != ':' && p[len] != '\0'; len++)
-                        ;
-                if (len == 0)                   /* an empty entry: here */
-                        strcpy(dir, ".");
-                else if (len + 1 < (int) sizeof(dir))
-                {
-                        strncpy(dir, p, len);
-                        dir[len] = '\0';
-                }
-                else
-                        dir[0] = '\0';
-                if (dir[0] != '\0' &&
-                    strlen(dir) + strlen(name) + 2 <= sizeof(dir))
-                {
-                        strcat(dir, "/");
-                        strcat(dir, name);
-                        if (access(dir, X_OK) == 0)
-                                return TRUE;
-                }
-                p += len;
-                if (*p == ':')
-                        ++p;
-        }
-        return FALSE;
-}
-
-/*
-** Purpose: find the translation importer (see importer, above). Done
-**          before initialize() changes folder, so that a BIBLEROOT given
-**          relative to the current folder works too.
-*/
-static void find_importer(char *found, int size, char *name)
-{
-        char *root = getenv("BIBLEROOT");
-
-        found[0] = '\0';
-        if (root == NULL || *root == '\0' || !on_path("sh"))
-                return;
-        if (root[0] != '/' &&
-            getcwd(found, size - 2) != NULL)
-                strcat(found, "/");
-        if (strlen(found) + strlen(root) + strlen(name) + 2 > (size_t) size)
-        {
-                found[0] = '\0';
-                return;
-        }
-        strcat(found, root);
-        strcat(found, "/");
-        strcat(found, name);
-        if (access(found, R_OK) != 0)
-                found[0] = '\0';
-}
-
-/*
-** Purpose: A)dd a translation, from the main menu. EBaC is replaced by the
-**          translation importer, so that none of its memory stays in use
-**          while it runs, and the importer starts a new EBaC when it is
-**          done: one that reads 'trans' again, so it lists any translation
-**          just added (and starts with it). The importer is told how to start
-**          EBaC, and which translation this one was showing.
-** Returns: only if the importer couldn't be started, after saying so.
-*/
-static void run_importer(char *script, char *what)
-{
-        char *args[6];
-        int fd, err;
-
-        args[0] = "sh";
-        args[1] = script;
-        args[2] = "--from-ebac";
-        args[3] = (program_path[0] != '\0') ? program_path : "bible";
-        args[4] = etla;
-        args[5] = NULL;
-
-        cls();
-        /* EBaC's open files aren't passed on to the importer, and so to the
-           EBaC it starts (this only takes effect if execvp() works) */
-        for (fd = 3; fd < 256; fd++)
-                fcntl(fd, F_SETFD, FD_CLOEXEC);
-        tty_suspend();
-        execvp("sh", args);
-
-        err = errno;                            /* still here: it failed */
-        tty_resume();
-        printf("\nThe %s couldn't be started:\n", what);
-        printf("sh %s: %s\n\n", script, strerror(err));
-        printf("Press any key to go back to the main menu.\n");
-        fflush(stdout);
-        scr_mode("anykey");
-        ugetchar();
-}
-#endif
-
 #ifndef EBAC_API        /* (ebac-api has its own: api.c) */
 /* Main program! */
 int main(int argc, char **argv)
@@ -2668,11 +2555,13 @@ int main(int argc, char **argv)
         if (argc > 1)
                 start_trans = argv[1];  /* "bible BSB": start with BSB */
 #ifdef UNIXV
-        /* (thiagobodruk/bible and scrollmapper/bible_databases: the
-           importer in C, always there) */
+        /* (the importer in C, always there; but Project Gutenberg's site
+           doesn't let a web page download from it, so not in a browser) */
         strcpy(thiagobodruk, "(in EBaC)");
         strcpy(scrollmapper, "(in EBaC)");
-        find_importer(gutenberg, sizeof(gutenberg), "add-gutenberg.sh");
+#ifndef __EMSCRIPTEN__
+        strcpy(gutenberg, "(in EBaC)");
+#endif
 #endif
         initialize();
         cls();

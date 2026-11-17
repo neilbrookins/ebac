@@ -47,6 +47,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <errno.h>
+#include <setjmp.h>
 #include "both.h"
 #include "net.h"
 #include "index.h"
@@ -3125,6 +3126,10 @@ static int start_run(const Source *which)
         return (0);
 }
 
+/* Project Gutenberg's texts, by ebook number (gutenberg.c, sharing the
+   parts above) */
+#include "gutenberg.c"
+
 /*
 ** Purpose: A on EBaC's main menu, for one source ("thiagobodruk"): the
 **          languages, then a language's translations, each chosen added
@@ -3143,6 +3148,14 @@ int import_in_ebac(const char *which, const char *root, char *start_with)
         char *chosen[256];
         int nchosen = 0, i, k;
 
+        if (strcmp(which, "gutenberg") == 0 && getcwd(back, sizeof(back)) != NULL)
+        {
+                sprintf(here, "%.1000s", root);
+                k = gb_in_ebac(start_with);
+                if (chdir(back) != 0)
+                        return (0);
+                return (k);
+        }
         if (s == NULL || getcwd(back, sizeof(back)) == NULL)
                 return (-1);
         sprintf(here, "%.1000s", root);
@@ -3196,9 +3209,19 @@ int import_main(int argc, char **argv)
         int nnames = 0, i, list_only = FALSE, catalog_only = FALSE;
         const char *dir;
 
+        if (argc >= 2 && strcmp(argv[1], "gutenberg") == 0)
+        {
+                if ((dir = getenv("BIBLEROOT")) == NULL || *dir == '\0' || chdir(dir) != 0 ||
+                    getcwd(here, sizeof(here)) == NULL)
+                {
+                        fprintf(stderr, "add-gutenberg: BIBLEROOT must name the folder EBaC is in.\n");
+                        return (1);
+                }
+                return (gb_main(argc, argv));
+        }
         if (argc < 2 || source_named(argv[1]) == NULL)
         {
-                fprintf(stderr, "usage: bible --import thiagobodruk|scrollmapper ...\n");
+                fprintf(stderr, "usage: bible --import thiagobodruk|scrollmapper|gutenberg ...\n");
                 return (2);
         }
         src = source_named(argv[1]);

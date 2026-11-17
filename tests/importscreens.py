@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-A on EBaC's main menu, then T (thiagobodruk/bible) or S
-(scrollmapper/bible_databases): the screens of the importer in C (in EBaC
+A on EBaC's main menu, then T (thiagobodruk/bible), S
+(scrollmapper/bible_databases) or P (Project Gutenberg): the screens of the importer in C (in EBaC
 itself) against those of the shell importer it replaces (add-
 thiagobodruk.sh, add-scrollmapper.sh, which EBaC ran in its place), key by
 key, as the terminal shows them, at a phone's size and at 80 columns.
@@ -13,7 +13,8 @@ copies by EBAC_IMPORT_SOURCE and EBAC_NAMES_SOURCE (IANA's names it keeps).
 
 Usage:
     python3 tests/importscreens.py OLD_BIBLE NEW_BIBLE SOURCE_COPY NAMES_COPY
-                                   [thiagobodruk|scrollmapper [REGISTRY_COPY]]
+                                   [thiagobodruk|scrollmapper|gutenberg [REGISTRY_COPY]]
+SOURCE_COPY, for gutenberg: a folder of its texts and pages (17.txt, 17.html).
 OLD_BIBLE: EBaC as built before (with its index program beside it).
 REGISTRY_COPY: a folder with IANA's language-subtag-registry, for the old
 importer (scrollmapper/bible_databases has codes Unicode has no names for).
@@ -55,8 +56,37 @@ STEPS = [
     (" ", "Main Menu"),
 ]
 
+# Project Gutenberg: by ebook number
+GUTENBERG_STEPS = [
+    ("a", "Where from?"),
+    ("p", "Ebook number (Enter alone: back):"),
+    ("99\r", "Press any key to go back to EBaC."),
+    (" ", "Main Menu"),
+    ("a", "Where from?"),
+    ("p", "Ebook number (Enter alone: back):"),
+    ("rx\r", "Press any key to go back to EBaC."),
+    (" ", "Main Menu"),
+    ("a", "Where from?"),
+    ("p", "Ebook number (Enter alone: back):"),
+    ("1u\r", "Do you agree to these terms (y/n)?"),
+    ("maybe\r", "Please type y or n."),
+    ("y\r", "Press any key to go back to EBaC."),
+    (" ", "Main Menu"),
+    ("a", "Where from?"),
+    ("p", "Added from Project Gutenberg:"),
+    ("r2\r", "Press any key to go back to EBaC."),
+    (" ", "Main Menu"),
+    ("a", "Where from?"),
+    ("p", "Added from Project Gutenberg:"),
+    ("r1\r", "Press any key to go back to EBaC."),
+    (" ", "Main Menu"),
+    ("a", "Where from?"),
+    ("p", "Ebook number (Enter alone: back):"),
+    ("\r", "Main Menu"),
+]
 
-def run(binary, root, home, rows, cols, env_extra, letter):
+
+def run(binary, root, home, rows, cols, env_extra, letter, steps):
     env = dict(os.environ, TERM="xterm", HOME=home, BIBLEROOT=root, LC_ALL="C", **env_extra)
     pid, fd = pty.fork()
     if pid == 0:
@@ -90,7 +120,7 @@ def run(binary, root, home, rows, cols, env_extra, letter):
 
     screens = []
     read_until("Main Menu")
-    for keys, wanted in STEPS:
+    for keys, wanted in steps:
         keys = letter if keys == "L" else keys
         os.write(fd, keys.encode())
         ok = read_until(wanted)
@@ -106,7 +136,8 @@ def main():
     old, new, src, names = (os.path.abspath(a) for a in sys.argv[1:5])
     source = sys.argv[5] if len(sys.argv) > 5 else "thiagobodruk"
     registry = os.path.abspath(sys.argv[6]) if len(sys.argv) > 6 else None
-    letter = {"thiagobodruk": "t", "scrollmapper": "s"}[source]
+    letter = {"thiagobodruk": "t", "scrollmapper": "s", "gutenberg": "p"}[source]
+    steps = GUTENBERG_STEPS if source == "gutenberg" else STEPS
     tmp = tempfile.mkdtemp(prefix="ebac-importscreens-")
     fails = 0
     try:
@@ -126,11 +157,15 @@ def main():
                 roots[which] = (root, home)
             oldroot = roots["old"][0]
             olddir = os.path.dirname(old)
-            for script in ("add-thiagobodruk.sh", "add-scrollmapper.sh", "importer.sh"):
+            for script in ("add-thiagobodruk.sh", "add-scrollmapper.sh", "add-gutenberg.sh",
+                           "importer.sh"):
                 with open(os.path.join(olddir, script)) as f:
                     text = f.read()
                 if script == "add-%s.sh" % source:
                     text = re.sub(r"^SOURCE=.*$", "SOURCE=" + src, text, flags=re.M)
+                    # (Project Gutenberg's: its texts and pages from the copy)
+                    text = re.sub(r"^PLAIN_TEXT=.*$", "PLAIN_TEXT=file://%s/%%s.txt" % src, text, flags=re.M)
+                    text = re.sub(r"^PAGE=.*$", "PAGE=file://%s/%%s.html" % src, text, flags=re.M)
                 text = re.sub(r"^NAMES_SOURCE=.*$", "NAMES_SOURCE=" + names, text, flags=re.M)
                 if registry:
                     text = re.sub(r"^REGISTRY_SOURCE=.*$", "REGISTRY_SOURCE=" + registry, text, flags=re.M)
@@ -138,9 +173,11 @@ def main():
                     f.write(text)
             shutil.copy(os.path.join(olddir, "index"), oldroot)
             shutil.copy(old, os.path.join(oldroot, "bible"))
-            a = run(os.path.join(oldroot, "bible"), oldroot, roots["old"][1], rows, cols, {}, letter)
+            a = run(os.path.join(oldroot, "bible"), oldroot, roots["old"][1], rows, cols, {}, letter, steps)
             b = run(new, roots["new"][0], roots["new"][1], rows, cols,
-                    {"EBAC_IMPORT_SOURCE": src, "EBAC_NAMES_SOURCE": names}, letter)
+                    {"EBAC_IMPORT_SOURCE": src, "EBAC_NAMES_SOURCE": names,
+                     "EBAC_GUTENBERG_TEXT": "file://%s/%%s.txt" % src,
+                     "EBAC_GUTENBERG_PAGE": "file://%s/%%s.html" % src}, letter, steps)
             for (keys, ok_a, sa), (_, ok_b, sb) in zip(a, b):
                 same = sa == sb
                 label = "%dx%d %r" % (rows, cols, keys)

@@ -2433,6 +2433,19 @@ the browser's own fetch in the browser.
     same as the script's. Its list has four language codes Unicode has
     no English name for (bea, hbo, sml, tsg): IANA's names for them are
     kept in import.c, as the browser may not download IANA's registry.
+  - Project Gutenberg, in C too (gutenberg.c, which import.c includes,
+    to share its parts; bible --import gutenberg, with add-gutenberg.sh's
+    options): each of the four texts it knows (17, 1581, 8294, 16955)
+    the same, byte for byte, as the script wrote it, with its page and
+    without (tests/importers.sh), and A then P's screens the same, key by
+    key. Every other mode the same too (--catalog, --list, --license,
+    --check, --remove, a version kept, a folder not its own), but two
+    things the script did wrongly, done as it meant: an ebook number
+    with a leading 0 (017) was read as octal (15) by the shell's
+    arithmetic; and renaming a text added before names had -PG said it
+    was renamed to trans.NNNN (replace_trans() set the loop's variable,
+    new). Not in the browser: Project Gutenberg's site doesn't let a web
+    page download from it (CORS), so P isn't offered there.
   - In the browser, EBaC's folder of translations is kept in the
     browser's storage as well, so a translation added is there the next
     time, and one removed frees its space. The translations that come

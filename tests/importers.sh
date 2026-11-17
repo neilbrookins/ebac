@@ -7,11 +7,14 @@
 #
 #   sh tests/importers.sh thiagobodruk SOURCE_FOLDER [NAME ...]
 #   sh tests/importers.sh scrollmapper SOURCE_FOLDER [NAME ...]
+#   sh tests/importers.sh gutenberg TEXTS_FOLDER [NUMBER ...]
 #
 # SOURCE_FOLDER: a copy of thiagobodruk/bible (json/index.json and xml/),
 # or of scrollmapper/bible_databases (docs/main_readme/translation_list.md,
-# sources/*/*/README.md and formats/txt/). With no NAME, every translation
-# in its list. EBAC_NAMES_SOURCE: a copy of Unicode's names of languages
+# sources/*/*/README.md and formats/txt/), or of Project Gutenberg's texts
+# (NUMBER.txt, and its page, NUMBER.html, if there is one: each added
+# with its page, then without it). With no NAME, every translation in its
+# list. EBAC_NAMES_SOURCE: a copy of Unicode's names of languages
 # (cldr-localenames-full/main), for that list, if not from the Internet.
 # Run from EBaC's folder, after make (bible and index).
 set -u
@@ -25,6 +28,7 @@ trap 'rm -rf "$work"' EXIT
 case $which in
 thiagobodruk) script=add-thiagobodruk.sh ;;
 scrollmapper) script=add-scrollmapper.sh ;;
+gutenberg) script=add-gutenberg.sh ;;
 *) echo "importers.sh: no such source: $which" >&2; exit 2 ;;
 esac
 
@@ -35,6 +39,64 @@ for d in "$work/sh" "$work/c"; do
         ln -s "$repo/AV" "$d/AV"
 done
 cp "$repo/$script" "$repo/importer.sh" "$repo/index" "$work/sh/"
+
+# (each folder compared: every file, but the date in license and version)
+compare_folder() {
+        for f in $( (cd "$work/sh" && find "$1" -type f 2>/dev/null; cd "$work/c" && find "$1" -type f 2>/dev/null) | sort -u); do
+                case $f in */license|*/version)
+                        a=$(sed 's/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/DATE/' "$work/sh/$f" 2>/dev/null)
+                        b=$(sed 's/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/DATE/' "$work/c/$f" 2>/dev/null)
+                        [ "$a" = "$b" ] || problems="$problems
+     $f differs" ;;
+                *)
+                        cmp -s "$work/sh/$f" "$work/c/$f" || problems="$problems
+     $f differs" ;;
+                esac
+        done
+}
+
+if [ "$which" = gutenberg ]; then
+        [ $# -gt 0 ] || set -- $(sh "$work/sh/$script" --catalog 2>/dev/null |
+                                 awk -F '\t' '$1 == "translation" { print $2 }')
+        pass=0
+        fail=0
+        for number in "$@"; do
+                names=$(sh "$work/sh/$script" --catalog 2>/dev/null |
+                        awk -F '\t' -v n="$number" '$1 == "translation" && $2 == n { print $6 }')
+                for how in page nopage; do
+                        page=""
+                        [ $how = page ] && [ -f "$source/$number.html" ] && page="--page $source/$number.html"
+                        [ $how = page ] && [ -z "$page" ] && continue
+                        for n in $names; do rm -rf "$work/sh/$n" "$work/c/$n"; done
+                        grep '^AV ' "$repo/trans" > "$work/sh/trans"
+                        grep '^AV ' "$repo/trans" > "$work/c/trans"
+                        COLUMNS=80 sh "$work/sh/$script" --agree --at-end --file "$source/$number.txt" \
+                                $page "$number" > "$work/sh.out" 2>&1 < /dev/null
+                        echo "exit $?" >> "$work/sh.out"
+                        COLUMNS=80 BIBLEROOT="$work/c" "$repo/bible" --import gutenberg --agree --at-end \
+                                --file "$source/$number.txt" $page "$number" > "$work/c.out" 2>&1 < /dev/null
+                        echo "exit $?" >> "$work/c.out"
+                        problems=""
+                        cmp -s "$work/sh.out" "$work/c.out" || problems="$problems
+     what they said differs:
+$(diff "$work/sh.out" "$work/c.out" | head -n 8 | sed 's/^/       /')"
+                        for n in $names; do compare_folder "$n"; done
+                        cmp -s "$work/sh/trans" "$work/c/trans" || problems="$problems
+     trans differs"
+                        if [ -z "$problems" ]; then
+                                pass=$((pass + 1))
+                                echo "ok   $number ($how): $names"
+                        else
+                                fail=$((fail + 1))
+                                echo "FAIL $number ($how)$problems"
+                        fi
+                done
+        done
+        echo
+        echo "$pass of $((pass + fail)) texts the same from both importers"
+        [ $fail -eq 0 ]
+        exit
+fi
 
 if [ $# -eq 0 ]; then
         set -- $(sh "$work/sh/$script" --source "$source" \

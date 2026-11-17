@@ -12,6 +12,11 @@ extern int net_get P((const char *url, const char *path));
    bytes): 0, or -1 (version "") if it can't be had */
 extern int net_version P((const char *url, char *version, int size));
 
+/* What the web server says of the file, without it (of the last answer,
+   after any redirects): its ETag, Content-Length and Last-Modified, each
+   "" if not said (size bytes each). 0, or -1 if there was no answer. */
+extern int net_head P((const char *url, char *etag, char *length, char *modified, int size));
+
 /* In a web browser, the page draws what EBaC wrote only when EBaC waits:
    while it works (writing a translation's books, building its index),
    nothing new shows, and the page doesn't answer. let_page_draw(TRUE)
