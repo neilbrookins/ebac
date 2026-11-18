@@ -9,10 +9,9 @@ labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
+      # (one line: GitHub shows each line break in it as one)
       value: |
-        Thank you for asking. Each ebook's layout is different, so each one
-        is added to EBaC by hand. Fill in what you can below, then press
-        **Create** (or **Submit new issue**).
+        Thank you for asking. Each ebook's layout is different, so each one is added to EBaC by hand. Fill in what you can below, then press **Create** (or **Submit new issue**).
   - type: input
     id: ebook
     attributes:
