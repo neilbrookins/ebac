@@ -2509,6 +2509,11 @@ the browser's own fetch in the browser.
     after the first 300 ms, so a quick download shows none, and only on
     a terminal (isatty), so output going elsewhere (voice, a pipe) gets
     none.
+    Later the same day, after a slow tablet showed it stop once a
+    download was in, while the text was still being read: every long
+    step turns it too (reading the text, writing the books, building the
+    index), from let_page_draw(FALSE), which they call often; the
+    importer's printf and fprintf (busy_printf) erase it first.
   - The web page, offline and kept up to date (November 17, 2026; the
     designer's decision, after a home-screen app left running kept an
     older EBaC): a service worker keeps the site's files, so EBaC opens
