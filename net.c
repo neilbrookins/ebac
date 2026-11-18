@@ -22,17 +22,21 @@
 ** let_page_draw(NOW)    in a browser, a moment for the page to draw what
 **                       was written (see net.h)
 **
-** While net_get() waits for a download, a spinner turns where the cursor
-** is: \ | / - in one place, each written over the last, as on Solaris (the
-** designer, November 17, 2026), so a slow download doesn't look stuck;
-** erased when it is done. Only on a terminal (not when EBaC's output goes
-** elsewhere, as for voice), and only after the first SPIN_AFTER
-** milliseconds, so a quick download shows none.
+** While net_get() waits for a download, and while a long step works
+** (reading the text, writing the books, building the index: wherever it
+** calls let_page_draw(FALSE)), a spinner turns where the cursor is: \ | /
+** - in one place, each written over the last, as on Solaris (the
+** designer, November 17, 2026), so a slow step doesn't look stuck. Erased
+** before anything else is written (busy_printf()), and when a download is
+** done. Only on a terminal (not when EBaC's output goes elsewhere, as for
+** voice), and only once a step has gone on SPIN_AFTER milliseconds, so a
+** quick one shows none.
 */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "both.h"
 #include "net.h"
 
@@ -42,6 +46,10 @@ char net_problem[512];
 #define SPIN_AFTER 300          /* milliseconds before the first */
 
 static int spinning = 0;        /* turns shown so far */
+static double busy_since = 0;   /* when this step began (let_page_draw(TRUE)) */
+static double busy_turned = 0;  /* when the spinner last turned */
+static double now_ms P((void));
+static int terminal P((void));
 
 /* the spinner a turn on (ON: whether there is a terminal to show it) */
 static void spin(int on)
@@ -66,6 +74,53 @@ static void spin_end(void)
                 fflush(stdout);
         }
         spinning = 0;
+}
+
+/*
+** let_page_draw()'s spinner: TRUE, a step begins (just written, at the
+** start of a line); FALSE, it goes on: a turn, if it has gone on long
+** enough, and the last turn wasn't just now.
+*/
+static void busy(int now)
+{
+        double t = now_ms();
+
+        if (now)
+        {
+                spin_end();
+                busy_since = busy_turned = t;
+        }
+        else if (t - busy_since >= SPIN_AFTER && t - busy_turned >= SPIN_EVERY)
+        {
+                spin(terminal());
+                busy_turned = t;
+        }
+}
+
+/* printf() and fprintf(), the spinner erased first (import.c's) */
+int busy_printf(const char *format, ...)
+{
+        va_list args;
+        int n;
+
+        spin_end();
+        va_start(args, format);
+        n = vprintf(format, args);
+        va_end(args);
+        return (n);
+}
+
+int busy_fprintf(FILE *f, const char *format, ...)
+{
+        va_list args;
+        int n;
+
+        if (f == stdout || f == stderr)
+                spin_end();
+        va_start(args, format);
+        n = vfprintf(f, format, args);
+        va_end(args);
+        return (n);
 }
 
 static void problem(const char *what, const char *url, const char *why)
@@ -138,11 +193,23 @@ EM_JS(int, js_status, (int id), {
         return status;
 });
 
+static double now_ms(void)
+{
+        return (emscripten_get_now());
+}
+
+/* (the browser's page is always EBaC's terminal) */
+static int terminal(void)
+{
+        return (TRUE);
+}
+
 void let_page_draw(int now)
 {
         static double last = 0;
         double t = emscripten_get_now();
 
+        busy(now);
         if (now || t - last >= 100)
         {
                 emscripten_sleep(0);
@@ -522,9 +589,39 @@ int net_head(const char *url, char *etag, char *length, char *modified, int size
 }
 #endif /* UNIXV */
 
-/* (a terminal shows what is written at once) */
+#ifdef UNIXV
+static double now_ms(void)
+{
+        struct timeval t;
+
+        gettimeofday(&t, NULL);
+        return (t.tv_sec * 1000.0 + t.tv_usec / 1000.0);
+}
+
+static int terminal(void)
+{
+        static int is = -1;
+
+        if (is < 0)
+                is = isatty(1);
+        return (is);
+}
+#else
+/* (no downloads, and no spinner, elsewhere) */
+static double now_ms(void)
+{
+        return (0.0);
+}
+
+static int terminal(void)
+{
+        return (FALSE);
+}
+#endif
+
+/* (a terminal shows what is written at once: only the spinner) */
 void let_page_draw(int now)
 {
-        (void) now;
+        busy(now);
 }
 #endif /* __EMSCRIPTEN__ */

@@ -22,7 +22,14 @@ extern int net_head P((const char *url, char *etag, char *length, char *modified
    nothing new shows, and the page doesn't answer. let_page_draw(TRUE)
    waits a moment for it, so what was just written shows now;
    let_page_draw(FALSE), called often in a long step, does so at most
-   ten times a second. Elsewhere, nothing. */
+   ten times a second. Everywhere, a long step (one that has gone on
+   for more than a moment since let_page_draw(TRUE)) turns a spinner, \ |
+   / -, where the cursor is, on a terminal (net.c). */
 extern void let_page_draw P((int now));
+
+/* printf() and fprintf(), the spinner (above) erased first, so nothing is
+   written after it: import.c's printf and fprintf are these */
+extern int busy_printf P((const char *format, ...));
+extern int busy_fprintf P((FILE *f, const char *format, ...));
 
 #endif

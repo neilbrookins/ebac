@@ -57,6 +57,11 @@
 #include "import.h"
 #include "bible.h"
 #include "screen.h"
+
+/* (the spinner, if it is turning, erased before anything else is written:
+   see let_page_draw() in net.h) */
+#define printf busy_printf
+#define fprintf busy_fprintf
 #ifdef UNIXV
 #       include <unistd.h>
 #       include <sys/stat.h>
@@ -937,6 +942,7 @@ static int tb_fetch_text(const char *name, const char *text_path)
                 char *tag, name_buf[256], *text;
                 size_t n;
 
+                let_page_draw(FALSE);   /* (in a browser: see net.h) */
                 rec++;
                 nr++;
                 next = strchr(rec, '<');
