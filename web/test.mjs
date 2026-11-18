@@ -470,6 +470,10 @@ for (const [name, view] of [
     if (errors.length) {
         console.log("     page errors: " + errors.join(" | "));
     }
+    // (EBaC's files saved before the page goes: the next view's page, at
+    // the same site, starts from them; a page closed while saving left
+    // the next one a translation removed already, now and then)
+    await page.evaluate(() => window.ebacSaved && window.ebacSaved());
     await page.close();
 }
 // The shortcut on the home screen: the page can be installed (Chrome's
