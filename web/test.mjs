@@ -537,6 +537,9 @@ for (const [name, view] of [
                               "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1");
     await iphone.setViewport({ width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
     await iphone.goto("http://localhost:8097/", { waitUntil: "load" });
+    // (a device of its own: not installed on it, as the Android one was)
+    await iphone.evaluate(() => localStorage.removeItem("ebac-install-bar"));
+    await iphone.reload({ waitUntil: "load" });
     await check(iphone, "iPhone: the main menu", "Main Menu");
     const said = await iphone.evaluate(() => window.ebacInstallBar() &&
                                        document.querySelector("#install .text").textContent);
