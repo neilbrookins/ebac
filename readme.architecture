@@ -2522,3 +2522,12 @@ the browser's own fetch in the browser.
     page opens and whenever EBaC comes back to the screen, in the
     background; once downloaded, a bar offers it (Update, or not now),
     rather than switching under someone in the middle of reading.
+  - Asking for another Project Gutenberg ebook (November 18, 2026; the
+    designer's decision): an ebook the importer can't add yet is answered
+    with the address of an issue form on GitHub,
+    .github/ISSUE_TEMPLATE/ebook.yml ("Add a Project Gutenberg ebook"),
+    its number filled in (?template=ebook.yml&ebook=N), rather than
+    telling an end user how texts are added. The designer passes each
+    request on, and its layout is added to KNOWN in gutenberg.c. New
+    issue also offers "Report a problem" (problem.yml), a blank issue,
+    and links to the app's and voice's repositories (config.yml).

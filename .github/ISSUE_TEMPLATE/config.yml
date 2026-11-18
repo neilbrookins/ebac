@@ -1,0 +1,10 @@
+# The choices on "New issue": the two forms here, a blank issue for
+# anything else, and where voice's issues go.
+blank_issues_enabled: true
+contact_links:
+  - name: Voice (the Home Assistant integration)
+    url: https://github.com/neilbrookins/ebac-ha-integration/issues/new
+    about: A problem with asking EBaC by voice, in Home Assistant.
+  - name: Installing or updating the Home Assistant app
+    url: https://github.com/neilbrookins/ebac-ha-app/issues/new
+    about: A problem with the app itself, rather than with EBaC in it.

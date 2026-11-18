@@ -1,0 +1,37 @@
+# Asking for a Project Gutenberg ebook to be added to EBaC's importer
+# (gutenberg.c: each text's layout is added by hand). EBaC's message for an
+# ebook it can't add yet links here, with the number filled in:
+#   https://github.com/neilbrookins/ebac/issues/new?template=ebook.yml&ebook=N
+name: Add a Project Gutenberg ebook
+description: Ask for an ebook from gutenberg.org that EBaC can't add yet.
+title: "Add Project Gutenberg ebook "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for asking. Each ebook's layout is different, so each one
+        is added to EBaC by hand. Fill in what you can below, then press
+        **Create** (or **Submit new issue**).
+  - type: input
+    id: ebook
+    attributes:
+      label: Ebook number
+      description: The "EBook-No." on the ebook's page on gutenberg.org (17, for example).
+      placeholder: "17"
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Its title
+      description: As its page on gutenberg.org gives it (The Book of Mormon, for example).
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Optional. What you'd like to read in it, or anything else that helps.
+    validations:
+      required: false

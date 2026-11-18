@@ -2927,8 +2927,14 @@ static int gb_add_number(const char *arg)
         sprintf(gb_number, "%ld", strtol(arg, NULL, 10));       /* (no leading zeros) */
         if (!gb_known_line(gb_number, f, TRUE))
         {
-                sprintf(problem, "ebook %s isn't one this importer knows yet (each text's layout is added by hand; see readme.architecture)",
-                        gb_number);
+                /* (how to ask for it, for anyone: each text's layout is
+                   added by hand, in KNOWN. The address opens the issue
+                   form for asking, .github/ISSUE_TEMPLATE/ebook.yml, its
+                   number filled in; the designer, November 18, 2026.
+                   Followed by a space, so that the period after the
+                   message isn't taken as part of it.) */
+                sprintf(problem, "ebook %s isn't one EBaC can add yet. To ask for it, go to https://github.com/neilbrookins/ebac/issues/new?template=ebook.yml&ebook=%s (a form, its number filled in)",
+                        gb_number, gb_number);
                 return (-1);
         }
         sprintf(gb_names, "%.500s", f[1]);

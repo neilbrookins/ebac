@@ -1,0 +1,33 @@
+# Reporting a problem with EBaC (the program, the web page, the Home
+# Assistant app or Docker). Voice has its own repository:
+# neilbrookins/ebac-ha-integration (config.yml links to it).
+name: Report a problem
+description: Something in EBaC doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. A screenshot helps.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where you use EBaC
+      options:
+        - In a web browser
+        - The Home Assistant app
+        - Docker
+        - In a terminal window
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: On EBaC's main menu, I, then its Diagnostics page shows the version and commit.
+      placeholder: "2.3.4, commit 75b3dd3"
+    validations:
+      required: false
