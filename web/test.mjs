@@ -421,14 +421,16 @@ for (const [name, view] of [
                 await page.setRequestInterception(true);
                 const hold = (r) => {
                     if (r.method() === "GET" && /pg17\.txt|17\.txt\.utf-8/.test(r.url()))
-                        setTimeout(() => r.continue(), 3000);
+                        setTimeout(() => r.continue(), 4000);
                     else
                         r.continue();
                 };
                 page.on("request", hold);
                 await keys(page, "17\r");
                 const turns = new Set();
-                for (let i = 0; i < 30; i++) {
+                // (until it has turned a few times, or 12 seconds: its page
+                // and version are asked for first, which may take a while)
+                for (let i = 0; i < 120 && turns.size < 3; i++) {
                     const [line, x] = await page.evaluate(() => {
                         const b = window.term.buffer.active;
                         return [b.getLine(b.baseY + b.cursorY).translateToString(true), b.cursorX];
@@ -548,6 +550,26 @@ for (const [name, view] of [
     await check(iphone, "iPhone, again: the main menu", "Main Menu");
     report(!(await iphone.evaluate(() => window.ebacInstallBar())), "iPhone, again: no bar");
     await iphone.close();
+
+    // opened from the icon, where the browser opens it as a page (the
+    // Fire's Silk): the manifest's start_url says so; no bar, then or later
+    const icon = await browser.newPage();
+    await icon.setViewport(phone);
+    await icon.goto("http://localhost:8097/", { waitUntil: "load" });
+    await icon.evaluate(() => localStorage.removeItem("ebac-install-bar"));
+    await icon.goto("http://localhost:8097/?from=home-screen", { waitUntil: "load" });
+    await check(icon, "from the icon: the main menu", "Main Menu");
+    await icon.evaluate(() => {
+        const e = new Event("beforeinstallprompt", { cancelable: true });
+        e.prompt = () => {};
+        e.userChoice = Promise.resolve({ outcome: "dismissed" });
+        window.dispatchEvent(e);
+    });
+    await sleep(500);
+    const after = await icon.evaluate(() => [window.ebacInstallBar(), localStorage.getItem("ebac-install-bar"), location.search]);
+    report(!after[0] && after[1] === "installed" && after[2] === "",
+           `from the icon: no bar, kept as installed, the address plain (${JSON.stringify(after)})`);
+    await icon.close();
 }
 
 // Kept for next time, and kept up to date (sw.js): EBaC opens with no

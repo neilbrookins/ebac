@@ -103,7 +103,15 @@
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
                 (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     let closed = false, offer = null;
-    try { closed = localStorage.getItem(KEY) === "closed"; } catch (e) { /* none kept */ }
+    // (opened from the icon: the manifest's start_url says so, where the
+    // browser opens it as a page, not full screen, as the Fire's Silk
+    // does; then, and once installed, the bar is never shown again)
+    const fromIcon = new URLSearchParams(location.search).get("from") === "home-screen";
+    if (fromIcon) {
+      try { localStorage.setItem(KEY, "installed"); } catch (e) { /* this time only */ }
+      history.replaceState(null, "", location.pathname);
+    }
+    try { closed = localStorage.getItem(KEY) !== null; } catch (e) { /* none kept */ }
 
     // (the terminal refitted to the room left, by the page's own resize)
     function show(on) {
@@ -115,9 +123,13 @@
       show(false);
     }
     bar.querySelector(".close").addEventListener("click", close);
-    window.addEventListener("appinstalled", () => show(false));
+    const installed = () => {
+      try { localStorage.setItem(KEY, "installed"); } catch (e) { /* this time only */ }
+      show(false);
+    };
+    window.addEventListener("appinstalled", installed);
     window.ebacInstallBar = () => bar.style.display === "flex";   // (test.mjs)
-    if (standalone || closed || !touch)
+    if (standalone || fromIcon || closed || !touch)
       return;
 
     if (ios) {
@@ -139,7 +151,8 @@
       offer.prompt();
       const { outcome } = await offer.userChoice;
       offer = null;
-      show(false);      // (taken; or not now: offered again next time)
+      if (outcome === "accepted") installed();
+      else show(false);       // (not now: offered again next time)
     });
   })();
 </script>

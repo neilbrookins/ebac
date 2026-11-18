@@ -3,7 +3,7 @@
   "name": "EBaC, Electronic Bible and Concordance",
   "short_name": "EBaC",
   "description": "A fast Bible reader and concordance.",
-  "start_url": "./",
+  "start_url": "./?from=home-screen",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
