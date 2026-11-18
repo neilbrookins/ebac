@@ -41,7 +41,11 @@ downloads EBaC and the text (about 15 megabytes).
   it is taken or closed (✕): on Android, its **Install** button asks
   Chrome to (Chrome's own offer is held back for it); on an iPhone or
   iPad, it says how (Share, then Add to Home Screen), as Apple's browsers
-  let no page ask. Not shown when EBaC was opened from its icon.
+  let no page ask. Not shown when EBaC was opened from its icon (the
+  manifest's `start_url` ends `?from=home-screen`, as a browser that
+  opens the icon as an ordinary page doesn't say so otherwise), nor once
+  installed. On a Fire tablet, Silk's icon opens it as a page, with the
+  address bar; Chrome's opens it full screen (README.md says so).
 - **Offline, and updates**: a service worker (`sw.js`; `build.sh` fills
   in its version, the commit and a fingerprint of every file, and the
   list of files) keeps the site's files in the browser, so EBaC opens at
