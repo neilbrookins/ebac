@@ -131,42 +131,38 @@ for (const [name, view] of [
         // moment apart, a verse each (with a mouse; the designer, November
         // 18, 2026: a notch went on four verses)
         if (!view.hasTouch) {
-            const nums = async () => [...(await screen(page)).matchAll(/^\s*3:(\d+)/gm)].map(m => +m[1]);
-            const last = async () => (await nums()).pop();
-            const first = async () => (await nums())[0];
+            const refs = async () => [...(await screen(page)).matchAll(/^\s*(\d+:\d+)/gm)].map(m => m[1]);
+            // how many verses on the screen are after the last before
+            const on = (before, now) => now.length - 1 - now.indexOf(before[before.length - 1]);
             await page.mouse.move(view.width / 2, view.height / 2);
-            const v0 = await last();
+            const r0 = await refs();
             await page.mouse.wheel({ deltaY: 100 });
             await sleep(800);
-            const v1 = await last();
+            const r1 = await refs();
             for (let i = 0; i < 4; i++)
                 await page.mouse.wheel({ deltaY: 100 });
             await sleep(800);
-            const v2 = await last();
+            const r2 = await refs();
             for (let i = 0; i < 3; i++) {
                 await page.mouse.wheel({ deltaY: 100 });
                 await sleep(300);
             }
             await sleep(500);
-            const v3 = await last();
-            const t3 = await first();
+            const r3 = await refs();
             await page.mouse.wheel({ deltaY: -100 });
             await sleep(800);
-            const t4 = await first();
-            const ok = v1 === v0 + 1 && v2 === v1 + 1 && v3 === v2 + 3 && t4 === t3 - 1;
-            console.log(`${ok ? "ok  " : "FAIL"} the wheel on the passage: last 3:${v0}, a notch 3:${v1}, ` +
-                        `a burst 3:${v2}, three notches 3:${v3}; first 3:${t3}, a notch back 3:${t4}`);
+            const r4 = await refs();
+            const a = on(r0, r1), b = on(r1, r2), c = on(r2, r3);
+            const back = r4[1] === r3[0];
+            const ok = a === 1 && b === 1 && c === 3 && back;
+            console.log(`${ok ? "ok  " : "FAIL"} the wheel on the passage: a notch, ${a} verse on; a burst, ${b}; ` +
+                        `three notches, ${c}; a notch back, ${back ? "a verse back" : r3[0] + " to " + r4[0]}`);
             if (!ok) failed++;
         }
         await keys(page, "x");
         await sleep(500);
         await keys(page, "x");
         await check(page, "back to the main menu", "Main Menu");
-        await keys(page, "s");
-        await keys(page, "jesus wept\r");
-        await check(page, "S: jesus wept", "11:35");
-        await keys(page, "x");
-        await check(page, "back to the main menu again", "Main Menu");
         // the search results: . and , a screen on and back, as n and p;
         // and the wheel, a screen a notch, but two or three notches turned
         // a little, one screen (the designer, November 18, 2026: the wheel
@@ -207,6 +203,11 @@ for (const [name, view] of [
             await keys(page, "x");
             await check(page, "back to the main menu after the results", "Main Menu");
         }
+        await keys(page, "s");
+        await keys(page, "jesus wept\r");
+        await check(page, "S: jesus wept", "11:35");
+        await keys(page, "x");
+        await check(page, "back to the main menu again", "Main Menu");
         // a resize: EBaC lays out the next screen at the new width
         await page.setViewport({ ...view, width: Math.round(view.width * 0.7) });
         await sleep(1000);
