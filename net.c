@@ -48,6 +48,7 @@ char net_problem[512];
 static int spinning = 0;        /* turns shown so far */
 static double busy_since = 0;   /* when this step began (let_page_draw(TRUE)) */
 static double busy_turned = 0;  /* when the spinner last turned */
+static int busy_many_on = 0; /* several downloads, one step (busy_many) */
 static double now_ms P((void));
 static int terminal P((void));
 
@@ -96,6 +97,45 @@ static void busy(int now)
                 busy_turned = t;
         }
 }
+
+/*
+** Several downloads as one step (busy_many(TRUE) to busy_many(FALSE)): the
+** names of the languages, a small file each. Each download is quick, too
+** quick for its own spinner, but together they take long on a slow
+** computer (the designer, November 18, 2026: no spinner, the first time
+** the translations of thiagobodruk/bible or scrollmapper/bible_databases
+** were listed). So the spinner turns from the first download's start,
+** as for any long step, and isn't erased between them.
+*/
+void busy_many(int on)
+{
+        busy_many_on = on;
+        if (on)
+                busy(1);
+        else
+                spin_end();
+}
+
+#if defined(__EMSCRIPTEN__) || defined(UNIXV)
+/* a download waited on a moment: the spinner, from the download's start
+   (WAITED milliseconds), or the step's (busy_many) */
+static void download_waits(int waited, int on)
+{
+        if (busy_many_on)
+                busy(0);
+        else if (waited >= SPIN_AFTER)
+                spin(on);
+}
+
+/* a download done: the spinner erased, unless the step goes on */
+static void download_done(void)
+{
+        if (busy_many_on)
+                busy(0);
+        else
+                spin_end();
+}
+#endif
 
 /* printf() and fprintf(), the spinner erased first (import.c's) */
 int busy_printf(const char *format, ...)
@@ -227,10 +267,9 @@ int net_get(const char *url, const char *path)
         {
                 emscripten_sleep(SPIN_EVERY);
                 waited += SPIN_EVERY;
-                if (waited >= SPIN_AFTER)
-                        spin(TRUE);
+                download_waits(waited, TRUE);
         }
-        spin_end();
+        download_done();
         code = js_status(id);
 
         if (code >= 200 && code < 300)
@@ -365,8 +404,7 @@ static int run(char **argv, char *out, int size, int errors, int spinning_on)
                         if (got == 0)
                         {
                                 waited += SPIN_EVERY;
-                                if (waited >= SPIN_AFTER)
-                                        spin(tty);
+                                download_waits(waited, tty);
                                 continue;
                         }
                         if (got < 0 && errno != EINTR)
@@ -385,7 +423,7 @@ static int run(char **argv, char *out, int size, int errors, int spinning_on)
                 if (out != NULL && n < size - 1)
                         n += got;
         }
-        spin_end();
+        download_done();
         if (out != NULL)
                 out[n] = '\0';
         close(fds[0]);

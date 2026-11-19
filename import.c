@@ -2293,9 +2293,13 @@ static void language_names(void)
                         printf("Getting the names of the languages (from Unicode)...\n");
                         fflush(stdout);
                 }
+                busy_many(TRUE);
                 sprintf(en_path, "%s/en.json", tmp);
                 if (fetch_from(names_source, "en/languages.json", en_path) != 0)
+                {
+                        busy_many(FALSE);
                         return;
+                }
                 read_pairs(en_path, &english);
                 sprintf(own_path, "%s/own.json", tmp);
                 for (i = 0; i < nall; i++)
@@ -2388,6 +2392,7 @@ static void language_names(void)
                         free_pairs(&own);
                 }
                 free_pairs(&english);
+                busy_many(FALSE);
                 read_cache(path);
         }
         /* codes Unicode has no English name for: IANA's (kept here); as

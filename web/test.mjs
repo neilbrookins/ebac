@@ -476,7 +476,36 @@ for (const [name, view] of [
                 // Enter alone, back to EBaC
                 await keys(page, "a");
                 await check(page, "A: where from? (S too)", "S)crollMapper/bible_databases");
+                // the names of its languages, a small download each, each
+                // held back a moment (too short for a spinner of its own):
+                // the spinner turns across them, as one step (the designer,
+                // November 18, 2026: none, the first time, on a slow computer)
+                await page.setRequestInterception(true);
+                let held = 0;
+                const slow = (r) => {
+                    if (r.method() === "GET" && /languages\.json/.test(r.url())) {
+                        held++;
+                        setTimeout(() => r.continue(), 250);
+                    } else
+                        r.continue();
+                };
+                page.on("request", slow);
                 await keys(page, "s");
+                const names = new Set();
+                for (let i = 0; i < 300 && names.size < 3; i++) {
+                    const [line, x] = await page.evaluate(() => {
+                        const b = window.term.buffer.active;
+                        return [b.getLine(b.baseY + b.cursorY).translateToString(true), b.cursorX];
+                    });
+                    if (x === 1 && /^[\\|\/-]$/.test(line))
+                        names.add(line);
+                    await sleep(100);
+                }
+                console.log(`${names.size >= 3 ? "ok  " : "FAIL"} the names of the languages (${held} downloads, ` +
+                            `each held 250 ms): the spinner turns (${[...names].join(" ")})`);
+                if (names.size < 3) failed++;
+                page.off("request", slow);
+                await page.setRequestInterception(false);
                 await check(page, "S: its languages (from GitHub)", "Ancient Hebrew", 60000);
                 await keys(page, "\r");
                 await check(page, "Enter: back to EBaC", "Main Menu");

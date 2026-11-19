@@ -27,6 +27,11 @@ extern int net_head P((const char *url, char *etag, char *length, char *modified
    / -, where the cursor is, on a terminal (net.c). */
 extern void let_page_draw P((int now));
 
+/* several downloads as one step, for the spinner: busy_many(TRUE) before
+   the first, busy_many(FALSE) after the last; the spinner turns from the
+   first's start, and isn't erased between them (net.c) */
+extern void busy_many P((int on));
+
 /* printf() and fprintf(), the spinner (above) erased first, so nothing is
    written after it: import.c's printf and fprintf are these */
 extern int busy_printf P((const char *format, ...));
