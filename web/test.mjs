@@ -478,6 +478,45 @@ for (const [name, view] of [
     await page.evaluate(() => window.ebacSaved && window.ebacSaved());
     await page.close();
 }
+// A click with the mouse on a main menu choice, on a computer, where the
+// choice's words are drawn (the row's own element on the page): as a tap,
+// it chooses it. (The designer, November 18, 2026: on a computer, clicks
+// on the words did nothing, and above or below them, now and then.)
+{
+    console.log("\n== a click on the main menu, on a computer");
+    const report = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) failed++; };
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 900 });
+    for (const letter of ["C", "A", "V", "S", "I"]) {
+        await page.goto("http://localhost:8097/", { waitUntil: "load" });
+        await check(page, "the main menu", "Main Menu");
+        const at = await page.evaluate((letter) => {
+            const t = window.term, buf = t.buffer.active;
+            let row = -1;
+            for (let r = 0; r < t.rows; r++)
+                if (new RegExp("^\\s*" + letter + "\\)").test(buf.getLine(buf.viewportY + r).translateToString(true)))
+                    row = r;
+            const screen = t.element.querySelector(".xterm-screen").getBoundingClientRect();
+            const rows = t.element.querySelector(".xterm-rows");
+            const el = rows ? rows.children[row] : null;
+            const box = el ? el.getBoundingClientRect() : null;
+            return { row, rows: t.rows, screenTop: screen.top, screenHeight: screen.height,
+                     rowTop: box && box.top, rowHeight: box && box.height,
+                     x: box ? box.left + 20 : screen.left + 20,
+                     y: box ? box.top + box.height / 2 : screen.top + (row + 0.5) * screen.height / t.rows };
+        }, letter);
+        console.log(`     ${letter}: row ${at.row} of ${at.rows}; screen top ${at.screenTop}, height ${at.screenHeight} ` +
+                    `(${(at.screenHeight / at.rows).toFixed(2)} a row); the row's element: top ${at.rowTop}, height ${at.rowHeight}`);
+        await page.mouse.click(at.x, at.y);
+        await sleep(1500);
+        const left = await page.evaluate(() => !/Main Menu/.test(
+            Array.from({ length: window.term.rows }, (_, r) =>
+                window.term.buffer.active.getLine(window.term.buffer.active.viewportY + r).translateToString(true)).join("\n")));
+        report(left, `a click on ${letter})'s words chose it`);
+    }
+    await page.close();
+}
+
 // The shortcut on the home screen: the page can be installed (Chrome's
 // own judgement, with its icons), and offers it on a phone in a bar above
 // the terminal, which fits to what is left; closed, it stays closed.
