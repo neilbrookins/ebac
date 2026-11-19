@@ -126,6 +126,33 @@ for (const [name, view] of [
                         ` (top line "${lines[0].trim().slice(0, 20)}", ${used} lines used)`);
             if (!ok) failed++;
         }
+        // the wheel, on the passage: a verse a notch; a burst of a notch's
+        // events, one; notches a moment apart, a verse each (with a mouse)
+        if (!view.hasTouch) {
+            const first = async () => { const m = (await screen(page)).match(/^\s*3:(\d+)/m); return m ? +m[1] : -1; };
+            await page.mouse.move(view.width / 2, view.height / 2);
+            const v0 = await first();
+            await page.mouse.wheel({ deltaY: 100 });
+            await sleep(800);
+            const v1 = await first();
+            for (let i = 0; i < 4; i++)
+                await page.mouse.wheel({ deltaY: 100 });
+            await sleep(800);
+            const v2 = await first();
+            for (let i = 0; i < 3; i++) {
+                await page.mouse.wheel({ deltaY: 100 });
+                await sleep(300);
+            }
+            await sleep(500);
+            const v3 = await first();
+            await page.mouse.wheel({ deltaY: -100 });
+            await sleep(800);
+            const v4 = await first();
+            const ok = v1 === v0 + 1 && v2 === v1 + 1 && v3 === v2 + 3 && v4 === v3 - 1;
+            console.log(`${ok ? "ok  " : "FAIL"} the wheel on the passage: 3:${v0}, then a notch 3:${v1}, ` +
+                        `a burst 3:${v2}, three notches 3:${v3}, one back 3:${v4}`);
+            if (!ok) failed++;
+        }
         await keys(page, "x");
         await sleep(500);
         await keys(page, "x");

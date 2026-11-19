@@ -724,16 +724,23 @@
     }
 
     /*
-    ** The mouse wheel: up and down arrows, as many as the lines the wheel
-    ** moved, so EBaC goes back or on a verse for each (a notch of an
-    ** ordinary wheel: about six). The terminal (xterm.js) does this itself
-    ** only when it keeps no scrolled-off lines; it keeps one (see
-    ** noScrollback), and would scroll that, showing nothing new, so the
-    ** wheel is turned into arrows here, as it did (November 5, 2026).
-    ** Only on a screen EBaC names; elsewhere (the translation importers)
-    ** the terminal does as it does.
+    ** The mouse wheel: up and down arrows, so EBaC goes back or on a verse
+    ** for each. The terminal (xterm.js) does this itself only when it keeps
+    ** no scrolled-off lines; it keeps one (see noScrollback), and would
+    ** scroll that, showing nothing new, so the wheel is turned into arrows
+    ** here, as it did (November 5, 2026). Only on a screen EBaC names;
+    ** elsewhere (the translation importers) the terminal does as it does.
+    **
+    ** A verse a notch, not a line (the designer, November 18, 2026: a
+    ** notch, as many arrows as the lines it moved, went on four verses or
+    ** more, too far to keep one's place). And a notch's events coming
+    ** close together (a wheel that sends a burst of them) are one: after
+    ** an arrow, none for WHEEL_GAP milliseconds. A wheel turned farther, or
+    ** faster, still goes on a verse a notch.
     */
-    var wheelLines = 0;         /* part of a line, carried to the next turn */
+    var WHEEL_GAP = 60;
+    var wheelSteps = 0;         /* part of a notch, carried to the next turn */
+    var wheelLast = 0;          /* when the last arrow went */
     var wheelFont = 0;          /* part of a notch, toward a font step */
 
     /* whether the screen shows EBaC's main menu with its Font line (F/f):
@@ -757,14 +764,16 @@
     ** (Chrome's), 3 lines of one that counts lines (Firefox's); a touchpad's
     ** small movements add up to one.
     */
+    function notchesOf(e) {
+        if (e.deltaMode === 1)                  /* (lines) */
+            return e.deltaY / 3;
+        if (e.deltaMode === 2)                  /* (pages) */
+            return e.deltaY;
+        return e.deltaY / 100;                  /* (pixels) */
+    }
+
     function wheelFontStep(e) {
-        var notches;
-        if (e.deltaMode === 1)
-            notches = e.deltaY / 3;
-        else if (e.deltaMode === 2)
-            notches = e.deltaY;
-        else
-            notches = e.deltaY / 100;
+        var notches = notchesOf(e);
         if ((notches < 0) !== (wheelFont < 0))
             wheelFont = 0;              /* turned the other way: anew */
         wheelFont += notches;
@@ -778,7 +787,7 @@
     }
 
     function onWheel(e) {
-        var screen, cell, n, seq, out = "";
+        var n, now, up;
 
         if (!namedScreen() || e.deltaY === 0 || e.shiftKey)
             return;
@@ -786,25 +795,22 @@
             wheelFontStep(e);
             return;
         }
-        if (e.deltaMode === 1)                  /* (lines) */
-            wheelLines += e.deltaY;
-        else if (e.deltaMode === 2)             /* (pages) */
-            wheelLines += e.deltaY * term.rows;
-        else {                                  /* (pixels) */
-            screen = term.element.querySelector(".xterm-screen") || term.element;
-            cell = screen.getBoundingClientRect().height / term.rows;
-            wheelLines += e.deltaY / (cell > 0 ? cell : 16);
-        }
         e.preventDefault();
         e.stopImmediatePropagation();
-        n = (wheelLines < 0) ? Math.ceil(wheelLines) : Math.floor(wheelLines);
-        wheelLines -= n;
-        seq = "\x1b" + ((term.modes && term.modes.applicationCursorKeysMode) ? "O" : "[") +
-              (n < 0 ? "A" : "B");
-        for (n = Math.abs(n); n > 0; n--)
-            out += seq;
-        if (out)
-            send(out);
+        n = notchesOf(e);
+        if ((n < 0) !== (wheelSteps < 0))
+            wheelSteps = 0;                     /* turned the other way: anew */
+        wheelSteps += n;
+        if (Math.abs(wheelSteps) < 1)
+            return;
+        now = Date.now();
+        up = wheelSteps < 0;
+        wheelSteps = 0;                         /* (the rest of a notch: dropped) */
+        if (now - wheelLast < WHEEL_GAP)
+            return;                             /* the same notch's burst */
+        wheelLast = now;
+        send("\x1b" + ((term.modes && term.modes.applicationCursorKeysMode) ? "O" : "[") +
+             (up ? "A" : "B"));
     }
 
     /*
