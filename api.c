@@ -393,6 +393,12 @@ static void plain_text(char *from, char *to, int size)
         to[n] = '\0';
         while (n > 0 && isspace(UCHAR(to[n - 1])))
                 to[--n] = '\0';
+        /* (and none at its start: a verse may start with a note, left
+           out, as Psalm 119:1 with its letter's name: see acrostic.c) */
+        for (p = to; *p == ' '; p++)
+                ;
+        if (p > to)
+                memmove(to, p, strlen(p) + 1);
 }
 
 /*

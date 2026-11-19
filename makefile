@@ -107,7 +107,7 @@ bible: $(RFILES)
 # (Project Gutenberg's texts): see readme.architecture.
 IMPORTSRC= import.c net.c indexlib.c
 indexlib.o: indexlib.c index.c index.h both.h utf8.h
-import.o: import.c gutenberg.c import.h net.h index.h both.h
+import.o: import.c gutenberg.c acrostic.c import.h net.h index.h both.h
 net.o: net.c net.h both.h
 
 # this program needs over 7.5 meg RAM to run.
@@ -125,7 +125,7 @@ ebac-api: $(APISRC) bible.h both.h screen.h utf8.h refparse.h version.stamp
 # app, as in a web browser (web/README.md); a terminal of any other kind,
 # or of a kind not known in advance, needs bible, with ncurses.
 XTERMSRC= bible.c file.c userint.c process.c curses.c utf8.c $(IMPORTSRC)
-bible-xterm: $(XTERMSRC) bible.h both.h screen.h utf8.h version.stamp
+bible-xterm: $(XTERMSRC) gutenberg.c acrostic.c bible.h both.h screen.h utf8.h version.stamp
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DXTERM_BUILTIN $(VERSION_FLAGS) $(LDFLAGS) -o bible-xterm $(XTERMSRC)
 
 index: index.c utf8.c utf8.h both.h
@@ -164,7 +164,7 @@ verses: verses.c
 TESTCFLAGS= -O1 -g -Wall -Wextra -DUNIXV $(TESTSAN)
 TESTSRC= bible.c file.c userint.c process.c curses.c utf8.c $(IMPORTSRC)
 # The test also checks that every folder is mentioned in 'trans'.
-test: $(TESTSRC) bible.h both.h screen.h utf8.h tests/sidebyside.py tests/booknames.py tests/otherebac.py indexes ebac-api
+test: $(TESTSRC) gutenberg.c acrostic.c bible.h both.h screen.h utf8.h tests/acrostic.py tests/sidebyside.py tests/booknames.py tests/otherebac.py indexes ebac-api
 	sh translations.sh check --strict
 	rm -rf tests/build
 	mkdir -p tests/build/noramdisk tests/build/ramdisk
@@ -176,6 +176,7 @@ test: $(TESTSRC) bible.h both.h screen.h utf8.h tests/sidebyside.py tests/bookna
 	python3 tests/sidebyside.py tests/build/noramdisk/bible tests/build/xterm/bible
 	python3 tests/booknames.py tests/build/noramdisk/bible tests/build/ramdisk/bible ebac-api index
 	python3 tests/otherebac.py tests/build/noramdisk/bible tests/build/ramdisk/bible
+	python3 tests/acrostic.py tests/build/xterm/bible
 
 # The passage screen's keys (n p . , f b) from every screen of a made-up
 # translation with verses taller than the screen, at a phone's size and at

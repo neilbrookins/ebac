@@ -1494,6 +1494,71 @@ verse's number isn't changed: a note is part of its verse, as before.
     copy, though Gutenberg's version is the same, so a Douay-Rheims
     added before has its notes marked by A, P, 1581.
 
+The Hebrew alphabet's letters (November 18, 2026; the designer's
+decisions). Psalm 119, and Psalms 9-10, 25, 34, 37, 111, 112 and 145,
+Proverbs 31:10-31, Lamentations 1-4 and Nahum 1, are acrostics: each
+stanza, verse or half-verse starts with the next letter of the Hebrew
+alphabet. Many translations print the letter's name, or the letter, as a
+divider: "...with all their hearts. Beth" (the NLT's 119:8), "ALEPH.
+Blessed are...", "[Beth.]", "- BETH -", "<<ALEPH>>", "(א) I will
+praise", "Bet ב", "ב Bet". Printed as plain words in the verse, a reader
+can take it for the verse's text. So each one that can be told apart is
+set apart, as a note of its own (see "Notes" above), on its own line with
+"---" in the margin: after the words it came after, before the words it
+came before, and in the middle of a verse if it was there (Psalms 111 and
+112, half a verse each letter; the words after it go on, on a line with a
+blank margin). The designer's reasoning: in brackets, a reader would see
+it isn't the text; as plain words, not always.
+
+  - Found without knowing the language (acrostic.c): Psalm 119 is the
+    only chapter with 176 verses (Psalm 118 in the Vulgate's numbering,
+    as the Douay-Rheims has it), so the translation's own names for the
+    letters are learned there, where each stanza's name ends its verse
+    8, 16, ... 168, or starts verse 9, 17, ... 169: a word after the
+    verse's last clause, with a period, its letter, or "Sin and Shin" (in
+    each language: "Sin e Shin", "SİN ve ŞİN"). At least 15 of the 21 must
+    be found, or none is taken (short sentences aren't names). Aleph,
+    before verse 1, has no such place; its name is known by its
+    spellings (Aleph, Alef, Álef, Álefe, Àlef, Алеф), and any letter, א
+    to ת (and the final forms the NKJV prints, ך ם ן ף ץ), by itself.
+  - Then a name or letter is taken only where set apart (a verse's start,
+    after a clause's punctuation, or with its letter beside it), in
+    Psalm 119 only at the stanzas' places, and elsewhere only in a
+    chapter where eight letters or more are found so (an acrostic; four,
+    going on from one: Psalm 10 after 9), in the alphabet's order (a
+    few may be skipped; the same one again, Lamentations 3's threes), so
+    "He" the pronoun isn't taken for He the letter. In an acrostic, a
+    name at a verse's start spelled otherwise than in Psalm 119 ("Ghimel."
+    in the Douay-Rheims's Lamentations, "GIMEL." in its Psalms) is taken
+    too. A translation in Hebrew's script (the Hebrew, a Yiddish Bible),
+    whose words start with letters, has only Psalm 119's stanza names set
+    apart, and only as words alone.
+  - Run on a translation's books once written, before its index is built,
+    by every importer alike (add_to(): thiagobodruk/bible and
+    scrollmapper/bible_databases; gutenberg.c: Project Gutenberg's).
+    Checked on all 143 texts of thiagobodruk/bible, 140 of
+    scrollmapper/bible_databases, and Gutenberg's Douay-Rheims and World
+    English Bible: 76 and 33 of them, and both of Gutenberg's, have
+    letters set apart, nearly all in Psalm 119, about twenty in other
+    acrostics too; in no other chapter but the Orthodox Jewish Bible's
+    Ten Commandments, Deuteronomy 5, numbered by letters ("[ALEF] I am
+    Hashem...").
+  - A note before a verse's words (119:1's Aleph) is shown first, its
+    "---" in the margin, and the verse's number on the line after it,
+    beside its words (lead_note() in userint.c); in a list of verses
+    found, beside the reference. Voice leaves it out, as any note.
+  - Not set apart: a letter left where it is, rather than guessed at.
+    The Czech Kralická (only "Beth." of its names has a period), the
+    King James Fiel (only Aleph and Bet are marked), two letters in one
+    bracket ("[Heh Vav]", the OJB's Psalm 25:5). A translation added
+    before keeps its old text until removed and added again (the
+    designer: no special case for it).
+  - Not dividers: "Selah" (the NLT's "Interlude"), "Amen", and the
+    psalms' titles are in the Hebrew text itself. The Song of Songs'
+    speaker labels ("Young Woman", "Beloved", "She") are dividers of the
+    same kind, but mixed into verses, and with a note in 1:1: left for a
+    change of their own.
+
 Checked: every word of the text between Gutenberg's START and END lines
 is in the books, but the chapter-heading lines and verse numbers, whose
 place is EBaC's own numbering.

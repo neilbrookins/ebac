@@ -1368,6 +1368,8 @@ static void hyphen_rows(const char *t, Str *out)
         str_adds(out, rest);
 }
 
+#include "acrostic.c"
+
 /* (make_index()'s index_each_step: see let_page_draw() in net.h) */
 static void page_draws(void)
 {
@@ -1602,6 +1604,9 @@ static int add_to(Translation *tr, const char *version_now, const char *agreed)
                 fclose(booknames);
         if (abbrev != NULL)
                 fclose(abbrev);
+
+        /* the Hebrew alphabet's letters set apart (acrostic.c) */
+        letters_apart(folder);
 
         printf("%s: building the concordance index...\n", tr->name);
         fflush(stdout);
