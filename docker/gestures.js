@@ -415,20 +415,38 @@
         return (row >= 0 && row < term.rows) ? row : -1;
     }
 
-    /* the main menu choice nearest a point: its letter, or null. EBaC puts
-       a blank line between the choices, and the half of it nearer a choice
-       goes with that choice, so a tap a little off still finds it. */
-    function nearestChoice(y) {
-        var pos = rowPos(y), best = null, bestDist = 1, r, m, d;
+    /* where a point on the page is, in columns from the left of the screen */
+    function colPos(x) {
+        var screen = term.element.querySelector(".xterm-screen");
+        var r = screen.getBoundingClientRect();
+        return (x - r.left) / (r.width / term.cols);
+    }
+
+    /* the main menu choice nearest a point: the key it sends, or null. EBaC
+       puts a blank line between the choices, and the half of it nearer a
+       choice goes with that choice, so a tap a little off still finds it.
+
+       A choice of two keys, "F/f) Font: LARGER / smaller", is split across
+       its row at the "/" between its words: left of it, the first key (F,
+       larger), right of it, the second (f, smaller), each with its half
+       rows above and below (the designer, November 19, 2026: a click or a
+       tap on a word is its key, as if typed). */
+    function nearestChoice(y, x) {
+        var pos = rowPos(y), best = null, bestDist = 1, r, m, d, text, split;
 
         for (r = 0; r < term.rows; r++) {
-            m = /^\s*([A-Z])\)/.exec(rowText(r));
+            text = rowText(r);
+            m = /^\s*([A-Z])(?:\/([a-z]))?\)/.exec(text);
             if (!m)
                 continue;
             d = Math.abs(pos - (r + 0.5));
             if (d < bestDist) {
-                best = m[1];
                 bestDist = d;
+                if (m[2]) {
+                    split = text.lastIndexOf("/");
+                    best = (x === undefined || colPos(x) < split + 0.5) ? m[1] : m[2];
+                } else
+                    best = m[1].toLowerCase();
             }
         }
         return best;
@@ -456,17 +474,16 @@
     }
 
     /* what a tap does: { key, keyboard } or null for nothing */
-    function tapAction(y) {
+    function tapAction(y, x) {
         var m, r, text, key, row = rowAt(y);
 
         if (row < 0)
             return null;
         switch (mode) {
         case "menu":
-            key = nearestChoice(y);
+            key = nearestChoice(y, x);
             if (!key)
                 return null;
-            key = key.toLowerCase();
             /* View and Search ask for typing next, and so do GitHub and
                Project Gutenberg (under Add): let the keyboard come up. Add
                itself is another menu, to tap. */
@@ -702,7 +719,7 @@
         lastTouchEnd = Date.now();
 
         if (Math.abs(dx) < TAP_MAX && Math.abs(dy) < TAP_MAX) {
-            action = tapAction(t.clientY);
+            action = tapAction(t.clientY, t.clientX);
             if (!action)
                 return;                 /* an ordinary tap: keyboard */
             if (!action.keyboard)
@@ -842,14 +859,14 @@
     var mouseDown = null;   /* where the button went down, on the terminal */
     var mouseClicked = 0;   /* when a click was last taken from the button */
 
-    function clickAt(y) {
+    function clickAt(y, x) {
         var action;
 
         if (Date.now() - lastTouchEnd < 1000)
             return;                     /* the click a tap already handled */
         if (term && term.hasSelection && term.hasSelection())
             return;                     /* text selected, to copy */
-        action = tapAction(y);
+        action = tapAction(y, x);
         if (action)
             send(action.key);
     }
@@ -867,13 +884,13 @@
                 Math.abs(e.clientY - down.y) > MOUSE_NEAR)
             return;
         mouseClicked = Date.now();
-        clickAt(down.y);
+        clickAt(down.y, down.x);
     }
 
     function onClick(e) {
         if (Date.now() - mouseClicked < 1000)
             return;                     /* taken already, from the button */
-        clickAt(e.clientY);
+        clickAt(e.clientY, e.clientX);
     }
 
     /*
@@ -1303,9 +1320,9 @@
 
     /* for testing: which screen the page thinks EBaC is showing */
     window.ebacGestureMode = function () { return mode; };
-    /* for testing: the key a tap at this height on the page would send */
-    window.ebacTapKey = function (y) {
-        var action = tapAction(y);
+    /* for testing: the key a tap at this point on the page would send */
+    window.ebacTapKey = function (y, x) {
+        var action = tapAction(y, x);
         return action ? action.key : null;
     };
 }());

@@ -622,6 +622,45 @@ for (const [name, view] of [
         const left = (await screen(page)) !== before;
         report(left, `a click on ${letter})'s words${moved ? ", the mouse moving a little," : ""} chose it`);
     }
+    // "F/f) Font: LARGER / smaller": left of the "/" between the words, F
+    // (as if typed), right of it, f, with the half rows above and below
+    // (the designer, November 19, 2026)
+    await page.goto("http://localhost:8097/", { waitUntil: "load" });
+    await check(page, "the main menu, for F/f", "LARGER / smaller");
+    const font = await page.evaluate(() => {
+        const t = window.term, buf = t.buffer.active;
+        const sc = t.element.querySelector(".xterm-screen").getBoundingClientRect();
+        const h = sc.height / t.rows, w = sc.width / t.cols;
+        let row = -1, text = "";
+        for (let r = 0; r < t.rows; r++) {
+            const s = buf.getLine(buf.viewportY + r).translateToString(true);
+            if (/^\s*F\/f\)/.test(s)) { row = r; text = s; }
+        }
+        const col = (word) => text.indexOf(word) + word.length / 2;
+        const at = (c, dr) => ({ x: sc.left + c * w, y: sc.top + (row + 0.5 + dr) * h });
+        const points = {
+            "LARGER": at(col("LARGER"), 0), "smaller": at(col("smaller"), 0),
+            "Font:": at(col("Font:"), 0), "the space before the /": at(text.lastIndexOf("/") - 0.3, 0),
+            "the space after the /": at(text.lastIndexOf("/") + 1.3, 0),
+            "past smaller": at(text.length + 3, 0),
+            "half a row above LARGER": at(col("LARGER"), -0.45), "half a row below smaller": at(col("smaller"), 0.45) };
+        const keys = {};
+        for (const k in points) keys[k] = window.ebacTapKey(points[k].y, points[k].x);
+        return { keys, points, size: t.options.fontSize };
+    });
+    const want = { "LARGER": "F", "smaller": "f", "Font:": "F", "the space before the /": "F",
+                   "the space after the /": "f", "past smaller": "f",
+                   "half a row above LARGER": "F", "half a row below smaller": "f" };
+    for (const k in want)
+        report(font.keys[k] === want[k], `F/f: ${k}, ${want[k]} (${font.keys[k]})`);
+    await page.mouse.click(font.points["LARGER"].x, font.points["LARGER"].y);
+    await sleep(1000);
+    const bigger = await page.evaluate(() => window.term.options.fontSize);
+    await page.mouse.click(font.points["smaller"].x, font.points["smaller"].y);
+    await sleep(1000);
+    const back = await page.evaluate(() => window.term.options.fontSize);
+    report(bigger === font.size + 1 && back === font.size && (await screen(page)).includes("Main Menu"),
+           `F/f: a click on LARGER, then on smaller: ${font.size}, ${bigger}, ${back}, on the main menu`);
     await page.close();
 }
 
