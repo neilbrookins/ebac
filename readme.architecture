@@ -2596,3 +2596,16 @@ the browser's own fetch in the browser.
     request on, and its layout is added to KNOWN in gutenberg.c. New
     issue also offers "Report a problem" (problem.yml), a blank issue,
     and links to the app's and voice's repositories (config.yml).
+  - The mouse's wheel and clicks (November 18, 2026; the designer's
+    decision): the wheel is a verse a notch on the passage (before, as
+    many verses as the lines a notch moved, four or more), and on the
+    search results a screen a notch, where . and , (and the arrows)
+    now go a screen on and back, as n and p. Events close together are
+    one notch's (some wheels send a burst): after a step, none for 150
+    ms on the passage, 500 ms on the results, so two or three notches
+    turned a little are one screen, never results skipped unseen; a
+    longer turn goes on. A click is taken from the button going down
+    and up again within 8 pixels, not from the browser's click, which
+    doesn't come when the mouse moved a little and the terminal (its
+    DOM renderer) drew the row under it again: on the web page, clicks
+    on a menu's words did nothing.
