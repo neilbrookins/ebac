@@ -2609,3 +2609,11 @@ the browser's own fetch in the browser.
     doesn't come when the mouse moved a little and the terminal (its
     DOM renderer) drew the row under it again: on the web page, clicks
     on a menu's words did nothing.
+  - The spinner across several downloads (November 18, 2026; the
+    designer's decision): the names of the languages, downloaded the
+    first time thiagobodruk/bible's or scrollmapper/bible_databases's
+    translations are listed, are a small file each, each too quick for
+    a spinner of its own but slow all together. busy_many(TRUE) and
+    busy_many(FALSE) around them make them one step, as the long steps
+    are: the spinner turns from the first's start and isn't erased
+    between them, the same in every build.
