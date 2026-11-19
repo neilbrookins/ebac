@@ -656,7 +656,19 @@ for (const [name, view] of [
     await page.mouse.click(font.points["LARGER"].x, font.points["LARGER"].y);
     await sleep(1000);
     const bigger = await page.evaluate(() => window.term.options.fontSize);
-    await page.mouse.click(font.points["smaller"].x, font.points["smaller"].y);
+    // (smaller is elsewhere now, the letters larger)
+    const smaller = await page.evaluate(() => {
+        const t = window.term, buf = t.buffer.active;
+        const sc = t.element.querySelector(".xterm-screen").getBoundingClientRect();
+        for (let r = 0; r < t.rows; r++) {
+            const s = buf.getLine(buf.viewportY + r).translateToString(true);
+            if (/^\s*F\/f\)/.test(s))
+                return { x: sc.left + (s.indexOf("smaller") + 3.5) * sc.width / t.cols,
+                         y: sc.top + (r + 0.5) * sc.height / t.rows };
+        }
+        return { x: 0, y: 0 };
+    });
+    await page.mouse.click(smaller.x, smaller.y);
     await sleep(1000);
     const back = await page.evaluate(() => window.term.options.fontSize);
     report(bigger === font.size + 1 && back === font.size && (await screen(page)).includes("Main Menu"),
