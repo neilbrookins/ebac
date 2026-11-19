@@ -507,8 +507,18 @@ for (const [name, view] of [
         }, letter);
         console.log(`     ${letter}: row ${at.row} of ${at.rows}; screen top ${at.screenTop}, height ${at.screenHeight} ` +
                     `(${(at.screenHeight / at.rows).toFixed(2)} a row); the row's element: top ${at.rowTop}, height ${at.rowHeight}`);
-        await page.mouse.click(at.x, at.y);
+        // (as a hand on a mouse does: it moves a little, between the button
+        // going down and coming up)
+        await page.mouse.move(at.x, at.y);
+        await page.mouse.down();
+        await page.mouse.move(at.x + 4, at.y + 1, { steps: 2 });
+        const sel = await page.evaluate(() => window.term.hasSelection());
+        await page.mouse.up();
+        console.log(`     selection while the button was down: ${sel}; after: ${await page.evaluate(() => window.term.hasSelection())}`);
         await sleep(1500);
+        if (letter === "V")
+            console.log((await page.evaluate(() => Array.from({ length: 20 }, (_, r) =>
+                window.term.buffer.active.getLine(window.term.buffer.active.viewportY + r).translateToString(true)).join("\n"))));
         const left = await page.evaluate(() => !/Main Menu/.test(
             Array.from({ length: window.term.rows }, (_, r) =>
                 window.term.buffer.active.getLine(window.term.buffer.active.viewportY + r).translateToString(true)).join("\n")));
