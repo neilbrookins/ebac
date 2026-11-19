@@ -2155,13 +2155,23 @@ static void view_match_list(long int *verse_list)
                 case KEY_REDRAW: /* CTRL-L, or the window was resized */
                         i = first_i;  /* same first entry, new size */
                         break;
+/*
+** The next screen and the one before: also '.' and ',', as the passage's
+** next and previous verse, and the arrows (a mouse's wheel sends them),
+** a screen each (the designer, November 18, 2026: before, they brought up
+** the help).
+*/
                 case 'n':
                 case ' ':
+                case '.':
 		case 0x16: /* Page Down on MM/1 */
+		case 0xe: /* Down Arrow on MM/1 */
                         i--;
                         break;
                 case 'p':
+                case ',':
 		case 0x1a: /* Page Up on MM/1 */
+		case 0x10: /* Up Arrow on MM/1 */
                    num_lines = s_lines;
                    n = 0; /* entries that fit on the previous screen */
                    for(;;)
@@ -2238,10 +2248,14 @@ static void view_match_list(long int *verse_list)
                         rev_printf("q w e r t y u i o");
                         printf(" also choose 1 to 9)\n");
                         rev_printf("space bar");
-                        printf(" or ");
+                        printf(", ");
                         rev_printf("n");
+                        printf(" or ");
+                        rev_printf(".");
                         printf(" next screen%s\n", KEYHELP(", or Page Down"));
                         rev_printf("p");
+                        printf(" or ");
+                        rev_printf(",");
                         printf(" previous screen%s\n", KEYHELP(", or Page Up"));
                         rev_printf("x");
                         printf(" exits to Main Menu\n");

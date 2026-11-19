@@ -126,31 +126,36 @@ for (const [name, view] of [
                         ` (top line "${lines[0].trim().slice(0, 20)}", ${used} lines used)`);
             if (!ok) failed++;
         }
-        // the wheel, on the passage: a verse a notch; a burst of a notch's
-        // events, one; notches a moment apart, a verse each (with a mouse)
+        // the wheel, on the passage: a verse a notch (on at the bottom,
+        // back at the top); a burst of a notch's events, one; notches a
+        // moment apart, a verse each (with a mouse; the designer, November
+        // 18, 2026: a notch went on four verses)
         if (!view.hasTouch) {
-            const first = async () => { const m = (await screen(page)).match(/^\s*3:(\d+)/m); return m ? +m[1] : -1; };
+            const nums = async () => [...(await screen(page)).matchAll(/^\s*3:(\d+)/gm)].map(m => +m[1]);
+            const last = async () => (await nums()).pop();
+            const first = async () => (await nums())[0];
             await page.mouse.move(view.width / 2, view.height / 2);
-            const v0 = await first();
+            const v0 = await last();
             await page.mouse.wheel({ deltaY: 100 });
             await sleep(800);
-            const v1 = await first();
+            const v1 = await last();
             for (let i = 0; i < 4; i++)
                 await page.mouse.wheel({ deltaY: 100 });
             await sleep(800);
-            const v2 = await first();
+            const v2 = await last();
             for (let i = 0; i < 3; i++) {
                 await page.mouse.wheel({ deltaY: 100 });
                 await sleep(300);
             }
             await sleep(500);
-            const v3 = await first();
+            const v3 = await last();
+            const t3 = await first();
             await page.mouse.wheel({ deltaY: -100 });
             await sleep(800);
-            const v4 = await first();
-            const ok = v1 === v0 + 1 && v2 === v1 + 1 && v3 === v2 + 3 && v4 === v3 - 1;
-            console.log(`${ok ? "ok  " : "FAIL"} the wheel on the passage: 3:${v0}, then a notch 3:${v1}, ` +
-                        `a burst 3:${v2}, three notches 3:${v3}, one back 3:${v4}`);
+            const t4 = await first();
+            const ok = v1 === v0 + 1 && v2 === v1 + 1 && v3 === v2 + 3 && t4 === t3 - 1;
+            console.log(`${ok ? "ok  " : "FAIL"} the wheel on the passage: last 3:${v0}, a notch 3:${v1}, ` +
+                        `a burst 3:${v2}, three notches 3:${v3}; first 3:${t3}, a notch back 3:${t4}`);
             if (!ok) failed++;
         }
         await keys(page, "x");
@@ -162,6 +167,46 @@ for (const [name, view] of [
         await check(page, "S: jesus wept", "11:35");
         await keys(page, "x");
         await check(page, "back to the main menu again", "Main Menu");
+        // the search results: . and , a screen on and back, as n and p;
+        // and the wheel, a screen a notch, but two or three notches turned
+        // a little, one screen (the designer, November 18, 2026: the wheel
+        // brought up the help, and . and , did)
+        {
+            await keys(page, "s");
+            await keys(page, "lord\r");
+            await check(page, "S: lord", "--Beginning of list--");
+            const at = async () => (await screen(page)).split("\n").slice(0, 3).join("|");
+            const p0 = await at();
+            await keys(page, "."); await sleep(800);
+            const p1 = await at();
+            await keys(page, "."); await sleep(800);
+            const p2 = await at();
+            await keys(page, ","); await sleep(800);
+            const ok1 = p1 !== p0 && p2 !== p1 && (await at()) === p1;
+            await keys(page, ","); await sleep(800);
+            const ok2 = ok1 && (await at()) === p0 && !(await screen(page)).includes("Help Menu");
+            console.log(`${ok2 ? "ok  " : "FAIL"} . and , on the results: a screen on, and back`);
+            if (!ok2) failed++;
+            if (!view.hasTouch) {
+                await page.mouse.move(view.width / 2, view.height / 2);
+                for (let i = 0; i < 3; i++)
+                    await page.mouse.wheel({ deltaY: 100 });
+                await sleep(1000);
+                const w1 = await at();
+                await page.mouse.wheel({ deltaY: 100 });
+                await sleep(1000);
+                const w2 = await at();
+                await page.mouse.wheel({ deltaY: -100 });
+                await sleep(1000);
+                const w3 = await at();
+                const ok = w1 === p1 && w2 === p2 && w3 === p1 && !(await screen(page)).includes("Help Menu");
+                console.log(`${ok ? "ok  " : "FAIL"} the wheel on the results: three notches turned a little, ` +
+                            `a screen; a notch more, the next; one back, the one before`);
+                if (!ok) failed++;
+            }
+            await keys(page, "x");
+            await check(page, "back to the main menu after the results", "Main Menu");
+        }
         // a resize: EBaC lays out the next screen at the new width
         await page.setViewport({ ...view, width: Math.round(view.width * 0.7) });
         await sleep(1000);
@@ -514,7 +559,8 @@ for (const [name, view] of [
     const report = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) failed++; };
     const page = await browser.newPage();
     await page.setViewport({ width: 1200, height: 900 });
-    for (const letter of ["C", "A", "V", "S", "I"]) {
+    for (const [letter, moved] of [["C", false], ["C", true], ["A", true], ["V", false], ["V", true],
+                                   ["S", false], ["S", true], ["I", true]]) {
         await page.goto("http://localhost:8097/", { waitUntil: "load" });
         await check(page, "the main menu", "Main Menu");
         const at = await page.evaluate((letter) => {
@@ -534,22 +580,17 @@ for (const [name, view] of [
         }, letter);
         console.log(`     ${letter}: row ${at.row} of ${at.rows}; screen top ${at.screenTop}, height ${at.screenHeight} ` +
                     `(${(at.screenHeight / at.rows).toFixed(2)} a row); the row's element: top ${at.rowTop}, height ${at.rowHeight}`);
-        // (as a hand on a mouse does: it moves a little, between the button
-        // going down and coming up)
+        // (and as a hand on a mouse does, half the time: it moves a little,
+        // between the button going down and coming up)
+        const before = await screen(page);
         await page.mouse.move(at.x, at.y);
         await page.mouse.down();
-        await page.mouse.move(at.x + 4, at.y + 1, { steps: 2 });
-        const sel = await page.evaluate(() => window.term.hasSelection());
+        if (moved)
+            await page.mouse.move(at.x + 4, at.y + 1, { steps: 2 });
         await page.mouse.up();
-        console.log(`     selection while the button was down: ${sel}; after: ${await page.evaluate(() => window.term.hasSelection())}`);
         await sleep(1500);
-        if (letter === "V")
-            console.log((await page.evaluate(() => Array.from({ length: 20 }, (_, r) =>
-                window.term.buffer.active.getLine(window.term.buffer.active.viewportY + r).translateToString(true)).join("\n"))));
-        const left = await page.evaluate(() => !/Main Menu/.test(
-            Array.from({ length: window.term.rows }, (_, r) =>
-                window.term.buffer.active.getLine(window.term.buffer.active.viewportY + r).translateToString(true)).join("\n")));
-        report(left, `a click on ${letter})'s words chose it`);
+        const left = (await screen(page)) !== before;
+        report(left, `a click on ${letter})'s words${moved ? ", the mouse moving a little," : ""} chose it`);
     }
     await page.close();
 }

@@ -735,10 +735,16 @@
     ** notch, as many arrows as the lines it moved, went on four verses or
     ** more, too far to keep one's place). And a notch's events coming
     ** close together (a wheel that sends a burst of them) are one: after
-    ** an arrow, none for WHEEL_GAP milliseconds. A wheel turned farther, or
-    ** faster, still goes on a verse a notch.
+    ** an arrow, none for a moment: WHEEL_GAP milliseconds. A wheel turned
+    ** farther, or longer, still goes on, a verse a notch.
+    **
+    ** On the search results, an arrow is a screen (EBaC's n and p), so the
+    ** moment is longer, WHEEL_PAGE_GAP: two or three notches, turned a
+    ** little, are a screen, not two or three, which would skip results
+    ** never seen; a longer turn goes on, a screen at a time.
     */
-    var WHEEL_GAP = 60;
+    var WHEEL_GAP = 150;
+    var WHEEL_PAGE_GAP = 500;
     var wheelSteps = 0;         /* part of a notch, carried to the next turn */
     var wheelLast = 0;          /* when the last arrow went */
     var wheelFont = 0;          /* part of a notch, toward a font step */
@@ -806,7 +812,7 @@
         now = Date.now();
         up = wheelSteps < 0;
         wheelSteps = 0;                         /* (the rest of a notch: dropped) */
-        if (now - wheelLast < WHEEL_GAP)
+        if (now - wheelLast < (mode === "list" ? WHEEL_PAGE_GAP : WHEEL_GAP))
             return;                             /* the same notch's burst */
         wheelLast = now;
         send("\x1b" + ((term.modes && term.modes.applicationCursorKeysMode) ? "O" : "[") +
@@ -820,16 +826,54 @@
     ** be left by a key). But not a click that ends selecting text, to copy
     ** it (the mouse dragged across it): that leaves the screen as it is.
     */
-    function onClick(e) {
+    /*
+    ** A click is taken from the button going down and coming up, not from
+    ** the browser's click (the designer, November 18, 2026: on a computer,
+    ** clicks on the main menu's words did nothing, and above or below them,
+    ** now and then). A hand on a mouse moves it a little while it clicks;
+    ** the terminal, drawing its rows as the page's own elements, draws a
+    ** row again as the mouse moves over it, and the browser, its element
+    ** under the button gone, sends no click. So: the button down on the
+    ** terminal and up again near where it went down (MOUSE_NEAR pixels),
+    ** with no text selected, is a click; the browser's click after it, if
+    ** it comes, is left alone.
+    */
+    var MOUSE_NEAR = 8;
+    var mouseDown = null;   /* where the button went down, on the terminal */
+    var mouseClicked = 0;   /* when a click was last taken from the button */
+
+    function clickAt(y) {
         var action;
 
         if (Date.now() - lastTouchEnd < 1000)
             return;                     /* the click a tap already handled */
         if (term && term.hasSelection && term.hasSelection())
             return;                     /* text selected, to copy */
-        action = tapAction(e.clientY);
+        action = tapAction(y);
         if (action)
             send(action.key);
+    }
+
+    function onMouseDown(e) {
+        mouseDown = (e.button === 0) ? { x: e.clientX, y: e.clientY } : null;
+    }
+
+    function onMouseUp(e) {
+        var down = mouseDown;
+
+        mouseDown = null;
+        if (!down || e.button !== 0 ||
+                Math.abs(e.clientX - down.x) > MOUSE_NEAR ||
+                Math.abs(e.clientY - down.y) > MOUSE_NEAR)
+            return;
+        mouseClicked = Date.now();
+        clickAt(down.y);
+    }
+
+    function onClick(e) {
+        if (Date.now() - mouseClicked < 1000)
+            return;                     /* taken already, from the button */
+        clickAt(e.clientY);
     }
 
     /*
@@ -1164,6 +1208,8 @@
             start = null;
             two = null;
         }, true);
+        el.addEventListener("mousedown", onMouseDown, true);
+        window.addEventListener("mouseup", onMouseUp, true);
         el.addEventListener("click", onClick, true);
         el.addEventListener("wheel", onWheel, { capture: true, passive: false });
         /* (on the terminal, capturing: before the typing box's own
