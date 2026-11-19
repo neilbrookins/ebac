@@ -2617,3 +2617,9 @@ the browser's own fetch in the browser.
     busy_many(FALSE) around them make them one step, as the long steps
     are: the spinner turns from the first's start and isn't erased
     between them, the same in every build.
+  - LARGER and smaller on the main menu (November 19, 2026; the
+    designer's decision): a click or a tap on either word is its key, F
+    or f, as if typed, with no keyboard brought up. The row, "F/f) Font:
+    LARGER / smaller", is split at the "/" between the words: everything
+    left of it (with "Font:") is F, everything right of it f, each with
+    the half rows above and below, as the other choices have.
