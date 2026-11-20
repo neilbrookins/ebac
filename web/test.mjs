@@ -657,6 +657,26 @@ for (const [name, view] of [
                `the bell, at Genesis 1:1 with ,: a beep (${before[1]} to ${after[1]}), ` +
                `the screen in reverse a moment (${during || "none"}, then ${after[2] || "none"})`);
         await keys(page, "x");
+        // turned off, by the page's settings (window.EBAC_BELL, as the Home
+        // Assistant app's options give it): neither
+        const off = await browser.newPage();
+        await off.setViewport({ width: 1200, height: 900 });
+        await off.evaluateOnNewDocument(() => { window.EBAC_BELL = { sound: false, flash: false, vibrate: false }; });
+        await off.goto("http://localhost:8097/", { waitUntil: "load" });
+        await check(off, "the main menu, the bell off", "Main Menu");
+        await keys(off, "v");
+        await keys(off, "genesis\r");
+        await keys(off, "1\r");
+        await keys(off, "1\r");
+        await check(off, "V: Genesis 1:1, the bell off", "1:1");
+        await keys(off, ",");
+        await sleep(60);
+        const offDuring = await off.evaluate(() => window.term.element.style.filter);
+        await sleep(600);
+        const offAfter = await off.evaluate(() => [window.ebacBells, window.ebacBellSounds]);
+        report(offAfter[0] === 1 && offAfter[1] === 0 && offDuring === "",
+               `the bell turned off: rung (${offAfter[0]}), no beep (${offAfter[1]}), no flash (${offDuring || "none"})`);
+        await off.close();
     }
     // "F/f) Font: LARGER / smaller": left of the "/" between the words, F
     // (as if typed), right of it, f, with the half rows above and below
