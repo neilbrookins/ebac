@@ -634,6 +634,30 @@ for (const [name, view] of [
         const left = (await screen(page)) !== before;
         report(left, `a click on ${letter})'s words${moved ? ", the mouse moving a little," : ""} chose it`);
     }
+    // the bell (Ctrl-G), at Genesis 1:1 with , (nowhere to go): a beep,
+    // and the screen in reverse a moment (the designer, November 20, 2026:
+    // nothing heard)
+    {
+        await page.goto("http://localhost:8097/", { waitUntil: "load" });
+        await check(page, "the main menu, for the bell", "Main Menu");
+        await keys(page, "v");
+        await keys(page, "genesis\r");
+        await keys(page, "1\r");
+        await keys(page, "1\r");
+        await check(page, "V: Genesis 1:1", "1:1");
+        const before = await page.evaluate(() => [window.ebacBells, window.ebacBellSounds]);
+        await keys(page, ",");
+        await sleep(60);
+        const during = await page.evaluate(() => window.term.element.style.filter);
+        await sleep(600);
+        const after = await page.evaluate(() => [window.ebacBells, window.ebacBellSounds,
+                                                  window.term.element.style.filter]);
+        report(after[0] === before[0] + 1 && after[1] === before[1] + 1 &&
+               during === "invert(1)" && after[2] === "",
+               `the bell, at Genesis 1:1 with ,: a beep (${before[1]} to ${after[1]}), ` +
+               `the screen in reverse a moment (${during || "none"}, then ${after[2] || "none"})`);
+        await keys(page, "x");
+    }
     // "F/f) Font: LARGER / smaller": left of the "/" between the words, F
     // (as if typed), right of it, f, with the half rows above and below
     // (the designer, November 19, 2026)

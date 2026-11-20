@@ -1121,6 +1121,86 @@
         debug("copied in reading order: " + JSON.stringify(rows.join(" ")));
     }
 
+    /*
+    ** The bell (Ctrl-G), which EBaC sends where there is nowhere to go, or
+    ** no room for another key: a terminal of the 1990s beeped, but xterm.js
+    ** makes no sound, nor shows anything (the designer, November 20, 2026:
+    ** nothing heard, on the web page or in Home Assistant). So, here: a
+    ** short beep, as a terminal's (Web Audio, at the device's volume); the
+    ** screen in reverse for a moment, white for black and back, for anyone
+    ** with the sound off; and on a phone that can, a short buzz. Bells
+    ** close together are one (BELL_GAP milliseconds).
+    **
+    ** A browser lets a page make a sound only after a key or a tap on it,
+    ** so the sound is readied at the first (unlockAudio); a bell before
+    ** that is the flash and the buzz alone.
+    */
+    var BELL_GAP = 250, BELL_FLASH = 150;
+    var bellLast = 0, bellAudio = null;
+    window.ebacBells = 0;       /* (for testing: how many, and the sound's) */
+    window.ebacBellSounds = 0;
+
+    function unlockAudio() {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+
+        if (!bellAudio && Ctx) {
+            try {
+                bellAudio = new Ctx();
+            } catch (err) {
+                bellAudio = null;
+            }
+        }
+        if (bellAudio && bellAudio.state === "suspended")
+            bellAudio.resume();
+    }
+
+    function beep() {
+        var osc, gain, now;
+
+        if (!bellAudio || bellAudio.state !== "running")
+            return;
+        now = bellAudio.currentTime;
+        osc = bellAudio.createOscillator();
+        gain = bellAudio.createGain();
+        osc.type = "square";
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.08, now + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+        osc.connect(gain);
+        gain.connect(bellAudio.destination);
+        osc.start(now);
+        osc.stop(now + 0.13);
+        window.ebacBellSounds++;
+    }
+
+    function flash() {
+        var el = term && term.element;
+
+        if (!el)
+            return;
+        el.style.filter = "invert(1)";
+        setTimeout(function () { el.style.filter = ""; }, BELL_FLASH);
+    }
+
+    function bell() {
+        var now = Date.now();
+
+        if (now - bellLast < BELL_GAP)
+            return;
+        bellLast = now;
+        window.ebacBells++;
+        debug("bell");
+        beep();
+        flash();
+        if (navigator.vibrate)
+            try {
+                navigator.vibrate(60);
+            } catch (err) {
+                /* (not allowed here: the flash and the sound will do) */
+            }
+    }
+
     /* listen for EBaC's "which screen" messages: as soon as the terminal
        exists, before any output arrives */
     function listen(t) {
@@ -1128,6 +1208,8 @@
         mode = "";
         composing = false;
         noScrollback(t);
+        if (t.onBell)
+            t.onBell(bell);
         t.parser.registerOscHandler(MODE_OSC, function (name) {
             /* (F and f on the main menu: the font a step larger, or
                smaller; not a screen) */
@@ -1282,6 +1364,9 @@
     firstSeen[window.innerWidth] = 1;   /* (the starting width: not turning) */
     noteHeight();
     window.addEventListener("copy", onCopy, true);
+    window.addEventListener("keydown", unlockAudio, true);
+    window.addEventListener("pointerdown", unlockAudio, true);
+    window.addEventListener("touchend", unlockAudio, true);
     window.addEventListener("resize", noteHeight);
     window.addEventListener("resize", noteWidth);
     window.addEventListener("blur", onPageBlur);
