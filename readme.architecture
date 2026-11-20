@@ -2635,3 +2635,12 @@ the browser's own fetch in the browser.
     it, count_part() counts no line for a space at a verse's end just
     past a full line, as dis_part() draws none (it had counted one, and
     left a row empty at the bottom where the next verse fit).
+  - The bell (November 20, 2026; the designer's decision): EBaC sends
+    Ctrl-G where there is nowhere to go or no room for another key, and
+    terminals of the 1990s beeped; xterm.js (the web page, Docker, the
+    Home Assistant app) makes no sound and shows nothing. gestures.js
+    answers it, on all three: a short beep (Web Audio, readied at the
+    first key or tap, as browsers require), the terminal in reverse for
+    150 ms (white for black, for anyone with the sound off), and a short
+    buzz on a phone that can; bells within 250 ms are one. EBaC itself
+    is unchanged: a real terminal still beeps as it always did.
