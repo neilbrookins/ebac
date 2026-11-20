@@ -2644,3 +2644,10 @@ the browser's own fetch in the browser.
     150 ms (white for black, for anyone with the sound off), and a short
     buzz on a phone that can; bells within 250 ms are one. EBaC itself
     is unchanged: a real terminal still beeps as it always did.
+    Each part can be turned off (the designer, November 20, 2026: a beep
+    could wake someone asleep nearby; a flash could harm someone with
+    photosensitive epilepsy): window.EBAC_BELL, given by the page, as
+    { sound: false, flash: false, vibrate: false }. ebac-web gives it
+    from EBAC_BELL_SOUND, EBAC_BELL_FLASH and EBAC_BELL_VIBRATE: the
+    standalone image's settings, and the Home Assistant app's options
+    (Beep, Flash the screen, Vibrate), all on unless turned off.
