@@ -28,6 +28,12 @@
 /* extern variables, defined in curses.c or cure.c */
 extern int      s_lines;          /* :li#: number of rows */
 extern int      s_cols;           /* :co#: number of columns */
+/* TRUE if a line can be written to its last column, and a newline after it
+   start the next line, with no blank line between: a terminal with no
+   automatic margins, or one that waits to wrap (:xn:, terminfo's xenl),
+   as xterm and all modern ones do. FALSE (as the old ones were): the last
+   column is left empty. */
+extern int      s_full_lines;
 extern char     *SO;            /* :so=: standout start */
 extern char     *SE;            /* :se=: standout end */
 extern char     *US;            /* :us=: underline start */

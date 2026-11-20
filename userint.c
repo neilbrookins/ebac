@@ -45,7 +45,11 @@ static char gutenberg[600] = "";
         (thiagobodruk[0] != '\0' || scrollmapper[0] != '\0' || gutenberg[0] != '\0')
 #endif
 
-#define WIDTH (s_cols - 1)
+/* the columns a line of text can take: all of them, on a terminal that
+   takes a full line (s_full_lines), as modern ones do (the designer,
+   November 20, 2026: the last column, the left one in Hebrew, was always
+   empty); one less on the old ones */
+#define WIDTH (s_full_lines ? s_cols : s_cols - 1)
 #define MAXINDENT 26
 char spaces[]="                          ";  /* MAXINDENT spaces */
 
@@ -1167,13 +1171,12 @@ static void verse_line(char *strg, int indent, int firstTime)
         {
                 /* right to left: its start at the end of the line (before a
                    margin on the right), and the spaces before it, on the
-                   left, where its end is. (Terminals are assumed to take a
-                   full line without wrapping, as modern ones do. Spaces
-                   after its text, as a verse's last line can have, are
-                   left out.) */
+                   left, where its end is: to the last column on a terminal
+                   that takes a full line (WIDTH). Spaces after its text,
+                   as a verse's last line can have, are left out. */
                 while (n > 0 && strg[n - 1] == ' ')
                         n--;
-                pad = s_cols - indent - u8_cols(strg, n);
+                pad = WIDTH - indent - u8_cols(strg, n);
                 while (pad-- > 0)
                         putchar(' ');
         }
@@ -2065,15 +2068,12 @@ static void view_match_list(long int *verse_list)
                         {
                                 sprintf(times, " %ld time%s", num_found,
                                         num_found == 1 ? "" : "s");
-                                /* ", " word times: up to the last column, as
-                                   modern terminals (xterm and the like) take a
-                                   full line before the newline without an
-                                   extra blank line. (Change s_cols to WIDTH if
-                                   one doesn't.) */
+                                /* ", " word times: up to the last column,
+                                   on a terminal that takes a full line */
                                 if ((int) (sizeof(HEAD_TEXT) - 1 + strlen(count) +
                                         2 + u8_cols(count_word, strlen(count_word)) +
                                         strlen(times))
-                                        <= s_cols)
+                                        <= WIDTH)
                                 {
                                         fputs(", ", stdout);
                                         rev_printf(count_word);

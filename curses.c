@@ -129,6 +129,12 @@ static int tigetnum(const char *name)
 	return cols > 0 ? cols : 80;
 }
 
+/* am and xenl: xterm's automatic margins, and its waiting to wrap */
+static int tigetflag(const char *name)
+{
+	return strcmp(name, "am") == 0 || strcmp(name, "xenl") == 0;
+}
+
 static int setupterm(const char *term, int fd, int *err)
 {
 	(void) term;
@@ -146,6 +152,7 @@ const char *curses_version(void)
 /* variables, publicly available & used in the macros */
 int     s_lines;          /* number of rows */
 int     s_cols;           /* number of columns */
+int     s_full_lines;     /* lines to the last column (screen.h) */
 char    *SO = "";       /* smso: standout start */
 char    *SE = "";       /* rmso: standout end */
 char    *US = "";       /* smul: underline start */
@@ -509,6 +516,8 @@ void initscreen(void)
 	pair(&US, &UE, "smul", "rmul");
 	CL = musthave("clear");   /* Clear Screen */
 	ND = musthave("cuf1");    /* non-destructive space */
+	/* (tigetflag: 1 if it has it, 0 if not; -1 isn't a flag) */
+	s_full_lines = tigetflag("am") != 1 || tigetflag("xenl") == 1;
 
 	getsize();
 #ifdef SIGWINCH
@@ -574,6 +583,7 @@ char    PC;             /* Pad char */
 #endif
 int     s_lines;          /* :li#: number of rows */
 int     s_cols;           /* :co#: number of columns */
+int     s_full_lines;     /* lines to the last column (screen.h) */
 char    *SO = "";       /* :so=: standout start */
 char    *SE = "";       /* :se=: standout end */
 char    *US = "";       /* :us=: underline start */
@@ -691,6 +701,7 @@ pair(&SO, &SE, "so", "se");
 pair(&US, &UE, "us", "ue");
 musthave(&CL, "cl");      /* Clear Screen */
 musthave(&ND, "nd");      /* non-destructive space */
+s_full_lines = !tgetflag("am") || tgetflag("xn");
 
 getsize(0);
 }

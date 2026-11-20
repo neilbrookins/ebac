@@ -21,6 +21,7 @@ char    PC;             /* Pad char */
 #endif
 int     s_lines;          /* :li#: number of rows */
 int     s_cols;           /* :co#: number of columns */
+int     s_full_lines = FALSE; /* the last column left empty (screen.h) */
 char    *SO = "";       /* :so=: standout start */
 char    *SE = "";       /* :se=: standout end */
 char    *US = "";       /* :us=: underline start */
