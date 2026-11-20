@@ -999,8 +999,14 @@ static int count_part(int tag, char *bookname, char *strg, int indent,
                 return(1 + a_lines);
  for (i = fit; i > 0; i--)
   if (strg[i] == ' ')
+  {
+   /* (a space at the end, as a verse can have, just past a full line:
+      nothing after it, and no line for it, as dis_part() draws none) */
+   if (strg[i + 1] == '\0')
+    return(1 + a_lines);
    return(count_part(tag, bookname, &strg[i + 1],  /* recursive! */
                       indent, FALSE, FALSE) + 1 + a_lines);
+  }
  return(count_part(tag, bookname, &strg[fit], /* here too! */
                     indent, FALSE, FALSE) + 1 + a_lines);
 }
