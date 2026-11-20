@@ -24,3 +24,7 @@ __pycache__/
 # the names of languages, kept by the importer (A, on the main menu)
 languages.cache
 /ebac-api
+
+# the search history, kept in $HOME (here, when a test runs EBaC with HOME
+# set to this folder)
+.ebac_log
