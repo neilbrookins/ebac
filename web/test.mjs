@@ -172,32 +172,44 @@ for (const [name, view] of [
             await keys(page, "lord\r");
             await check(page, "S: lord", "--Beginning of list--");
             const at = async () => (await screen(page)).split("\n").slice(0, 3).join("|");
+            // (a screen back ends with the entry just before the one shown
+            // first, as full as it can be: not always the screen that was
+            // shown before it, which may have ended with room left)
+            const lastRef = async () => {
+                const refs = [...(await screen(page)).matchAll(/^\S+\)\s+(?:\S.*?\s)?(\d+:\d+)\s/gm)].map(m => m[1]);
+                return refs[refs.length - 1];
+            };
             const p0 = await at();
             await keys(page, "."); await sleep(800);
-            const p1 = await at();
+            const p1 = await at(), p1last = await lastRef();
             await keys(page, "."); await sleep(800);
             const p2 = await at();
             await keys(page, ","); await sleep(800);
-            const ok1 = p1 !== p0 && p2 !== p1 && (await at()) === p1;
+            const back = await at(), backLast = await lastRef();
+            const ok1 = p1 !== p0 && p2 !== p1 && back !== p2 && backLast === p1last;
             await keys(page, ","); await sleep(800);
             const ok2 = ok1 && (await at()) === p0 && !(await screen(page)).includes("Help Menu");
-            console.log(`${ok2 ? "ok  " : "FAIL"} . and , on the results: a screen on, and back`);
+            console.log(`${ok2 ? "ok  " : "FAIL"} . and , on the results: a screen on, and back ` +
+                        `(the screen before ending at ${p1last}: ${backLast})`);
             if (!ok2) failed++;
             if (!view.hasTouch) {
+                await keys(page, "."); await sleep(800);
+                const q1 = await at();
                 await page.mouse.move(view.width / 2, view.height / 2);
                 for (let i = 0; i < 3; i++)
                     await page.mouse.wheel({ deltaY: 100 });
                 await sleep(1000);
-                const w1 = await at();
+                const w1 = await at(), w1last = await lastRef();
                 await page.mouse.wheel({ deltaY: 100 });
                 await sleep(1000);
                 const w2 = await at();
                 await page.mouse.wheel({ deltaY: -100 });
                 await sleep(1000);
-                const w3 = await at();
-                const ok = w1 === p1 && w2 === p2 && w3 === p1 && !(await screen(page)).includes("Help Menu");
+                const w3last = await lastRef();
+                const ok = q1 === p1 && w1 === p2 && w2 !== w1 && w3last === w1last &&
+                           !(await screen(page)).includes("Help Menu");
                 console.log(`${ok ? "ok  " : "FAIL"} the wheel on the results: three notches turned a little, ` +
-                            `a screen; a notch more, the next; one back, the one before`);
+                            `a screen; a notch more, the next; one back, the one before (ending at ${w1last}: ${w3last})`);
                 if (!ok) failed++;
             }
             await keys(page, "x");
