@@ -2623,3 +2623,15 @@ the browser's own fetch in the browser.
     LARGER / smaller", is split at the "/" between the words: everything
     left of it (with "Font:") is F, everything right of it f, each with
     the half rows above and below, as the other choices have.
+  - Lines to the last column (November 20, 2026; the designer's
+    decision): text was wrapped one column short of the screen
+    (WIDTH, s_cols - 1), for old terminals that wrap as soon as the last
+    column is written; the last column was always empty (the left one
+    in Hebrew). curses.c now tells whether the terminal takes a full
+    line (s_full_lines: no automatic margins, or ones that wait to wrap,
+    termcap's xn and terminfo's xenl, as xterm, xterm.js and all modern
+    terminals have), and WIDTH is the whole width when it does. cure.c's
+    consoles (MS-DOS, VMS) keep the last column empty, as before. With
+    it, count_part() counts no line for a space at a verse's end just
+    past a full line, as dis_part() draws none (it had counted one, and
+    left a row empty at the bottom where the next verse fit).
