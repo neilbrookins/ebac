@@ -1134,7 +1134,18 @@
     ** A browser lets a page make a sound only after a key or a tap on it,
     ** so the sound is readied at the first (unlockAudio); a bell before
     ** that is the flash and the buzz alone.
+    **
+    ** Each can be turned off (someone asleep nearby; a flash, for someone
+    ** it could harm), by the page that has these gestures: it gives
+    ** window.EBAC_BELL, as { sound: false, flash: false, vibrate: false }
+    ** for all three off; anything not false is on (the Home Assistant
+    ** app's options and the standalone image's settings: ebac-web).
     */
+    function bellOn(what) {
+        var b = window.EBAC_BELL;
+        return !(b && b[what] === false);
+    }
+
     var BELL_GAP = 250, BELL_FLASH = 150;
     var bellLast = 0, bellAudio = null;
     window.ebacBells = 0;       /* (for testing: how many, and the sound's) */
@@ -1191,9 +1202,11 @@
         bellLast = now;
         window.ebacBells++;
         debug("bell");
-        beep();
-        flash();
-        if (navigator.vibrate)
+        if (bellOn("sound"))
+            beep();
+        if (bellOn("flash"))
+            flash();
+        if (bellOn("vibrate") && navigator.vibrate)
             try {
                 navigator.vibrate(60);
             } catch (err) {

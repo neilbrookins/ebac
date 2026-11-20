@@ -20,6 +20,9 @@
 #   EBAC_ALLOW_ADD, EBAC_ALLOW_REMOVE   "yes": ebac-api's ebac-admin may add
 #                     (and remove) translations, for voice. Off by default.
 #   EBAC_DEBUG        "true": the page's troubleshooting box
+#   EBAC_BELL_SOUND, EBAC_BELL_FLASH, EBAC_BELL_VIBRATE   "false": no beep,
+#                     no flash of the screen, or no buzz on a phone, for
+#                     EBaC's bell (Ctrl-G). Each is on unless set "false".
 #
 # Everything EBaC keeps (added translations, each user's search history) is
 # in /data: make it a volume, so it outlives the container.

@@ -207,6 +207,8 @@ then use `ebac` in place of `ghcr.io/neilbrookins/ebac` in the commands above. (
 
 **Voice, with Home Assistant but without apps** (Home Assistant Container or Core): the [EBaC integration](https://github.com/neilbrookins/ebac-ha-integration) can use this container too. Add `-p 8080:8080` to the `docker run` command, and give the integration the address `http://the computer's address:8080/cgi-bin/ebac`. To let voice add and remove translations, add `-e EBAC_ALLOW_ADD=yes` (and `-e EBAC_ALLOW_REMOVE=yes`); both are off unless you do.
 
+**The bell.** Where EBaC beeps (nowhere to go, or no room for another key), the page plays a short beep, turns the screen white for a moment, and on a phone that can, buzzes briefly. To turn any of them off, add `-e EBAC_BELL_SOUND=false`, `-e EBAC_BELL_FLASH=false` or `-e EBAC_BELL_VIBRATE=false`.
+
 **If something goes wrong:** `docker logs ebac` shows what EBaC said as it started. `-e EBAC_DEBUG=true` adds the troubleshooting box to the page (what it sees of the screen's size and the keyboard), for reporting a problem with tapping or the keyboard.
 
 #### Updating

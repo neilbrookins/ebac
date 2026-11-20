@@ -9,18 +9,33 @@
 # Each visit to the page starts a fresh copy of EBaC (ebac-session). When
 # the user exits EBaC, ttyd greys the screen and offers "Press Enter to
 # Reconnect". EBAC_DEBUG=true shows the troubleshooting box (what the page
-# sees of the focus and the window's size: see gestures.js). The options
+# sees of the focus and the window's size: see gestures.js).
+# EBAC_BELL_SOUND, EBAC_BELL_FLASH and EBAC_BELL_VIBRATE, "false", turn off
+# that part of what the page does for EBaC's bell (Ctrl-G): the beep, the
+# screen in reverse a moment, the buzz on a phone (gestures.js). The options
 # that differ between the containers (who the user is, a login) are the
 # caller's, after PORT.
 # ==============================================================================
 port=${1:?usage: ebac-web PORT [ttyd options]}
 shift
 
-# The page: ttyd's own, with touch gestures added (see make-index.sh), or
-# with the troubleshooting box on, a copy that says so.
+# The page: ttyd's own, with touch gestures added (see make-index.sh), or,
+# with the troubleshooting box on or a part of the bell off, a copy that
+# says so.
 page=/usr/share/ebac/index.html
+settings=
 if [ "${EBAC_DEBUG:-}" = true ]; then
-    sed 's|<head>|<head><script>window.EBAC_DEBUG=true</script>|' "$page" > /tmp/index.html
+    settings="window.EBAC_DEBUG=true;"
+fi
+bell_on() {
+    [ "$1" = false ] && printf '%s' "false" || printf '%s' "true"
+}
+if [ "${EBAC_BELL_SOUND:-}" = false ] || [ "${EBAC_BELL_FLASH:-}" = false ] ||
+   [ "${EBAC_BELL_VIBRATE:-}" = false ]; then
+    settings="${settings}window.EBAC_BELL={sound:$(bell_on "${EBAC_BELL_SOUND:-}"),flash:$(bell_on "${EBAC_BELL_FLASH:-}"),vibrate:$(bell_on "${EBAC_BELL_VIBRATE:-}")};"
+fi
+if [ -n "$settings" ]; then
+    sed "s|<head>|<head><script>$settings</script>|" "$page" > /tmp/index.html
     page=/tmp/index.html
 fi
 
