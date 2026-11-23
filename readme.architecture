@@ -2651,3 +2651,12 @@ the browser's own fetch in the browser.
     from EBAC_BELL_SOUND, EBAC_BELL_FLASH and EBAC_BELL_VIBRATE: the
     standalone image's settings, and the Home Assistant app's options
     (Beep, Flash the screen, Vibrate), all on unless turned off.
+    On the web page (November 22, 2026; the designer's decision), which
+    has no settings of its own elsewhere: a small, faint ⚙ button in the
+    top right corner of the terminal (below a bar above it, not over the
+    bar's buttons) opens the same three switches, Beep, Flash the screen
+    and Vibrate (only where the browser can vibrate), all on unless
+    turned off, kept in the browser's storage ("ebac-bell"): each device
+    its own, as the beep suits where the device is. A click or tap beside
+    the open panel only closes it (it doesn't reach the terminal), as
+    Escape does.
