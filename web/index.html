@@ -143,6 +143,15 @@
       if (!on && window.term && !window.matchMedia("(pointer: coarse)").matches)
         window.term.focus();
     }
+    // (at the top of the terminal, below a bar above it, the offer of a
+    // shortcut or of a newer EBaC, not over the bar's own buttons)
+    function place() {
+      const top = document.getElementById("terminal-container").getBoundingClientRect().top;
+      gear.style.top = (top + 4) + "px";
+      panel.style.top = (top + 38) + "px";
+    }
+    window.addEventListener("resize", place);
+    place();
     gear.addEventListener("click", () => open(panel.style.display !== "block"));
     // (a click or tap anywhere else, or Escape, closes it)
     backdrop.addEventListener("click", () => open(false));
