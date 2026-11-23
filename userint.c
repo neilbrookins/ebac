@@ -776,20 +776,28 @@ static int line_fit(char *strg, int width)
 ** "Notes" in readme.architecture). The index skips the "-" as it does the
 ** tab (a word without letters), and ebac-api leaves notes out of what it
 ** speaks (plain_text() in api.c).
+**
+** A part that is a heading within or between verses (a word or two the
+** translation adds, not the verse's text: Psalm 119's letters, the Song
+** of Songs' speakers, "Young Woman"; see acrostic.c and speakers.c)
+** starts with a "=" alone, and has "===" in the margin, as a chapter's
+** heading has (the designer, November 22, 2026); otherwise as a note.
 */
 
 #define PART_NOTE       1       /* (a part after a tab: see part_end()) */
 #define PART_PARAGRAPH  2       /* (a paragraph within a verse) */
 
 /* Purpose: the start of the part after a tab: past the spaces around it,
-            and past the "-" of a note, if it is one (*note TRUE) */
+            and past the "-" of a note or the "=" of a heading, if it is one
+            (*note '-' or '=', else 0) */
 static char *next_part(char *tab, int *note)
 {
         char *p;
 
         for (p = tab + 1; *p == ' '; p++)
                 ;
-        *note = (p[0] == '-' && (p[1] == ' ' || p[1] == '\t' || p[1] == '\0'));
+        *note = ((p[0] == '-' || p[0] == '=') &&
+                 (p[1] == ' ' || p[1] == '\t' || p[1] == '\0')) ? p[0] : 0;
         if (*note)
                 for (p++; *p == ' '; p++)
                         ;
@@ -799,11 +807,13 @@ static char *next_part(char *tab, int *note)
 /*
 ** Purpose: whether a verse starts with a note, before its words (a divider,
 **          a letter's name, set apart before the verse: "ALEPH. Blessed
-**          are..." in Psalm 119:1; see acrostic.c): its text starts with
-**          the note's tab. If so, *rest is where the note starts (past its
-**          "-"): the note is shown first, its "---" in the margin, and the
-**          verse's number on the line after it, beside its words (the
-**          designer, November 18, 2026). Its empty first part isn't shown.
+**          are..." in Psalm 119:1; see acrostic.c), or a heading: its text
+**          starts with the note's tab. If so, *rest is where the note
+**          starts (past its "-" or "="), and it says which ('-' or '=',
+**          else 0): the note is shown first, its "---" (or a heading's
+**          "===") in the margin, and the verse's number on the line after
+**          it, beside its words (the designer, November 18, 2026). Its
+**          empty first part isn't shown.
 */
 static int lead_note(char *strg, char **rest)
 {
@@ -814,7 +824,7 @@ static int lead_note(char *strg, char **rest)
         if (*strg != '\t')
                 return (FALSE);
         *rest = next_part(strg, &note);
-        return (note);
+        return (note);  /* ('-' or '=', or 0) */
 }
 
 /* figure out how many lines on the screen it will take to print this verse
@@ -1124,7 +1134,8 @@ static void print_visual(char *s, char *hi)
 ** a time: dis_verse() leaves out its first dv_skip lines and then shows at
 ** most dv_left (-1: all of it). With dv_body_only, display_verse() shows
 ** neither the book's heading nor the verse's number (a later part).
-** dv_note: the next line is a note's first, with "---" in its margin.
+** dv_note: the next line is a note's first, with "---" in its margin ('-'),
+** or a heading's, with "===" ('='); else 0.
 **
 ** The margin: the 8 columns beside a verse's lines, at the end of their
 ** indent. dv_label: what the first line's margin shows, the verse's
@@ -1133,10 +1144,11 @@ static void print_visual(char *s, char *hi)
 ** (Hebrew) begins: its reference first, read that way, as Hebrew Bibles
 ** have it. (In a list it stays on the left, under the pick letters.)
 */
-static int dv_skip = 0, dv_left = -1, dv_body_only = FALSE, dv_note = FALSE;
-/* (the first line is a note before the verse's words: "---" in its margin,
-   the verse's number on the line after it; see lead_note()) */
-static int dv_lead = FALSE;
+static int dv_skip = 0, dv_left = -1, dv_body_only = FALSE, dv_note = 0;
+/* (the first line is a note before the verse's words: "---" in its margin
+   ('-'; a heading's, "===", '='), the verse's number on the line after it;
+   see lead_note()) */
+static int dv_lead = 0;
 /* (in a passage, not a list: paragraphs within a verse, or after it, shown
    apart, with a blank line: see part_end()) */
 static int dv_paragraphs = FALSE;
@@ -1151,7 +1163,7 @@ static void verse_line(char *strg, int indent, int firstTime)
         int n = (int) strlen(strg), pad;
         char *margin, kept;
 
-        dv_note = FALSE;        /* (only a note's first line) */
+        dv_note = 0;            /* (only a note's first line) */
         if (dv_skip > 0)
         {
                 dv_skip--;
@@ -1162,11 +1174,11 @@ static void verse_line(char *strg, int indent, int firstTime)
         if (dv_left > 0)
                 dv_left--;
         /* what the margin shows: the reference on the verse's first line,
-           "---" on a note's first, else nothing */
+           "---" on a note's first, "===" on a heading's, else nothing */
         if (firstTime && !dv_body_only)
-                margin = dv_lead ? "---" : dv_label;
+                margin = dv_lead ? (dv_lead == '=' ? "===" : "---") : dv_label;
         else
-                margin = note ? "---" : "";
+                margin = note ? (note == '=' ? "===" : "---") : "";
         /* (a list's indent: the pick letter and book, then the margin) */
         if (margin != NULL && !dv_right)
         {
@@ -1339,15 +1351,15 @@ static void dis_verse(char *strg, int indent, int firstTime)
 {
         static char blank[1] = "";
         char *whole = strg, *end, *cut = NULL, kept = '\0', *rest;
-        int kind, lead = FALSE;
+        int kind, lead = FALSE, which;
 
         /* a note before the verse's words: shown first (see lead_note()) */
-        if (firstTime && lead_note(strg, &rest))
+        if (firstTime && (which = lead_note(strg, &rest)) != 0)
         {
                 strg = rest;
                 lead = (dv_label != NULL);  /* (in a list, beside the
                                                reference shown already) */
-                dv_lead = lead;
+                dv_lead = lead ? which : 0;
         }
         for (;;)
         {
@@ -1368,7 +1380,8 @@ static void dis_verse(char *strg, int indent, int firstTime)
                 /* (after a note before the words, the words' first line
                    has the verse's number) */
                 firstTime = lead;
-                lead = dv_lead = FALSE;
+                lead = FALSE;
+                dv_lead = 0;
                 if (kind == PART_NOTE)
                         strg = next_part(end, &dv_note);
                 else

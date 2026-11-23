@@ -2687,8 +2687,10 @@ static int gb_add(void)
                 int built;
 
                 sprintf(folder, "%s/%s", here, n);
-                /* the Hebrew alphabet's letters set apart (acrostic.c) */
+                /* the Hebrew alphabet's letters set apart (acrostic.c), and
+                   the Song of Songs' speakers (speakers.c) */
                 letters_apart(folder);
+                speakers_apart(folder);
                 printf("%s: building the concordance index...\n", n);
                 fflush(stdout);
                 let_page_draw(TRUE);

@@ -103,6 +103,9 @@ static long capitals[][4] = {
         { 0x0139L, 0x0147L, 2, 1 }, { 0x014AL, 0x0176L, 2, 1 },
         { 0x0178L, 0x0178L, 1, 0x00FFL - 0x0178L },                   /* Y with diaeresis */
         { 0x0179L, 0x017DL, 2, 1 },
+        { 0x0181L, 0x0181L, 1, 0x0253L - 0x0181L },                   /* Hausa's hooked */
+        { 0x018AL, 0x018AL, 1, 0x0257L - 0x018AL },                   /* letters: Ɓ Ɗ */
+        { 0x0198L, 0x0198L, 1, 1 }, { 0x01B3L, 0x01B3L, 1, 1 },        /* Ƙ Ƴ */
         { 0x01CDL, 0x01DBL, 2, 1 }, { 0x01DEL, 0x01EEL, 2, 1 },        /* Latin Extended-B */
         { 0x01F8L, 0x021EL, 2, 1 }, { 0x0222L, 0x0232L, 2, 1 },
         { 0x0386L, 0x0386L, 1, 0x26 }, { 0x0388L, 0x038AL, 1, 0x25 },  /* Greek */

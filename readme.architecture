@@ -1503,8 +1503,11 @@ divider: "...with all their hearts. Beth" (the NLT's 119:8), "ALEPH.
 Blessed are...", "[Beth.]", "- BETH -", "<<ALEPH>>", "(א) I will
 praise", "Bet ב", "ב Bet". Printed as plain words in the verse, a reader
 can take it for the verse's text. So each one that can be told apart is
-set apart, as a note of its own (see "Notes" above), on its own line with
-"---" in the margin: after the words it came after, before the words it
+set apart, as a heading of its own, on its own line with "===" in the
+margin (a note's "---", see "Notes" above, until November 22, 2026, when
+the designer chose "===" for these and the Song of Songs' speakers, both
+headings a translation adds; see "The speakers" below): after the words
+it came after, before the words it
 came before, and in the middle of a verse if it was there (Psalms 111 and
 112, half a verse each letter; the words after it go on, on a line with a
 blank margin). The designer's reasoning: in brackets, a reader would see
@@ -1556,8 +1559,68 @@ it isn't the text; as plain words, not always.
   - Not dividers: "Selah" (the NLT's "Interlude"), "Amen", and the
     psalms' titles are in the Hebrew text itself. The Song of Songs'
     speaker labels ("Young Woman", "Beloved", "She") are dividers of the
-    same kind, but mixed into verses, and with a note in 1:1: left for a
-    change of their own.
+    same kind: see "The speakers", next.
+
+The speakers (November 22, 2026; the designer's decisions). Many
+translations print who speaks in the Song of Songs, headings their
+translators add (the NLT's note on 1:1: "The headings identifying the
+speakers are not in the original text"). As plain words they are run
+into the verses: at a verse's end, naming who speaks next ("...more
+wonderful than any other. Young Woman", the NLT's 1:1), or in the middle
+of one ("...more than wine! Beloved They are right to love you.", the
+World English Bible's 1:4). Each is set apart as a heading, on its own line with "===" in the margin, as Psalm 119's letters
+are, and voice leaves it out.
+
+  - A heading within or between verses is stored as a part (after a tab)
+    that starts with a "=" alone, "= Young Woman", as a note starts with
+    a "-" (userint.c's next_part(): "===" in the margin; api.c's
+    plain_text(): not spoken). The index skips the "=" (a word without
+    letters). Psalm 119's letters are stored so too.
+  - Found without knowing the book or the language (speakers.c), from
+    the text: a label is one to five words of letters, the first a
+    capital, after a clause's end, at a verse's end. Such words end a
+    verse now and then anywhere, a sentence going on into the next verse.
+    So a book has speakers only if its labels are a cast: two or more
+    found three times or more, changing from one to another more than
+    once; eight at most found twice or more, those seven in ten of all
+    found; and twice as many of them as the book has chapters.
+  - Checked on every translation of thiagobodruk/bible and
+    scrollmapper/bible_databases, each added by the importer: a cast is
+    found in the Song of Songs of every translation seen to print one,
+    in English (the NLT, NIV, ESV, NKJV, NASB, CSB, GNT, the World
+    English Bible and its editions), Portuguese, Norwegian, Turkish,
+    Maori, Haitian Creole, Cebuano, Malay and African languages (Hausa,
+    Yoruba, Igbo, Shona and more); and in one other book: the Jubilee
+    Bible's Lamentations, whose letters' names end the verses before
+    them ("...between the straits. Daleth"), as the NLT's Psalm 119's do,
+    which acrostic.c doesn't take there; they are set apart so too.
+    Never in Psalms ("Interlude"), nor in any other book.
+  - A capital is a letter that isn't its own small letter (u8_lower()),
+    in any script it knows: for this, Hausa's hooked letters Ɓ Ɗ Ƙ Ƴ were
+    added to utf8.c's capitals (Hausa's labels, "Ƙaunatacciya", start
+    with one). Searches fold them too, as every other capital: "ƙauna"
+    finds "Ƙauna".
+  - In a book with a cast, every label at a verse's end is one (the
+    NLT's "The Young Woman's Brothers", found once), and in a verse, one
+    found at a verse's end, with a sentence starting after it. The words
+    are kept as written.
+  - Not set apart: a label with a colon before the words spoken ("Ela:
+    Beije-me...", "Sulammith: Je suis noire...", "Bride:"), in four
+    translations of scrollmapper/bible_databases (FreBBB, PorBLivre,
+    PorBLivreTR, CPDV). The prophets have the same shape, often enough to
+    look like a cast ("Thus says the Lord God:" 69 times in the CPDV's
+    Ezekiel, "Miqueias diz:"), and they are the text: left where it is,
+    rather than guessed at. Its colon already shows it as a label.
+  - The NLT's 1:1 has a note run on into its label, "Young Woman#1:1 The
+    headings...": the label is set apart, and the note after it, as a
+    note ("---").
+  - A translation added before keeps its old text until removed and
+    added again (the designer: no special case for it); Psalm 119's
+    letters too keep their "---" until then.
+  - Where the source leaves a label out, EBaC doesn't add it: the NLT,
+    as thiagobodruk/bible has it, has none at a chapter's start (before
+    2:1, where the printed NLT has "Young Woman"), as it has no Aleph
+    before Psalm 119:1.
 
 Checked: every word of the text between Gutenberg's START and END lines
 is in the books, but the chapter-heading lines and verse numbers, whose

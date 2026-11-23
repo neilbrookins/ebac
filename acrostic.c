@@ -1,6 +1,6 @@
 /*
 ** acrostic.c: the Hebrew alphabet's letters in a translation, set apart as
-** notes (included by import.c; see "The Hebrew alphabet's letters" in
+** headings (included by import.c; see "The Hebrew alphabet's letters" in
 ** readme.architecture). The designer, November 18, 2026.
 **
 ** Psalm 119, and other psalms and chapters (Psalms 9-10, 25, 34, 37, 111,
@@ -11,8 +11,11 @@
 ** 119:8, the name of the stanza that follows), "ALEPH. Blessed are...",
 ** "(א) I will praise the Lord", "Bet ב". It isn't the verse's text, but in
 ** the text as plain words it reads as if it were. So each one found is
-** taken out of the words around it and kept as a note of its own, on its
-** own line with "---" in the margin, as other notes are: before the words
+** taken out of the words around it and kept as a heading of its own, on
+** its own line with "===" in the margin, as a chapter's heading has (the
+** designer, November 22, 2026: they are headings the translation adds, as
+** the Song of Songs' speakers, "Young Woman", are; first set apart with a
+** note's "---", November 18): before the words
 ** it was before, after the words it was after, in the middle of a verse
 ** if it was there (a verse's text may then go on after the note, on a line
 ** with a blank margin).
@@ -710,8 +713,9 @@ static size_t other_spelling(const char *v)
 
 /*
 ** Purpose: a verse's text with its dividers set apart (into out): each a
-**          part of its own, after a tab, that starts with "- " (a note:
-**          see "Notes" in readme.architecture); the words before it and
+**          part of its own, after a tab, that starts with "= " (a heading:
+**          see "Notes" in readme.architecture, and next_part() in
+**          userint.c); the words before it and
 **          after it parts of their own. kind: acrostic_kind(). *expect:
 **          the next letter in the alphabet's order (in an acrostic other
 **          than Psalm 119, a divider is taken only if it is the next
@@ -734,7 +738,7 @@ static void set_letters_apart(const char *v, Alphabet *a, int kind, long verse,
                    Lamentations, "GIMEL." in its Psalm 118) */
                 if (kind == 1 && i == 0 && (len = other_spelling(v)) > 0)
                 {
-                        str_adds(out, "\t- ");
+                        str_adds(out, "\t= ");
                         str_add(out, v, len);
                         parts++;
                         for (from = len; v[from] == ' ' || v[from] == '\t'; from++)
@@ -783,7 +787,7 @@ static void set_letters_apart(const char *v, Alphabet *a, int kind, long verse,
                         str_add(out, v + from, n - from);
                         parts++;
                 }
-                str_adds(out, "\t- ");
+                str_adds(out, "\t= ");
                 str_add(out, v + i, len);
                 parts++;
                 for (from = i + len; v[from] == ' ' || v[from] == '\t'; from++)

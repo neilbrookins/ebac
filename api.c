@@ -346,7 +346,8 @@ static char *full_name(int b, char *name)
 /* Purpose: a verse's text, without the [ ] and << >> marks, for speech; and
             without its notes, which aren't the verse's text (see "Notes"
             in readme.architecture): a part after a tab that starts with
-            a "-" alone, and anything in { } (a note in the verse, as
+            a "-" alone (or a heading's "=": "= Young Woman"), and
+            anything in { } (a note in the verse, as
             the World English Bible has them; a "{" without its "}" is
             only left out itself) */
 static void plain_text(char *from, char *to, int size)
@@ -376,9 +377,11 @@ static void plain_text(char *from, char *to, int size)
                 {
                         for (p = from + 1; *p == ' '; p++)
                                 ;
-                        if (p[0] == '-' && (p[1] == ' ' || p[1] == '\t' || p[1] == '\0'))
+                        if ((p[0] == '-' || p[0] == '=') &&
+                            (p[1] == ' ' || p[1] == '\t' || p[1] == '\0'))
                         {
-                                /* a note: left out, to the next part */
+                                /* a note, or a heading ("= Young Woman",
+                                   "= Beth"): left out, to the next part */
                                 while (p[1] != '\0' && p[1] != '\t')
                                         p++;
                                 from = p;

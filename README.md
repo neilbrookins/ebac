@@ -671,6 +671,10 @@ Translations are added and removed for everyone using this copy of EBaC: another
 
 Adding needs at least 1 GB of free disk space where EBaC keeps its translations, and where it downloads them first (the temporary folder, `/tmp` unless `TMPDIR` says otherwise): with less on either, it says "not enough disk space" and adds nothing (removing still works). This keeps a script, or anyone speaking to a voice assistant, from filling the disk by adding one translation after another. Adding from Project Gutenberg checks the same.
 
+#### Headings a translation adds
+
+Some translations run a heading of their own into the verses as plain words: Psalm 119's letters (`...with all their hearts. Beth`, before the stanza that starts with that letter) and the Song of Songs' speakers (`...more wonderful than any other. Young Woman`, before the words she speaks). EBaC finds them as a translation is added, in any language, and shows each on its own line with **===** in the margin, so they don't read as part of the verse; voice (Assist) doesn't say them. Where a translation's source leaves one out (thiagobodruk/bible's New Living Translation has none before a chapter's first verse), EBaC doesn't add it. A translation you added before this shows them as it did (Psalm 119's letters with **---**) until you remove it and add it again.
+
 #### Which translation EBaC uses
 
 A translation just added is put first in `trans`, so EBaC reads from it at once, and starts with it from then on too.
