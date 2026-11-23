@@ -59,6 +59,23 @@
            align-items: center; justify-content: center; }
   #ended div { background: rgba(60, 60, 60, 0.95); padding: 0.8em 1.2em;
                border-radius: 6px; }
+  /* the settings for the bell (#settings below): a small, faint button in
+     the top right corner, over the terminal, and its panel */
+  #gear { position: fixed; top: 4px; right: 4px; z-index: 7; width: 30px; height: 30px;
+          padding: 0; border: 0; border-radius: 15px; background: transparent;
+          color: #fff; opacity: 0.35; font: 20px/30px sans-serif; cursor: pointer; }
+  #gear:hover, #gear:focus-visible, #gear[aria-expanded="true"] { opacity: 1; background: #26313d; }
+  #settings { display: none; position: fixed; top: 38px; right: 6px; z-index: 6;
+              max-width: calc(100% - 28px); padding: 0.7em 0.9em; border-radius: 7px;
+              background: #26313d; color: #fff; border: 1px solid #3d4b5a;
+              font: 16px/1.4 sans-serif; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6); }
+  #settings p { margin: 0 0 0.4em; font-weight: bold; }
+  #settings label { display: flex; align-items: center; gap: 0.6em; padding: 0.35em 0;
+                    cursor: pointer; }
+  /* (behind the open panel, over the terminal: a tap there closes the
+     panel, and goes no further) */
+  #backdrop { display: none; position: fixed; inset: 0; z-index: 5; }
+  #settings input { width: 20px; height: 20px; margin: 0; accent-color: #ffd54f; }
 </style>
 </head>
 <body>
@@ -77,9 +94,68 @@
   <button class="close" type="button" aria-label="Not now">&#x2715;</button>
 </div>
 <div id="terminal-container"></div>
+<button id="gear" type="button" aria-label="Settings" aria-haspopup="true"
+        aria-expanded="false" aria-controls="settings">&#x2699;&#xFE0E;</button>
+<div id="backdrop"></div>
+<div id="settings" role="group" aria-label="When EBaC beeps">
+  <p>When EBaC beeps:</p>
+  <label><input type="checkbox" data-part="sound"> Beep</label>
+  <label><input type="checkbox" data-part="flash"> Flash the screen</label>
+  <label class="vibrate"><input type="checkbox" data-part="vibrate"> Vibrate</label>
+</div>
 <script src="xterm.js"></script>
 <script src="addon-fit.js"></script>
 <script src="gestures.js"></script>
+<script>
+  /*
+  ** The bell's settings (the designer, November 22, 2026): where EBaC
+  ** beeps, gestures.js beeps, flashes the screen and buzzes a phone, each
+  ** unless window.EBAC_BELL says false. The Home Assistant app and the
+  ** Docker image set them in their own settings; here, a small button in
+  ** the corner opens three switches, kept in this browser (each device
+  ** its own: a phone by someone asleep can be quiet, the computer not).
+  ** All on, unless turned off. Vibrate only where the browser can.
+  */
+  (function () {
+    const KEY = "ebac-bell";
+    const gear = document.getElementById("gear");
+    const panel = document.getElementById("settings");
+    const boxes = panel.querySelectorAll("input[data-part]");
+    const backdrop = document.getElementById("backdrop");
+    let bell = {};
+    try { bell = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { bell = {}; }
+    window.EBAC_BELL = bell;
+    if (!navigator.vibrate)
+      panel.querySelector(".vibrate").style.display = "none";
+    for (const box of boxes) {
+      box.checked = bell[box.dataset.part] !== false;
+      box.addEventListener("change", () => {
+        bell[box.dataset.part] = box.checked;
+        try { localStorage.setItem(KEY, JSON.stringify(bell)); } catch (e) { /* this visit only */ }
+      });
+    }
+    function open(on) {
+      panel.style.display = on ? "block" : "none";
+      backdrop.style.display = on ? "block" : "none";
+      gear.setAttribute("aria-expanded", on ? "true" : "false");
+      // (back to the terminal, to type, with a mouse and keyboard; on a
+      // touch screen not, as that would bring up the phone's keyboard)
+      if (!on && window.term && !window.matchMedia("(pointer: coarse)").matches)
+        window.term.focus();
+    }
+    gear.addEventListener("click", () => open(panel.style.display !== "block"));
+    // (a click or tap anywhere else, or Escape, closes it)
+    backdrop.addEventListener("click", () => open(false));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && panel.style.display === "block") {
+        e.stopPropagation();
+        e.preventDefault();
+        open(false);
+      }
+    }, true);
+    window.ebacSettings = () => panel.style.display === "block";   // (test.mjs)
+  }());
+</script>
 <script>
   /*
   ** The offer of a shortcut on the home screen (web/README.md): a bar above

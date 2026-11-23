@@ -678,6 +678,71 @@ for (const [name, view] of [
                `the bell turned off: rung (${offAfter[0]}), no beep (${offAfter[1]}), no flash (${offDuring || "none"})`);
         await off.close();
     }
+
+    // the settings button in the corner (this page's own; the app and the
+    // Docker image have theirs in their settings): Beep and Flash turned
+    // off there, kept after the page is opened again; the bell then rings
+    // with neither. A click beside the open panel closes it, and goes no
+    // further (the designer, November 22, 2026)
+    {
+        const sp = await browser.newPage();
+        await sp.setViewport({ width: 1200, height: 900 });
+        await sp.goto("http://localhost:8097/", { waitUntil: "load" });
+        await check(sp, "the main menu, for the settings", "Main Menu");
+        await sp.evaluate(() => localStorage.removeItem("ebac-bell"));
+        const gear = await sp.evaluate(() => {
+            const r = document.getElementById("gear").getBoundingClientRect();
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width };
+        });
+        await sp.mouse.click(gear.x, gear.y);
+        await sleep(300);
+        const opened = await sp.evaluate(() => [window.ebacSettings(),
+            [...document.querySelectorAll("#settings input")].map(b => b.checked)]);
+        report(gear.w > 0 && opened[0] && opened[1].every(c => c),
+               `the settings button opens its panel, every switch on (${opened[1].join(", ")})`);
+        for (const part of ["sound", "flash"]) {
+            const box = await sp.evaluate((part) => {
+                const r = document.querySelector(`#settings input[data-part="${part}"]`).getBoundingClientRect();
+                return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+            }, part);
+            await sp.mouse.click(box.x, box.y);
+        }
+        // (a click beside it, over the main menu's S)earch: closes, no more)
+        const beside = await sp.evaluate(() => {
+            const t = window.term, buf = t.buffer.active;
+            const sc = t.element.querySelector(".xterm-screen").getBoundingClientRect();
+            for (let r = 0; r < t.rows; r++)
+                if (/^\s*S\)/.test(buf.getLine(buf.viewportY + r).translateToString(true)))
+                    return { x: sc.left + 30, y: sc.top + (r + 0.5) * sc.height / t.rows };
+            return { x: 10, y: 400 };
+        });
+        await sp.mouse.click(beside.x, beside.y);
+        await sleep(800);
+        const closed = await sp.evaluate(() => !window.ebacSettings());
+        report(closed && (await screen(sp)).includes("Main Menu"),
+               "a click beside the panel closes it, and doesn't choose S) under it");
+        await sp.goto("http://localhost:8097/", { waitUntil: "load" });
+        await check(sp, "the main menu again, the settings kept", "Main Menu");
+        const kept = await sp.evaluate(() => [window.EBAC_BELL,
+            [...document.querySelectorAll("#settings input")].map(b => b.dataset.part + "=" + b.checked)]);
+        report(kept[0].sound === false && kept[0].flash === false && kept[0].vibrate !== false,
+               `kept, the page opened again: ${kept[1].join(", ")}`);
+        await keys(sp, "v");
+        await keys(sp, "genesis\r");
+        await keys(sp, "1\r");
+        await keys(sp, "1\r");
+        await check(sp, "V: Genesis 1:1, Beep and Flash off", "1:1");
+        await keys(sp, ",");
+        await sleep(60);
+        const spDuring = await sp.evaluate(() => window.term.element.style.filter);
+        await sleep(600);
+        const spAfter = await sp.evaluate(() => [window.ebacBells, window.ebacBellSounds]);
+        report(spAfter[0] === 1 && spAfter[1] === 0 && spDuring === "",
+               `the bell, Beep and Flash off in the settings: rung (${spAfter[0]}), ` +
+               `no beep (${spAfter[1]}), no flash (${spDuring || "none"})`);
+        await sp.evaluate(() => localStorage.removeItem("ebac-bell"));
+        await sp.close();
+    }
     // "F/f) Font: LARGER / smaller": left of the "/" between the words, F
     // (as if typed), right of it, f, with the half rows above and below
     // (the designer, November 19, 2026)
