@@ -756,14 +756,15 @@
     ** farther, or longer, still goes on, a verse a notch. (150 ms at first;
     ** the designer, November 24, 2026: 50, a third, as a wheel turned fast
     ** on purpose lost all but its first notches: a notch's own burst of
-    ** events comes closer together than that.)
+    ** events comes closer together than that; then 25, half again, for
+    ** faster still. A burst over 12 ms is still one: web/test.mjs.)
     **
     ** On the search results, an arrow is a screen (EBaC's n and p), so the
     ** moment is longer, WHEEL_PAGE_GAP: two or three notches, turned a
     ** little, are a screen, not two or three, which would skip results
     ** never seen; a longer turn goes on, a screen at a time.
     */
-    var WHEEL_GAP = 50;
+    var WHEEL_GAP = 25;
     var WHEEL_PAGE_GAP = 500;
     var wheelSteps = 0;         /* part of a notch, carried to the next turn */
     var wheelLast = 0;          /* when the last arrow went */

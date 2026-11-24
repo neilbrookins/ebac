@@ -139,16 +139,28 @@ for (const [name, view] of [
             await page.mouse.wheel({ deltaY: 100 });
             await sleep(800);
             const r1 = await refs();
-            // (a burst as a wheel sends it, its events a few milliseconds
-            // apart, all within one moment: dispatched in the page, as the
-            // test's own events, sent one by one, come further apart)
-            await page.evaluate(() => {
+            // (a burst as a wheel sends it for one notch, its events 4 ms
+            // apart, over 12 ms: dispatched in the page, as the test's own
+            // events, sent one by one, come further apart)
+            await page.evaluate(() => new Promise((done) => {
                 const at = window.term.element.querySelector(".xterm-screen").getBoundingClientRect();
-                for (let i = 0; i < 4; i++)
-                    window.term.element.dispatchEvent(new WheelEvent("wheel", {
-                        deltaY: 100, deltaMode: 0, bubbles: true, cancelable: true,
-                        clientX: at.left + at.width / 2, clientY: at.top + at.height / 2 }));
-            });
+                const one = () => window.term.element.dispatchEvent(new WheelEvent("wheel", {
+                    deltaY: 100, deltaMode: 0, bubbles: true, cancelable: true,
+                    clientX: at.left + at.width / 2, clientY: at.top + at.height / 2 }));
+                const start = performance.now();
+                let sent = 0;
+                const next = () => {
+                    while (sent < 4 && performance.now() - start >= sent * 4) {
+                        one();
+                        sent++;
+                    }
+                    if (sent < 4)
+                        setTimeout(next, 1);
+                    else
+                        done();
+                };
+                next();
+            }));
             await sleep(800);
             const r2 = await refs();
             for (let i = 0; i < 3; i++) {
