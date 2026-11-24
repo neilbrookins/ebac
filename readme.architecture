@@ -2725,7 +2725,7 @@ the browser's own fetch in the browser.
     the open panel only closes it (it doesn't reach the terminal), as
     Escape does.
   - The mouse, again (November 24, 2026; the designer's decisions): the
-    wheel's moment on the passage is 50 ms, a third of 150 (a wheel
+    wheel's moment on the passage is 50 ms, a third of 150, then 25 (a wheel
     turned fast on purpose lost all but its first notches; a notch's own
     burst of events comes closer together than 50 ms); the search
     results keep 500 ms. With a mouse, the pointer is a hand where a
