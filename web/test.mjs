@@ -139,8 +139,16 @@ for (const [name, view] of [
             await page.mouse.wheel({ deltaY: 100 });
             await sleep(800);
             const r1 = await refs();
-            for (let i = 0; i < 4; i++)
-                await page.mouse.wheel({ deltaY: 100 });
+            // (a burst as a wheel sends it, its events a few milliseconds
+            // apart, all within one moment: dispatched in the page, as the
+            // test's own events, sent one by one, come further apart)
+            await page.evaluate(() => {
+                const at = window.term.element.querySelector(".xterm-screen").getBoundingClientRect();
+                for (let i = 0; i < 4; i++)
+                    window.term.element.dispatchEvent(new WheelEvent("wheel", {
+                        deltaY: 100, deltaMode: 0, bubbles: true, cancelable: true,
+                        clientX: at.left + at.width / 2, clientY: at.top + at.height / 2 }));
+            });
             await sleep(800);
             const r2 = await refs();
             for (let i = 0; i < 3; i++) {
