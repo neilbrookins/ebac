@@ -2724,3 +2724,12 @@ the browser's own fetch in the browser.
     its own, as the beep suits where the device is. A click or tap beside
     the open panel only closes it (it doesn't reach the terminal), as
     Escape does.
+  - The mouse, again (November 24, 2026; the designer's decisions): the
+    wheel's moment on the passage is 50 ms, a third of 150 (a wheel
+    turned fast on purpose lost all but its first notches; a notch's own
+    burst of events comes closer together than 50 ms); the search
+    results keep 500 ms. With a mouse, the pointer is a hand where a
+    click does something (the same test as a click's, tapAction), the I
+    of text elsewhere and while a line is typed. And the main menu has a
+    blank row between "Main Menu" and C), so a click on the heading,
+    taken for C before (within half a row of it), does nothing.
