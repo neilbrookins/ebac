@@ -264,8 +264,11 @@ static int main_menu(void)
         printf("\nMain Menu\n");
         underend();
         /* a blank line between the choices, so each is easy to tap on a
-           touch screen (see gestures.js in the Home Assistant app) */
-        printf("C)hange to a different translation\n\n");
+           touch screen (see gestures.js in the Home Assistant app); and
+           one after the heading, so a tap or click on "Main Menu" isn't
+           taken for C (the designer, November 24, 2026: it was, by people
+           who didn't see why the translations came up) */
+        printf("\nC)hange to a different translation\n\n");
 #ifdef UNIXV
         if (ANY_IMPORTER)
                 printf("A)dd or remove a translation\n\n");

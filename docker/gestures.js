@@ -753,14 +753,17 @@
     ** more, too far to keep one's place). And a notch's events coming
     ** close together (a wheel that sends a burst of them) are one: after
     ** an arrow, none for a moment: WHEEL_GAP milliseconds. A wheel turned
-    ** farther, or longer, still goes on, a verse a notch.
+    ** farther, or longer, still goes on, a verse a notch. (150 ms at first;
+    ** the designer, November 24, 2026: 50, a third, as a wheel turned fast
+    ** on purpose lost all but its first notches: a notch's own burst of
+    ** events comes closer together than that.)
     **
     ** On the search results, an arrow is a screen (EBaC's n and p), so the
     ** moment is longer, WHEEL_PAGE_GAP: two or three notches, turned a
     ** little, are a screen, not two or three, which would skip results
     ** never seen; a longer turn goes on, a screen at a time.
     */
-    var WHEEL_GAP = 150;
+    var WHEEL_GAP = 50;
     var WHEEL_PAGE_GAP = 500;
     var wheelSteps = 0;         /* part of a notch, carried to the next turn */
     var wheelLast = 0;          /* when the last arrow went */
@@ -885,6 +888,43 @@
             return;
         mouseClicked = Date.now();
         clickAt(down.y, down.x);
+    }
+
+    /*
+    ** With a mouse, where a click does something, the pointer is a hand,
+    ** as over a link (the designer, November 24, 2026: over the terminal
+    ** it was always the I of text, and nothing showed what could be
+    ** clicked). The same test as a click's (tapAction), looked at again
+    ** as the mouse moves and as the screen changes under it; not while a
+    ** line is typed, where a click is Enter only when the phone's keyboard
+    ** is up, and the I is right.
+    */
+    var hoverAt = null, hoverFrame = 0, hoverEl = null;
+
+    function hoverShow() {
+        var action = null;
+
+        hoverFrame = 0;
+        if (!hoverEl)
+            return;
+        if (hoverAt && mode !== "input" && mode !== "search")
+            action = tapAction(hoverAt.y, hoverAt.x);
+        hoverEl.classList.toggle("ebac-clickable", !!action);
+    }
+
+    function hoverLater() {
+        if (!hoverFrame)
+            hoverFrame = window.requestAnimationFrame(hoverShow);
+    }
+
+    function onMouseMove(e) {
+        hoverAt = { x: e.clientX, y: e.clientY };
+        hoverLater();
+    }
+
+    function onMouseLeave() {
+        hoverAt = null;
+        hoverLater();
     }
 
     function onClick(e) {
@@ -1322,6 +1362,20 @@
         }, true);
         el.addEventListener("mousedown", onMouseDown, true);
         window.addEventListener("mouseup", onMouseUp, true);
+        /* (the hand where a click does something: see hoverShow) */
+        hoverEl = el;
+        el.addEventListener("mousemove", onMouseMove, true);
+        el.addEventListener("mouseleave", onMouseLeave, true);
+        if (t.onRender)
+            t.onRender(function () {
+                if (hoverAt)
+                    hoverLater();
+            });
+        (function () {
+            var css = document.createElement("style");
+            css.textContent = ".ebac-clickable, .ebac-clickable * { cursor: pointer !important; }";
+            document.head.appendChild(css);
+        }());
         el.addEventListener("click", onClick, true);
         el.addEventListener("wheel", onWheel, { capture: true, passive: false });
         /* (on the terminal, capturing: before the typing box's own

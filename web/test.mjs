@@ -747,6 +747,35 @@ for (const [name, view] of [
         await sp.evaluate(() => localStorage.removeItem("ebac-bell"));
         await sp.close();
     }
+    // the mouse over a choice: a hand, as over a link; over "Main Menu",
+    // just above C), none, and a click there does nothing (the designer,
+    // November 24, 2026: it was taken for C)
+    {
+        await page.goto("http://localhost:8097/", { waitUntil: "load" });
+        await check(page, "the main menu, for the hand", "Main Menu");
+        const rowsAt = await page.evaluate(() => {
+            const t = window.term, buf = t.buffer.active;
+            const sc = t.element.querySelector(".xterm-screen").getBoundingClientRect();
+            const at = {};
+            for (let r = 0; r < t.rows; r++) {
+                const s = buf.getLine(buf.viewportY + r).translateToString(true);
+                if (/^Main Menu/.test(s)) at.title = r;
+                if (/^C\)/.test(s)) at.c = r;
+            }
+            const y = (r) => sc.top + (r + 0.5) * sc.height / t.rows;
+            return { x: sc.left + 30, title: y(at.title), c: y(at.c), gap: at.c - at.title };
+        });
+        const hand = async (y) => {
+            await page.mouse.move(rowsAt.x, y);
+            await sleep(200);
+            return page.evaluate(() => window.term.element.classList.contains("ebac-clickable"));
+        };
+        const overC = await hand(rowsAt.c), overTitle = await hand(rowsAt.title);
+        const titleKey = await page.evaluate((y, x) => window.ebacTapKey(y, x), rowsAt.title, rowsAt.x);
+        report(overC && !overTitle && titleKey === null && rowsAt.gap === 2,
+               `the hand over C) (${overC}), not over "Main Menu" (${overTitle}), ` +
+               `a blank row between them (${rowsAt.gap - 1}), a click on "Main Menu": nothing (${titleKey})`);
+    }
     // "F/f) Font: LARGER / smaller": left of the "/" between the words, F
     // (as if typed), right of it, f, with the half rows above and below
     // (the designer, November 19, 2026)
